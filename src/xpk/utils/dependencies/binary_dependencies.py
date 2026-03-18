@@ -29,6 +29,7 @@ class BinaryDependency:
   url_template: str
   version: str
   arch_map: dict[str, str] = dataclasses.field(default_factory=dict)
+  os_map: dict[str, str] = dataclasses.field(default_factory=dict)
 
 
 class BinaryDependencies(enum.Enum):
@@ -93,7 +94,29 @@ class BinaryDependencies(enum.Enum):
               '162c602f2ae4c4b15c36a08eaf501d301493fb128ca32443611107a1b26868fa'
           ),
       },
-      url_template='https://github.com/google/go-containerregistry/releases/download/{version}/go-containerregistry_{os_capitalized}_{arch}.tar.gz',
+      url_template='https://github.com/google/go-containerregistry/releases/download/{version}/go-containerregistry_{os}_{arch}.tar.gz',
       version='v0.21.2',
       arch_map={'amd64': 'x86_64', 'arm64': 'arm64'},
+      os_map={'darwin': 'Darwin', 'linux': 'Linux'},
+  )
+  GCLUSTER = BinaryDependency(
+      archive_type='zip',
+      binary_name='gcluster',
+      checksums={
+          'darwin_amd64': (
+              'f1d5f71bd239743d6e29471993ed1fe52b889a71a19b7c6b6e7027e8a75fafbd'
+          ),
+          'darwin_arm64': (
+              'f1d5f71bd239743d6e29471993ed1fe52b889a71a19b7c6b6e7027e8a75fafbd'
+          ),
+          'linux_amd64': (
+              'c224041a09259c47da924f542fc4e8c866fb6027581915bd7a3f48738f7c785b'
+          ),
+          'linux_arm64': (
+              'c224041a09259c47da924f542fc4e8c866fb6027581915bd7a3f48738f7c785b'
+          ),
+      },
+      url_template='https://github.com/GoogleCloudPlatform/cluster-toolkit/releases/download/{version}/gcluster_bundle_{os}.zip',
+      version='v1.84.0',
+      os_map={'darwin': 'mac'},
   )

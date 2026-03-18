@@ -17,15 +17,15 @@ spec:
   - name: pathways-head
     replicas: 1
     template:
+      metadata:
+        annotations:
+          alpha.jobset.sigs.k8s.io/exclusive-topology: kubernetes.io/hostname
       spec:
         backoffLimit: 0
         completionMode: Indexed
         completions: 1
         parallelism: 1
         template:
-          metadata:
-            annotations:
-              alpha.jobset.sigs.k8s.io/exclusive-topology: kubernetes.io/hostname
           spec:
             hostNetwork: true
             dnsPolicy: ClusterFirstWithHostNet
@@ -135,6 +135,11 @@ spec:
   - name: worker
     replicas: {{ args.num_slices }}
     template:
+{% if jobset_annotations %}
+      metadata:
+        annotations:
+          {{ jobset_annotations }}
+{% endif %}
       spec:
         backoffLimit: {{ worker_backoff_limit }}
         completionMode: Indexed
@@ -144,8 +149,10 @@ spec:
           metadata:
             labels:
               xpk.google.com/workload: {{ args.workload }}
+{% if tpu_slice_topology_annotation %}
             annotations:
-              alpha.jobset.sigs.k8s.io/exclusive-topology: cloud.google.com/gke-nodepool
+              {{ tpu_slice_topology_annotation }}
+{% endif %}
           spec:
             hostNetwork: true
             dnsPolicy: ClusterFirstWithHostNet
@@ -226,6 +233,11 @@ spec:
                 - mountPath: /tmp
                   name: shared-tmp
             restartPolicy: OnFailure
+{% if is_tpu %}
+            tolerations:
+            - operator: "Exists"
+              key: google.com/tpu
+{% endif %}
             volumes:
             - hostPath:
                 path: /tmp

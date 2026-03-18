@@ -32,17 +32,12 @@ jobs:
       uses: actions/setup-python@v3
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Prepare directories
-      run: mkdir -p ~/.cache/pip
-    - name: Restore cached dependencies
-      uses: actions/cache@v4
+    - uses: google-github-actions/setup-gcloud@v2
       with:
-        path: |
-          /usr/local/bin/kubectl-kueue
-          ~/.cache/pip
-          ${{env.pythonLocation}}
-        key: xpk-deps-${{matrix.python-version}}-${{github.run_id}}-${{github.run_attempt}}
-        restore-keys: xpk-deps-${{matrix.python-version}}-
+        version: '>= 363.0.0'
+        install_components: 'beta, gke-gcloud-auth-plugin'
+    - name: install dependencies
+      run: make install-dev
     - name: Run pylint
       run: make pylint
     - name: Check format with pyink

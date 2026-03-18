@@ -146,7 +146,9 @@ def check_if_workload_can_schedule(
 
   xpk_print(
       'Workload scheduling validation failed. XPK will not create the workload'
-      f' {args.workload}.'
+      f' {args.workload}. The nodepool for the requested device type'
+      f' {workload_system.device_type} is not present on the cluster'
+      f' {args.cluster}.'
   )
   return WorkloadScheduling.UNAVAILABLE
 

@@ -17,7 +17,7 @@ limitations under the License.
 from unittest.mock import MagicMock
 import pytest
 from .testing.commands_tester import CommandsTester
-from .cluster import get_cluster_credentials, update_gke_cluster_with_lustre_driver_enabled, update_cluster_with_lustre_driver_if_necessary, set_jobset_on_cluster
+from .cluster import get_cluster_credentials, update_gke_cluster_with_lustre_driver_enabled, update_cluster_with_lustre_driver_if_necessary, set_jobset_on_cluster, update_cluster_with_mtc_if_necessary
 from pytest_mock import MockerFixture
 
 
@@ -243,3 +243,59 @@ def test_set_jobset_on_cluster_super_slicing_resources(
 
   assert result == 0
   mock_patch_controller_manager_resources.assert_called()
+
+
+def test_update_cluster_with_mtc_if_necessary_already_enabled(
+    commands_tester: CommandsTester, command_args
+):
+  commands_tester.set_result_for_command(
+      (0, "True"),
+      "gcloud container clusters describe",
+  )
+  return_code = update_cluster_with_mtc_if_necessary(command_args)
+
+  assert return_code == 0
+  executed_commands = commands_tester.get_matching_commands()
+  assert executed_commands == [
+      "gcloud container clusters describe cluster --project=project"
+      " --location=us-central1"
+      ' --format="value(addonsConfig.highScaleCheckpointingConfig.enabled)"'
+  ]
+
+
+def test_update_cluster_with_mtc_if_necessary_enables_addon_successfully(
+    commands_tester: CommandsTester, command_args
+):
+  commands_tester.set_result_for_command(
+      (0, "False"),
+      "gcloud container clusters describe",
+  )
+  commands_tester.set_result_for_command(
+      (0, ""),
+      "gcloud container clusters update",
+  )
+
+  return_code = update_cluster_with_mtc_if_necessary(command_args)
+
+  assert return_code == 0
+  commands_tester.assert_command_run(
+      "gcloud container cluster",
+      "HighScaleCheckpointing=ENABLED,GcsFuseCsiDriver=ENABLED",
+  )
+
+
+def test_update_cluster_with_mtc_if_necessary_returns_error_code(
+    commands_tester: CommandsTester, command_args
+):
+  commands_tester.set_result_for_command(
+      (0, "False"),
+      "gcloud container clusters describe",
+  )
+  commands_tester.set_result_for_command(
+      (1, "error"),
+      "gcloud container clusters update",
+  )
+
+  return_code = update_cluster_with_mtc_if_necessary(command_args)
+
+  assert return_code == 1

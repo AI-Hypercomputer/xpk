@@ -131,6 +131,7 @@ def construct_args(**kwargs: Any) -> Namespace:
       managed_mldiagnostics=False,
       output_manifest_file='',
       num_cubes=None,
+      use_parallel_containers=True,
   )
   args_dict.update(kwargs)
   return Namespace(**args_dict)

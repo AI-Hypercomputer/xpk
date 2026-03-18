@@ -1,24 +1,28 @@
-# Workload create pathways
-Submits a Pathways-enabled workload to the cluster.
+# Workload create pathways super-slicing
+Submits a Pathways-enabled workload utilizing TPU super-slicing for large-scale distributed training to the cluster.
 
 # Running the command
 ```shell #golden
-xpk workload create-pathways --project=golden-project --zone=us-central1-a --cluster=golden-cluster --workload=golden-workload --command "bash hello" --tpu-type=v5p-8 --num-slices=1 --script-dir=/tmp
+DRY_RUN_RESOURCES_CONFIG_MAP="map[tpu7x-128:80]" xpk workload create-pathways --project=golden-project --zone=us-central1-a --cluster=golden-cluster --workload=golden-workload --command "bash hello" --tpu-type=tpu7x-4x4x20 --script-dir=/tmp
 ```
 <!--
-$ xpk workload create-pathways --project=golden-project --zone=us-central1-a --cluster=golden-cluster --workload=golden-workload --command "bash hello" --tpu-type=v5p-8 --num-slices=1 --script-dir=/tmp
+$ DRY_RUN_RESOURCES_CONFIG_MAP="map[tpu7x-128:80]" xpk workload create-pathways --project=golden-project --zone=us-central1-a --cluster=golden-cluster --workload=golden-workload --command "bash hello" --tpu-type=tpu7x-4x4x20 --script-dir=/tmp
 [XPK] Starting xpk v0.0.0
 [XPK] Task: `Check if Workload Already Exists` is implemented by the following command not running since it is a dry run. 
 kubectl get workloads -o=custom-columns='Jobset:.metadata.ownerReferences[0].name'
 [XPK] Task: `GKE Cluster Get ConfigMap` is implemented by the following command not running since it is a dry run. 
 kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="ConfigData:data" --no-headers=true
-[XPK] Skipping workload scheduling validation in dry run.
+[XPK] Task: `Get defined topologies` is implemented by the following command not running since it is a dry run. 
+kubectl get topology
+[XPK] Task: `Get kueue version on server` is implemented by the following command not running since it is a dry run. 
+kubectl get deployment kueue-controller-manager -n kueue-system -o jsonpath='{.spec.template.spec.containers[0].image}'
 [XPK] Starting workload create
 [XPK] Task: `GKE Cluster Get ConfigMap` is implemented by the following command not running since it is a dry run. 
 kubectl get configmap golden-cluster-metadata-configmap -o=custom-columns="ConfigData:data" --no-headers=true
 [XPK] Task: `GKE Cluster Get ConfigMap` is implemented by the following command not running since it is a dry run. 
 kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="ConfigData:data" --no-headers=true
 [XPK] gke_accelerator type not found in config map. Autoprovisioning is not enabled.
+[XPK] Workload will be scheduled using the Super-slicing feature.
 [XPK] Task: `Find cluster region or zone` is implemented by the following command not running since it is a dry run. 
 gcloud container clusters list --project=golden-project --filter=name=golden-cluster --format="value(location)"
 [XPK] Task: `Get All Node Pools` is implemented by the following command not running since it is a dry run. 
@@ -29,7 +33,7 @@ gcloud beta container node-pools list --cluster golden-cluster --project=golden-
 [XPK] Task: `Upload Container Image` is implemented by the following command not running since it is a dry run. 
 crane mutate python:3.10 --append e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 --platform linux/amd64 --tag gcr.io/golden-project/dry-run-runner:prefix-current --workdir /app
 [XPK] Deleting container image archive e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
-[XPK] Temp file (0678dfe212682ff519efebdd5b50719a953fd288b50b0dd5e42775d0bb87d332) content: 
+[XPK] Temp file (e7574bba6a3ad51a173d673c90ad230a9ba39c7f46cd000e09a952479d19460b) content: 
 apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
 metadata:
@@ -92,7 +96,7 @@ spec:
                 - --gcs_scratch_location=gs://cloud-pathways-staging/tmp
                 - --node_type=resource_manager
                 - --instance_count=1
-                - --instance_type=tpuv5:2x2x1
+                - --instance_type=tpu7x:4x4x20
                 env:
                 - name: REPLICATED_JOB_NAME
                   valueFrom:
@@ -174,26 +178,24 @@ spec:
   - name: worker
     replicas: 1
     template:
-      metadata:
-        annotations:
-          alpha.jobset.sigs.k8s.io/exclusive-topology: cloud.google.com/gke-nodepool
       spec:
-        backoffLimit: 4
+        backoffLimit: 320
         completionMode: Indexed
-        completions: 1
-        parallelism: 1
+        completions: 80
+        parallelism: 80
         template:
           metadata:
             labels:
               xpk.google.com/workload: golden-workload
+            annotations:
+              cloud.google.com/gke-tpu-slice-topology: 4x4x20
           spec:
             hostNetwork: true
             dnsPolicy: ClusterFirstWithHostNet
             terminationGracePeriodSeconds: 30
             priorityClassName: medium
             nodeSelector:
-              cloud.google.com/gke-tpu-accelerator: tpu-v5p-slice
-              cloud.google.com/gke-tpu-topology: 2x2x1
+              cloud.google.com/gke-tpu-accelerator: tpu7x
             containers:
               - name: pathways-worker
                 image: us-docker.pkg.dev/cloud-tpu-v2-images/pathways/server:latest
@@ -268,10 +270,11 @@ spec:
   suspend: false
 
 [XPK] Task: `Creating Workload` is implemented by the following command not running since it is a dry run. 
-kubectl apply -f 0678dfe212682ff519efebdd5b50719a953fd288b50b0dd5e42775d0bb87d332
+kubectl apply -f e7574bba6a3ad51a173d673c90ad230a9ba39c7f46cd000e09a952479d19460b
 [XPK] Task: `GKE Dashboard List` is implemented by the following command not running since it is a dry run. 
 gcloud monitoring dashboards list --project=golden-project --filter="displayName:'GKE - TPU Monitoring Dashboard'" --format="value(name)" --verbosity=error
 [XPK] Check statistics and outlier mode of GKE metrics here: https://console.cloud.google.com/monitoring/dashboards/builder/0?project=golden-project&f.rlabel.cluster_name.ClusterName=golden-cluster. To view the metric data for your workload, select golden-workload from the JobName filter on the dashboard.
 [XPK] Follow your Pathways workload and other resources here: https://console.cloud.google.com/logs/query;query=resource.type%3D%22k8s_container%22%0Aresource.labels.project_id%3D%22golden-project%22%0Aresource.labels.location%3D%22us-central1%22%0Aresource.labels.cluster_name%3D%22golden-cluster%22%0Aresource.labels.pod_name%3A%22golden-workload-%22%0Aseverity%3E%3DDEFAULT
 [XPK] Exiting XPK cleanly
 -->
+

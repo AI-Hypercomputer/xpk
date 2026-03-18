@@ -82,10 +82,9 @@ def dummy_dependency() -> BinaryDependency:
           'linux_amd64': FAKE_BINARY_SHA256,
           'darwin_arm64': FAKE_BINARY_SHA256,
       },
-      url_template=(
-          'https://example.com/{version}/{os}/{arch}/{os_capitalized}/{arch}'
-      ),
+      url_template='https://example.com/{version}/{os}/{arch}/{os}/{arch}',
       arch_map={'amd64': 'x86_64', 'arm64': 'arm64'},
+      os_map={'darwin': 'mac'},
       version='v1.0.0',
   )
 

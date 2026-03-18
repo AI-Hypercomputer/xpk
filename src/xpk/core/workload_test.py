@@ -63,17 +63,31 @@ def _create_mock_workload_json(data: _MockWorkloadData):
       'spec': {
           'podSets': [
               {
+                  'name': f'worker-{i}',
                   'count': v,
-                  'template': {'spec': {'priorityClassName': data.priority}},
+                  'template': {
+                      'spec': {
+                          'priorityClassName': data.priority,
+                          'containers': [
+                              {'resources': {'limits': {'google.com/tpu': '4'}}}
+                          ],
+                      }
+                  },
               }
-              for v in data.needed
+              for i, v in enumerate(data.needed)
           ]
       },
       'status': {
           'admission': {
-              'podSetAssignments': [{'count': v} for v in data.running]
+              'podSetAssignments': [
+                  {'name': f'worker-{i}', 'count': v}
+                  for i, v in enumerate(data.running)
+              ]
           },
-          'reclaimablePods': [{'count': v} for v in data.done],
+          'reclaimablePods': [
+              {'name': f'worker-{i}', 'count': v}
+              for i, v in enumerate(data.done)
+          ],
           'conditions': [{
               'type': data.status,
               'message': data.message,
@@ -131,9 +145,9 @@ def test_get_workload_list(commands_tester: CommandsTester):
   assert len(parsed_table) == 1
   assert parsed_table[0]['Jobset Name'] == 'job-test'
   assert parsed_table[0]['Status'] == 'Unknown'
-  assert parsed_table[0]['TPU VMs Needed'] == '32'
-  assert parsed_table[0]['TPU VMs Running/Ran'] == '32'
-  assert parsed_table[0]['TPU VMs Done'] == '0'
+  assert parsed_table[0]['TPU/GPU VMs Needed'] == '32'
+  assert parsed_table[0]['TPU/GPU VMs Running/Ran'] == '32'
+  assert parsed_table[0]['TPU/GPU VMs Done'] == '0'
   assert parsed_table[0]['Status Message'] == 'All good'
   assert parsed_table[0]['Created Time'] == '2024-01-01T00:00:00Z'
   assert parsed_table[0]['Status Time'] == '2024-01-01T00:01:00Z'
@@ -226,9 +240,9 @@ def test_get_workload_list_multiple_pod_sets(commands_tester: CommandsTester):
   parsed_table = _parse_workload_table(return_value)
   assert len(parsed_table) == 1
   assert parsed_table[0]['Jobset Name'] == 'multi-podset-job'
-  assert parsed_table[0]['TPU VMs Needed'] == '48'
-  assert parsed_table[0]['TPU VMs Running/Ran'] == '48'
-  assert parsed_table[0]['TPU VMs Done'] == '48'
+  assert parsed_table[0]['TPU/GPU VMs Needed'] == '48'
+  assert parsed_table[0]['TPU/GPU VMs Running/Ran'] == '48'
+  assert parsed_table[0]['TPU/GPU VMs Done'] == '48'
 
 
 @pytest.mark.parametrize(
@@ -361,3 +375,41 @@ def test_parse_workload_item_priority_not_found():
   }
   row = _parse_workload_item(item)
   assert row.priority is None
+
+
+def test_parse_workload_item_excludes_pathways_head():
+  item = {
+      'metadata': {'creationTimestamp': '2024-01-01T00:00:00Z'},
+      'spec': {
+          'podSets': [
+              {
+                  'name': 'worker',
+                  'count': 32,
+                  'template': {
+                      'spec': {
+                          'containers': [
+                              {'resources': {'limits': {'google.com/tpu': '4'}}}
+                          ]
+                      }
+                  },
+              },
+              {'name': 'pathways-head', 'count': 1, 'template': {'spec': {}}},
+          ]
+      },
+      'status': {
+          'admission': {
+              'podSetAssignments': [
+                  {'name': 'worker', 'count': 32},
+                  {'name': 'pathways-head', 'count': 1},
+              ]
+          },
+          'reclaimablePods': [
+              {'name': 'worker', 'count': 32},
+              {'name': 'pathways-head', 'count': 1},
+          ],
+      },
+  }
+  row = _parse_workload_item(item)
+  assert row.tpu_gpu_needed == 32
+  assert row.tpu_gpu_running_ran == 32
+  assert row.tpu_gpu_done == 32

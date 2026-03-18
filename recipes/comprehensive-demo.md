@@ -56,7 +56,7 @@ kubectl get pods
 [XPK] Task: `List Jobs with filter-by-status=EVERYTHING` is implemented by the following command not running since it is a dry run. 
 kubectl get workloads --ignore-not-found -o=json
 [XPK] Workload List Output:
-Jobset Name   Created Time   Priority   TPU VMs Needed   TPU VMs Running/Ran   TPU VMs Done   Status   Status Message   Status Time
+Jobset Name   Created Time   Priority   TPU/GPU VMs Needed   TPU/GPU VMs Running/Ran   TPU/GPU VMs Done   Status   Status Message   Status Time
 [XPK] See your workloads in Cloud Console: https://console.cloud.google.com/kubernetes/aiml/deployments/jobs?project=bar
 [XPK] Exiting XPK cleanly
 -->

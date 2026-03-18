@@ -31,6 +31,8 @@ def _get_boolean_flag(flag: str, default: bool) -> bool:
 
 
 class _FeatureFlags:
+  """Class to hold all the feature flags for XPK. The flags are read from environment variables and default values are provided."""
+
   SUB_SLICING_ENABLED = _get_boolean_flag("SUB_SLICING_ENABLED", default=False)
   TELEMETRY_ENABLED = _get_boolean_flag("TELEMETRY_ENABLED", default=True)
   CRANE_WORKLOADS_ENABLED = _get_boolean_flag(
@@ -41,6 +43,9 @@ class _FeatureFlags:
   )
   DEPENDENCY_AUTO_DOWNLOAD = _get_boolean_flag(
       "DEPENDENCY_AUTO_DOWNLOAD", default=True
+  )
+  NATIVE_CLUSTER_TOOLKIT_ENABLED = _get_boolean_flag(
+      "NATIVE_CLUSTER_TOOLKIT_ENABLED", default=False
   )
 
 

@@ -457,3 +457,157 @@ def test_workload_create_pathways_jobset_yaml(mocker):
   assert (
       f'--gcs_scratch_location={args.pathways_gcs_location}' in written_content
   )
+
+
+def test_workload_create_use_parallel_containers_disabled(
+    workload_create_mocks,
+    mocker,
+):
+  """Tests that disabling parallel_containers results in a single container."""
+
+  mocker.patch('xpk.utils.execution_context.dry_run', True)
+
+  mocker.patch(
+      'xpk.core.docker_container.setup_docker_image',
+      return_value=(0, 'dummy-image'),
+  )
+  mocker.patch(
+      'xpk.core.docker_container.get_gke_debugging_dashboard', return_value=None
+  )
+
+  system_characteristics = UserFacingNameToSystemCharacteristics['tpu7x-2x2x2']
+  workload_create_mocks.get_system_characteristics.return_value = (
+      system_characteristics,
+      0,
+  )
+
+  workload_create_mocks.get_user_workload_container.side_effect = (
+      real_get_user_workload_container
+  )
+
+  args = construct_args(
+      workload='test-workload',
+      command='echo hello',
+      num_nodes=1,
+      tpu_type='tpu7x-2x2x2',
+      restart_on_exit_codes=None,
+      docker_name='test-docker',
+      deploy_stacktrace_sidecar=False,
+      enable_debug_logs=False,
+      scheduler='default-scheduler',
+      use_parallel_containers=False,
+  )
+  workload_create(args)
+
+  assert workload_create_mocks.write_tmp_file.called
+  yaml_content = workload_create_mocks.write_tmp_file.call_args[0][0]
+  jobset = yaml.safe_load(yaml_content)
+
+  # Verify Containers
+  containers = jobset['spec']['replicatedJobs'][0]['template']['spec'][
+      'template'
+  ]['spec']['containers']
+
+  assert len(containers) == 1
+  assert containers[0]['name'] == 'test-docker'
+
+
+def test_workload_create_workload_exists_user_declines_overwrite(
+    mocker,
+    workload_create_mocks: _WorkloadCreateMocks,
+):
+  args = MagicMock()
+  args.workload = 'test-workload'
+  workload_create_mocks.check_if_workload_exists.return_value = True
+  mock_ask_for_user_consent = mocker.patch(
+      'xpk.commands.workload.ask_for_user_consent', return_value=False
+  )
+  workload_create_mocks.xpk_exit.side_effect = SystemExit(1)
+
+  with pytest.raises(SystemExit):
+    workload_create(args)
+
+  mock_ask_for_user_consent.assert_called_once_with(
+      'test-workload already exists, do you want to overwrite it?'
+  )
+  workload_create_mocks.xpk_exit.assert_called_once_with(1)
+  workload_create_mocks.commands_tester.assert_command_not_run(
+      'kubectl delete jobset test-workload -n default'
+  )
+
+
+def test_workload_create_workload_exists_user_accepts_overwrite(
+    mocker,
+    workload_create_mocks: _WorkloadCreateMocks,
+):
+  mocker.patch('xpk.utils.execution_context.dry_run', True)
+  args = construct_args(
+      workload='test-workload',
+      command='echo test',
+      docker_name='test-docker',
+      num_nodes=1,
+      deploy_stacktrace_sidecar=False,
+      headless=False,
+      restart_on_exit_codes=None,
+      scheduler='default',
+  )
+  workload_create_mocks.check_if_workload_exists.return_value = True
+  mock_ask_for_user_consent = mocker.patch(
+      'xpk.commands.workload.ask_for_user_consent', return_value=True
+  )
+  mock_check_pathways = mocker.patch(
+      'xpk.commands.workload.check_if_pathways_job_is_installed',
+      return_value=False,
+  )
+
+  workload_create(args)
+
+  mock_ask_for_user_consent.assert_called_once_with(
+      'test-workload already exists, do you want to overwrite it?'
+  )
+  mock_check_pathways.assert_called_once_with(args)
+  workload_create_mocks.commands_tester.assert_command_run(
+      'kubectl delete jobset test-workload -n default'
+  )
+
+
+def test_workload_create_workload_exists_user_accepts_overwrite_pathways(
+    mocker,
+    workload_create_mocks: _WorkloadCreateMocks,
+):
+  mocker.patch('xpk.utils.execution_context.dry_run', True)
+  args = construct_args(
+      workload='test-workload',
+      command='echo test',
+      docker_name='test-docker',
+      num_nodes=1,
+      deploy_stacktrace_sidecar=False,
+      headless=False,
+      restart_on_exit_codes=None,
+  )
+  workload_create_mocks.check_if_workload_exists.return_value = True
+  mock_ask_for_user_consent = mocker.patch(
+      'xpk.commands.workload.ask_for_user_consent', return_value=True
+  )
+  mocker.patch(
+      'xpk.commands.workload.check_if_pathways_job_is_installed',
+      return_value=True,
+  )
+  mock_try_delete = mocker.patch(
+      'xpk.commands.workload.try_to_delete_pathwaysjob_first', return_value=True
+  )
+
+  # ensure pathways logic avoids the else branch kubeconfig errors
+  mocker.patch(
+      'xpk.commands.workload.ensure_pathways_workload_prerequisites',
+      return_value=True,
+  )
+  args.use_pathways = True
+  args.elastic_slices = 0
+
+  workload_create(args)
+
+  mock_ask_for_user_consent.assert_called_once_with(
+      'test-workload already exists, do you want to overwrite it?'
+  )
+  mock_try_delete.assert_called_once_with(args, ['test-workload'])

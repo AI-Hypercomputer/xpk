@@ -18,14 +18,13 @@ import math
 
 from ..utils.console import xpk_exit, xpk_print
 from ..utils.file import write_tmp_file
-from ..core.kueue_manager import (
-    MEMORY_SIZE_PER_VM,
-    MIN_MEMORY_LIMIT_SIZE,
-)
 from .commands import (
     run_command_for_value,
     run_command_with_updates_retry,
 )
+
+MEMORY_SIZE_PER_VM = 1.2
+MIN_MEMORY_LIMIT_SIZE = 4096
 
 jobset_controller_manager_yml = """
 apiVersion: apps/v1

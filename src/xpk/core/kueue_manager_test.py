@@ -276,11 +276,15 @@ def test_resource_update_for_small_cluster(
 
   assert result == 0
 
-  # 100 * 1.2 = 120, which is less than 4096. So it should be 4096.
+  # 100 * 32 = 3200, which is less than 4096. So it should be 4096.
+  # 100 * 0.004 = 0.4, which is less than 2. So it should be 2.
   mock_patch_controller_manager_resources.assert_called_with(
       name="kueue-controller-manager",
       namespace="kueue-system",
       patch_resources=PatchResources(
+          cpu_request=2,
+          cpu_limit=2,
+          memory_request="4096Mi",
           memory_limit="4096Mi",
       ),
   )
@@ -298,12 +302,16 @@ def test_resource_update_for_large_cluster(
   result = kueue_manager.install_or_upgrade(KUEUE_CONFIG)
 
   assert result == 0
-  # 5000 * 1.2 = 6000, which is > 4096.
+  # 5000 * 32 = 160000, which is > 4096.
+  # 5000 * 0.004 = 20, which is > 2.
   mock_patch_controller_manager_resources.assert_called_with(
       name="kueue-controller-manager",
       namespace="kueue-system",
       patch_resources=PatchResources(
-          memory_limit="6000Mi",
+          cpu_request=20,
+          cpu_limit=20,
+          memory_request="160000Mi",
+          memory_limit="160000Mi",
       ),
   )
 

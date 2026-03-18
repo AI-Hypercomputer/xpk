@@ -557,9 +557,7 @@ def workload_create(args) -> None:
     xpk_exit(1)
 
   parallel_containers = workload_system.parallel_containers
-  if not args.use_parallel_containers:
-    parallel_containers = 1
-  if args.use_pathways:
+  if not args.use_parallel_containers or args.use_pathways:
     parallel_containers = 1
 
   # Currently failure policy rules are supported for Pathways workloads. b/408465881

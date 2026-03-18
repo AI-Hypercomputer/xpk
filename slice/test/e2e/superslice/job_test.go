@@ -242,5 +242,119 @@ var _ = ginkgo.Describe("Job", func() {
 				utils.ExpectObjectToBeDeleted(ctx, k8sClient, createdWorkload, false)
 			})
 		})
+
+		ginkgo.It("should delete and recreate Slice if Workload TopologyAssignment changes", func() {
+			job := testingjobs.MakeJob("job-ta-change", ns.Name).
+				Queue(lq.Name).
+				Image(utils.E2eTestAgnHostImage).
+				Args(utils.BehaviorWaitForDeletion...).
+				Parallelism(16).
+				Completions(16).
+				PodAnnotation(core.TPUSliceTopologyAnnotation, "4x4x4").
+				NodeSelector(core.TPUAcceleratorLabel, string(slice.TypeTpu7x)).
+				RequestAndLimit(core.TPUResourceName, "4").
+				Obj()
+
+			ginkgo.By("Creating a Job", func() {
+				utils.MustCreate(ctx, k8sClient, job)
+			})
+
+			createdJob := &batchv1.Job{}
+
+			ginkgo.By("Checking that the Job is created with annotations/selectors", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(job), createdJob)).To(gomega.Succeed())
+				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+			})
+
+			createdWorkload := &kueue.Workload{}
+			wlKey := types.NamespacedName{
+				Name:      jobcontroller.GetWorkloadNameForJob(job.Name, job.UID),
+				Namespace: ns.Name,
+			}
+
+			ginkgo.By("Waiting for Admission of the Workload", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
+					g.Expect(createdWorkload.Status.Admission).ShouldNot(gomega.BeNil())
+				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+			})
+
+			createdSlice := &slice.Slice{}
+			sliceKey := core.SliceKeyFromWorkload(createdWorkload, "main", 0)
+			var oldSliceUID types.UID
+
+			ginkgo.By("Checking that Slice is created", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
+					g.Expect(createdSlice.Spec.PartitionIds).To(gomega.HaveLen(1))
+					g.Expect(createdSlice.Spec.PartitionIds).To(gomega.BeComparableTo([]string{"sb1"}))
+					oldSliceUID = createdSlice.GetUID()
+				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+			})
+
+			ginkgo.By("Adding Ready condition", func() {
+				utils.SetSliceReady(ctx, k8sClient, sliceKey, "4x4x4")
+			})
+
+			ginkgo.By("Checking that the Workload is admitted", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
+					g.Expect(workload.IsAdmitted(createdWorkload)).Should(gomega.BeTrue())
+				}, utils.LongTimeout, utils.Timeout).Should(gomega.Succeed())
+			})
+
+			ginkgo.By("Modifying the TopologyAssignment to point to a different partition", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
+					g.Expect(createdWorkload.Status.Admission).ShouldNot(gomega.BeNil())
+					g.Expect(createdWorkload.Status.Admission.PodSetAssignments).Should(gomega.HaveLen(1))
+
+					assignment := createdWorkload.Status.Admission.PodSetAssignments[0].TopologyAssignment
+					g.Expect(assignment).ShouldNot(gomega.BeNil())
+
+					changed := false
+					for i := range assignment.Slices {
+						for j := range assignment.Slices[i].ValuesPerLevel {
+							if assignment.Slices[i].ValuesPerLevel[j].Individual != nil {
+								for k, val := range assignment.Slices[i].ValuesPerLevel[j].Individual.Roots {
+									if val == "kind-worker" {
+										assignment.Slices[i].ValuesPerLevel[j].Individual.Roots[k] = "kind-worker2"
+										changed = true
+									}
+								}
+							}
+						}
+					}
+					g.Expect(changed).To(gomega.BeTrue(), "Expected to find and change 'kind-worker' in the assignment")
+					g.Expect(k8sClient.Status().Update(ctx, createdWorkload)).To(gomega.Succeed())
+				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+			})
+
+			ginkgo.By("Checking that the old Slice is deleted and a new one is created with the new partition ID", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, sliceKey, createdSlice)).To(gomega.Succeed())
+					g.Expect(createdSlice.GetUID()).ShouldNot(gomega.Equal(oldSliceUID))
+					g.Expect(createdSlice.Spec.PartitionIds).To(gomega.HaveLen(1))
+					g.Expect(createdSlice.Spec.PartitionIds).To(gomega.BeComparableTo([]string{"sb2"}))
+				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+			})
+
+			ginkgo.By("Deleting Job", func() {
+				gomega.Expect(utils.DeleteAllJobsInNamespace(ctx, k8sClient, ns)).Should(gomega.Succeed())
+			})
+
+			ginkgo.By("Checking that Slice is deleted", func() {
+				utils.ExpectObjectToBeDeleted(ctx, k8sClient, createdSlice, false)
+			})
+
+			ginkgo.By("Checking that all Pods are deleted", func() {
+				utils.ExpectAllPodsInNamespaceDeleted(ctx, k8sClient, ns)
+			})
+
+			ginkgo.By("Checking that Workload is deleted", func() {
+				utils.ExpectObjectToBeDeleted(ctx, k8sClient, createdWorkload, false)
+			})
+		})
 	})
 })

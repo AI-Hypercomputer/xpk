@@ -567,6 +567,8 @@ func (r *WorkloadReconciler) sliceAC(ctx context.Context, wl *kueue.Workload) (*
 	return admissioncheck.FindAdmissionCheck(wl.Status.AdmissionChecks, relevantChecks[0]), nil
 }
 
+// syncSlices creates missing Slices and deletes existing Slices with incorrect partition IDs.
+// As a side-effect, it modifies the provided `slices` pointer to remove any elements that were deleted during synchronization.
 func (r *WorkloadReconciler) syncSlices(
 	ctx context.Context,
 	wl *kueue.Workload,

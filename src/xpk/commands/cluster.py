@@ -285,6 +285,25 @@ def _set_cluster_topology_defaults(
     args,
     system: SystemCharacteristics,
 ) -> list[ReservationCapacity] | None:
+  """Sets default topology arguments and validates cluster creation parameters.
+
+  This function inspects the provided command line arguments (`args`) and the
+  system characteristics. It enforces consistency between `--num-cubes` and
+  `--num-slices`. When cluster topology parameters (like `--num-slices`,
+  `--num-cubes`, or `--num-nodes` for GPUs) are omitted, it attempts to
+  automatically resolve them by assessing available capacity in the user's
+  reservation(s).
+
+  Args:
+    args: Parsed command-line arguments. Mutates `num_slices`, `num_cubes`,
+      and `num_nodes` properties directly based on validation and capacity.
+    system: Characteristics of the target system (e.g. TPU/GPU type, topology).
+
+  Returns:
+    A list of `ReservationCapacity` objects representing the assessed capacity
+    available in the targeted reservation(s), or `None` if reservation capacity
+    was not checked.
+  """
   if args.num_cubes is not None and not args.super_slicing:
     xpk_print('--num-cubes can only be used with --super-slicing')
     xpk_exit(1)

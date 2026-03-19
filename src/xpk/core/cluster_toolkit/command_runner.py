@@ -64,3 +64,15 @@ class CommandRunner(ABC):
         str: path to a target directory.
     """
     return ""
+
+  @abstractmethod
+  def get_deployment_dir(self, prefix: str = "") -> str:
+    """Returns the path to the deployment directory.
+
+    Args:
+        prefix (str): Prefix to use for the deployment directory.
+
+    Returns:
+        str: path to the deployment directory.
+    """
+    return ""

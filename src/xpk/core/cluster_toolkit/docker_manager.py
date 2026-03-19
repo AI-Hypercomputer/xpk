@@ -199,6 +199,10 @@ class DockerManager(CommandRunner):
   def _get_upload_directory_mounted(self, prefix: str = "") -> str:
     return os.path.join(working_dir_mount_path, upload_dir_name, prefix)
 
+  def get_deployment_dir(self, prefix: str = "") -> str:
+    prefix = f"/{prefix}" if prefix != "" else ""
+    return f"deployments{prefix}"
+
   def _create_tmp_for_dockerfile(self) -> str:
     tmp_dir = os.path.join(tempfile.gettempdir(), "xpkutils")
     ensure_directory_exists(tmp_dir)

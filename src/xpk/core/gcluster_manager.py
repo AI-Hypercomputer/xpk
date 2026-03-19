@@ -130,8 +130,7 @@ class GclusterManager:
     self.gcluster_command_runner.run_command(destroy_cmd)
 
   def _get_deployment_path(self, prefix: str = '') -> str:
-    prefix = f'/{prefix}' if prefix != '' else ''
-    return f'deployments{prefix}'
+    return self.gcluster_command_runner.get_deployment_dir(prefix)
 
   def destroy_deployment(self, deployment_name: str, prefix: str = '') -> None:
     """Destroy deployment.

@@ -134,12 +134,19 @@ def _parse_workload_item(item: dict[str, Any]) -> _WorkloadListRow:
       else None
   )
 
-  conditions = item.get('status', {}).get('conditions') or [{}]
-  status_str = conditions[-1].get('type', '')
-  status = _parse_workload_status(status_str)
+  conditions = item.get('status', {}).get('conditions') or []
 
-  status_message = conditions[-1].get('message', '') or None
-  status_time = conditions[-1].get('lastTransitionTime', '') or None
+  if not conditions:
+    latest_condition = {}
+  else:
+    latest_condition = max(
+        conditions, key=lambda c: c.get('lastTransitionTime') or ''
+    )
+
+  status = _parse_workload_status(latest_condition.get('type'))
+
+  status_message = latest_condition.get('message', '') or None
+  status_time = latest_condition.get('lastTransitionTime', '') or None
 
   return _WorkloadListRow(
       jobset_name=jobset_name,
@@ -383,7 +390,7 @@ def wait_for_job_completion(args) -> int:
       f'{timeout_val}s' if timeout_val != -1 else 'max timeout (1 week)'
   )
   wait_cmd = (
-      "kubectl  wait --for jsonpath='.status.conditions[-1].type'=Finished"
+      'kubectl wait --for=condition=Finished'
       f' workload {full_workload_name} --timeout={timeout_val}s'
   )
   return_code, return_value = run_command_for_value(
@@ -409,16 +416,27 @@ def wait_for_job_completion(args) -> int:
       # pylint: disable=line-too-long
       f' https://console.cloud.google.com/kubernetes/service/{get_cluster_location(args.project, args.cluster, args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
   )
-  status_cmd = (
-      f'kubectl get jobset {args.workload} -o'
-      " jsonpath='{.status.conditions[-1].type}'"
-  )
+  status_cmd = f'kubectl get jobset {args.workload} -o json'
   return_code, return_value = run_command_for_value(
       status_cmd, 'Get jobset status'
   )
   if return_code != 0:
     xpk_print(f'Get workload status request returned ERROR {return_code}')
     return return_code
+
+  try:
+    jobset_json = json.loads(return_value)
+    conditions = jobset_json.get('status', {}).get('conditions', [])
+    final_status = 'Unknown'
+    for c in conditions:
+      if c.get('type') in ['Completed', 'Failed'] and c.get('status') == 'True':
+        final_status = c.get('type')
+        break
+    return_value = final_status
+  except json.JSONDecodeError:
+    xpk_print('Failed to parse jobset status JSON')
+    return 125
+
   xpk_print(f'Your workload finished with status: {return_value}')
   if return_value != 'Completed':
     xpk_print('Your workload did not complete successfully')

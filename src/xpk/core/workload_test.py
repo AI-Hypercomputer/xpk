@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+from unittest.mock import patch
 from unittest.mock import MagicMock
 import pytest
 import re
@@ -361,3 +362,36 @@ def test_parse_workload_item_priority_not_found():
   }
   row = _parse_workload_item(item)
   assert row.priority is None
+
+
+from xpk.core.workload import wait_for_job_completion
+
+
+@patch('xpk.core.workload.check_if_workload_exists', return_value=True)
+def test_wait_for_job_completion(mock_exists, commands_tester: CommandsTester):
+  args = MagicMock()
+  args.wait_for_job_completion = 'test-job'
+  args.timeout = 100
+  args.project = 'test-project'
+  args.cluster = 'test-cluster'
+  args.zone = 'test-zone'
+
+  commands_tester.set_result_for_command(
+      (0, ''),
+      'kubectl',
+      'wait',
+      '--for=condition=Finished',
+      'workload',
+      'test-job',
+      '--timeout=100s',
+  )
+
+  mock_status = json.dumps(
+      {'status': {'conditions': [{'type': 'Completed', 'status': 'True'}]}}
+  )
+  commands_tester.set_result_for_command(
+      (0, mock_status), 'kubectl', 'get', 'jobset', 'test-job', '-o', 'json'
+  )
+
+  return_code = wait_for_job_completion(args)
+  assert return_code == 0

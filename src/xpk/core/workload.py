@@ -15,7 +15,7 @@ limitations under the License.
 """
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 import re
 from typing import Any, Optional, Callable, Union
@@ -98,10 +98,47 @@ def _parse_workload_status(
     return _WorkloadStatus.UNKNOWN
 
 
-def _get_latest_condition(conditions: list[dict[str, Any]]) -> dict[str, Any]:
-  if not conditions:
-    return {}
-  return max(conditions, key=lambda c: c.get('lastTransitionTime') or '')
+@dataclass
+class _KubernetesCondition:
+  type: str | None = None
+  status: str | None = None
+  lastTransitionTime: str | None = None
+  message: str | None = None
+
+
+@dataclass
+class _KubernetesStatus:
+  conditions: list[_KubernetesCondition] = field(default_factory=list)
+
+
+def _parse_kubernetes_status(
+    status_dict: dict[str, Any] | None,
+) -> _KubernetesStatus:
+  if not status_dict:
+    return _KubernetesStatus()
+
+  conditions = []
+  for c in status_dict.get('conditions') or []:
+    if not isinstance(c, dict):
+      continue
+    conditions.append(
+        _KubernetesCondition(
+            type=c.get('type') or None,
+            status=c.get('status') or None,
+            lastTransitionTime=c.get('lastTransitionTime') or None,
+            message=c.get('message') or None,
+        )
+    )
+
+  return _KubernetesStatus(conditions=conditions)
+
+
+def _get_latest_condition(
+    k8s_status: _KubernetesStatus,
+) -> _KubernetesCondition | None:
+  if not k8s_status.conditions:
+    return None
+  return max(k8s_status.conditions, key=lambda c: c.lastTransitionTime or '')
 
 
 def _parse_workload_item(item: dict[str, Any]) -> _WorkloadListRow:
@@ -140,14 +177,21 @@ def _parse_workload_item(item: dict[str, Any]) -> _WorkloadListRow:
       else None
   )
 
-  conditions = item.get('status', {}).get('conditions') or []
+  k8s_status = _parse_kubernetes_status(item.get('status'))
+  latest_condition = _get_latest_condition(k8s_status)
 
-  latest_condition = _get_latest_condition(conditions)
+  status = _parse_workload_status(
+      latest_condition.type
+      if latest_condition and latest_condition.type
+      else ''
+  )
 
-  status = _parse_workload_status(latest_condition.get('type'))
-
-  status_message = latest_condition.get('message', '') or None
-  status_time = latest_condition.get('lastTransitionTime', '') or None
+  status_message = (
+      latest_condition.message or None if latest_condition else None
+  )
+  status_time = (
+      latest_condition.lastTransitionTime or None if latest_condition else None
+  )
 
   return _WorkloadListRow(
       jobset_name=jobset_name,
@@ -370,9 +414,12 @@ def _get_jobset_status(workload_name: str) -> tuple[int, str]:
 
   try:
     jobset_json = json.loads(return_value)
-    conditions = jobset_json.get('status', {}).get('conditions', [])
-    latest_condition = _get_latest_condition(conditions)
-    final_status = latest_condition.get('type', 'Unknown')
+    k8s_status = _parse_kubernetes_status(jobset_json.get('status'))
+    latest_condition = _get_latest_condition(k8s_status)
+    if latest_condition and latest_condition.type:
+      final_status = latest_condition.type
+    else:
+      final_status = 'Unknown'
     return 0, final_status
   except json.JSONDecodeError:
     xpk_print('Failed to parse jobset status JSON')

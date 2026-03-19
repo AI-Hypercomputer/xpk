@@ -21,7 +21,7 @@ import re
 import json
 from pytest_mock import MockerFixture
 from xpk.core.testing.commands_tester import CommandsTester
-from xpk.core.workload import _parse_workload_item, get_jobsets_list_gcp_link, get_workload_list
+from xpk.core.workload import _parse_workload_item, get_jobsets_list_gcp_link, get_workload_list, wait_for_job_completion, _get_jobset_status
 
 
 from dataclasses import dataclass
@@ -362,9 +362,6 @@ def test_parse_workload_item_priority_not_found():
   }
   row = _parse_workload_item(item)
   assert row.priority is None
-
-
-from xpk.core.workload import wait_for_job_completion, _get_jobset_status
 
 
 def test_get_jobset_status_success(commands_tester: CommandsTester):

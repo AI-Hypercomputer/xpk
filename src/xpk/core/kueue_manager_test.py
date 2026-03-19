@@ -66,6 +66,16 @@ def set_installed_kueue_version(
   )
 
 
+def set_custom_installed_kueue_version(
+    commands_tester: CommandsTester, image: str
+):
+  commands_tester.set_result_for_command(
+      (0, image),
+      "kubectl get deployment kueue-controller-manager",
+      "containers[0].image",
+  )
+
+
 @pytest.fixture(autouse=True)
 def mock_ask_for_user_consent(mocker: MockerFixture) -> MagicMock:
   return mocker.patch(
@@ -97,6 +107,21 @@ def test_install_or_upgrade_when_newer_version_already_installed(
 ):
   """Test install_or_upgrade when Kueue is already up to date."""
   set_installed_kueue_version(mock_commands, Version("0.99.0"))
+
+  result = kueue_manager.install_or_upgrade(KUEUE_CONFIG)
+
+  assert result == 0
+  mock_commands.assert_command_not_run("kubectl apply")
+
+
+def test_install_or_upgrade_when_custom_version_already_installed(
+    mock_commands: CommandsTester, kueue_manager: KueueManager
+):
+  """Test install_or_upgrade when a custom Kueue build is installed."""
+  set_custom_installed_kueue_version(
+      mock_commands,
+      "us-central1-docker.pkg.dev/dummy-project/kueue/kueue@sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+  )
 
   result = kueue_manager.install_or_upgrade(KUEUE_CONFIG)
 

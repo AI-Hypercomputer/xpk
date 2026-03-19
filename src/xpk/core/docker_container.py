@@ -88,15 +88,15 @@ def get_main_container(
   """
 
   xpk_internal_commands = ''
-  gsutil_test_command = ''
+  gcloud_test_command = ''
   if not args.use_pathways and args.debug_dump_gcs:
-    gsutil_test_command = (
-        'which gsutil >/dev/null 2>&1 || { echo >&2 "gsutil'
+    gcloud_test_command = (
+        'which gcloud >/dev/null 2>&1 || { echo >&2 "gcloud'
         ' is required but not installed. Aborting"; exit 24;};'
     )
     xpk_internal_commands += (
-        'WORKER_ID=$HOSTNAME;'
-        f'gsutil -m cp -r /tmp/xla_dump/ {args.debug_dump_gcs}/$WORKER_ID;'
+        'WORKER_ID=$HOSTNAME;gcloud storage cp --recursive /tmp/xla_dump/'
+        f' {args.debug_dump_gcs}/$WORKER_ID;'
     )
 
   command = args.command
@@ -140,7 +140,7 @@ def get_main_container(
                   echo XPK Start: $(date);
                   _sigterm() (kill -SIGTERM $! 2>/dev/null;);
                   trap _sigterm SIGTERM;
-                  {gsutil_test_command}
+                  {gcloud_test_command}
                   ({command}) & PID=$!;
                   while kill -0 $PID 2>/dev/null;
                       do sleep 5;
@@ -176,7 +176,7 @@ def get_main_container(
             env=env,
             docker_name=f'{docker_name}{docker_name_sufix}',
             docker_image=docker_image,
-            gsutil_test_command=gsutil_test_command,
+            gcloud_test_command=gcloud_test_command,
             command=command,
             tpu_stacktrace_terminate_command=tpu_stacktrace_terminate_command,
             gpu_workload_terminate_command=gpu_workload_terminate_command,
@@ -192,7 +192,7 @@ def get_main_container(
 
 def get_user_workload_container(
     args, system: SystemCharacteristics, parallel_containers: int
-):
+) -> tuple[str, str | None]:
   """Deploy user workload container
 
   Args:

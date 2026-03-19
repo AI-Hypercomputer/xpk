@@ -53,7 +53,13 @@ def get_main_container_resources(
     # system.chips_per_vm is used as a proxy for vCPUs.
     # Some vCPUs get used in hosting system pods of the workloads,
     # hence an offset of 0.95 is introduced.
-    offset_vCPUs = int(system.chips_per_vm) * 0.95
+    # This calculates the 95% threshold before casting to an integer,
+    # effectively leaving at least 1 whole core (or 5%, whichever is larger)
+    # for the OS and DaemonSets.
+    # For n2-standard-2: max(1, int(1.9)) = 1. (Leaves 1 core for the system).
+    # For n2-standard-32: max(1, int(30.4)) = 30. (Leaves 2 cores for the
+    # system).
+    offset_vCPUs = max(1, int(system.chips_per_vm * 0.95))
     return f'{resource_type}: {offset_vCPUs}'
 
   return f'{resource_type}: {int(system.chips_per_vm / parallel_containers)}'

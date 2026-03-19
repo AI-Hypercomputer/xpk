@@ -15,6 +15,8 @@ limitations under the License.
 """
 
 import urllib
+import argparse
+from ..core.system_characteristics import SystemCharacteristics
 from ..core.blueprint.blueprint_generator import (
     a3high_device_type,
     a4x_device_types,
@@ -41,14 +43,9 @@ from ..core.nap import (
 )
 from ..core.network import get_cluster_subnetworks
 from ..core.pathways import (
-    append_custom_colocated_python_sidecar,
-    append_custom_pathways_proxy_server,
-    append_custom_pathways_server,
-    append_custom_pathways_worker,
     check_if_pathways_job_is_installed,
     ensure_pathways_workload_prerequisites,
     get_pathways_unified_query_link,
-    get_user_workload_for_pathways,
     try_to_delete_pathwaysjob_first,
 )
 from ..core.resources import get_cluster_capacity_type, get_cluster_system_characteristics_from_config_map
@@ -58,9 +55,7 @@ from ..core.scheduling import (
     ONE_TO_ONE_REPLICA_NODE_POOL_ASSIGNMENT_ANNOTATION,
     WorkloadScheduling,
     check_if_workload_can_schedule,
-    create_tpu_machine_type,
     create_tpu_slice_topology_annotation,
-    create_tpu_topology,
     get_cpu_affinity,
     get_gpu_scheduler,
     create_sub_slicing_annotations,
@@ -105,6 +100,8 @@ from . import cluster_gcluster
 from .common import is_GPU_TAS_possible
 from jinja2 import Environment, FileSystemLoader
 from ..utils.templates import get_templates_absolute_path
+
+_PATHWAYS_WORKLOAD_TEMPLATE = 'pathways_workload_create.yaml.j2'
 
 _SUPER_SLICING_WORKLOAD_NAME_LIMIT = 28
 """Maximum safe workload name length to avoid exceeding GCE's 63-character limit.
@@ -263,43 +260,94 @@ spec:
               containers:
               {container}
 """
-# The indentation of PW_WORKLOAD_CREATE_YAML is intentional to allow reusing the user workload container YAML.
-PW_WORKLOAD_CREATE_YAML = """
-    apiVersion: pathways-job.pathways.domain/v1
-    kind: PathwaysJob
-    metadata:
-      name: {args.workload}
-      labels:
-        kueue.x-k8s.io/queue-name: {local_queue_name}  # Name of the LocalQueue
-        xpk.google.com/workload: {args.workload}
-    spec:
-      maxRestarts: {args.max_restarts}
-      customComponents:
-      {custom_pathways_proxy_server}
-      {custom_pathways_server}
-      {custom_pathways_worker}
-      {colocated_python_sidecar}
-      workers:
-      - type: {machine_type}
-        topology: {topology}
-        numSlices: {args.num_slices}
-        maxSliceRestarts: {args.max_slice_restarts}
-        terminationGracePeriodSeconds: {args.termination_grace_period_seconds}
-        priorityClassName: {args.priority}
-        nodeSelector:
-          {placement_policy_label}
-          {autoprovisioning_args}
-      pathwaysDir: {args.pathways_gcs_location} #This bucket needs to be created in advance.
-      controller:
-        # #Pod template for training, default mode.
-        deploymentMode: default
-        mainContainerName: {args.docker_name}
-        elasticSlices: {args.elastic_slices}
-        template:
-      {user_workload}
-"""
 
 ARM_GPU_WORKLOAD_CREATE_JINJA_FILE = 'arm_gpu_workload_crate.yaml.j2'
+
+
+def _generate_pathways_workload_yaml(
+    args: argparse.Namespace,
+    workload_system: SystemCharacteristics,
+    parallel_containers: int,
+    placement_policy_label: str,
+    autoprovisioning_args: str | None,
+    node_selector_machine_label: str,
+    tpu_slice_topology_annotation: str,
+    jobset_annotations: str,
+) -> str:
+  worker_backoff_limit = (
+      (args.max_slice_restarts * workload_system.vms_per_slice)
+      if getattr(args, 'elastic_slices', 0) > 0
+      else (workload_system.vms_per_slice * 4)
+  )
+
+  proxy_server_image = (
+      getattr(args, 'proxy_server_image', None)
+      or 'us-docker.pkg.dev/cloud-tpu-v2-images/pathways/proxy_server:latest'
+  )
+  server_image = (
+      getattr(args, 'server_image', None)
+      or 'us-docker.pkg.dev/cloud-tpu-v2-images/pathways/server:latest'
+  )
+  worker_image = getattr(args, 'worker_image', None) or server_image
+  instance_type = (
+      f'{workload_system.pathways_tpu_version}:{workload_system.topology}'
+      if workload_system.pathways_tpu_version
+      else workload_system.gce_machine_type
+  )
+  if args.headless:
+    user_workload_container = ''
+    user_workload_env_vars = []
+  else:
+    user_workload_container, _ = get_user_workload_container(
+        args, workload_system, parallel_containers
+    )
+
+    user_workload_env_vars = [
+        {
+            'name': 'PATHWAYS_HEAD',
+            'valueFrom': "metadata.labels['jobset.sigs.k8s.io/coordinator']",
+        },
+        {
+            'name': 'JAX_PLATFORMS',
+            'value': 'proxy',
+        },
+        {
+            'name': 'XCLOUD_ENVIRONMENT',
+            'value': 'GCP',
+        },
+        {
+            'name': 'JAX_BACKEND_TARGET',
+            'value': 'grpc://$(PATHWAYS_HEAD):29000',
+        },
+    ]
+
+  template_env = Environment(
+      loader=FileSystemLoader(searchpath=get_templates_absolute_path()),
+      trim_blocks=True,
+      lstrip_blocks=True,
+      keep_trailing_newline=True,
+  )
+  workload_create_yaml = template_env.get_template(_PATHWAYS_WORKLOAD_TEMPLATE)
+  return workload_create_yaml.render(
+      args=args,
+      local_queue_name=LOCAL_QUEUE_NAME,
+      proxy_server_image=proxy_server_image,
+      server_image=server_image,
+      instance_type=instance_type,
+      user_workload_container=user_workload_container,
+      user_workload_env_vars=user_workload_env_vars,
+      worker_backoff_limit=worker_backoff_limit,
+      vms_per_slice=workload_system.vms_per_slice,
+      workload_system=workload_system,
+      accelerator_label=create_accelerator_label(workload_system),
+      node_selector_machine_label=node_selector_machine_label,
+      tpu_slice_topology_annotation=tpu_slice_topology_annotation,
+      jobset_annotations=jobset_annotations,
+      placement_policy_label=placement_policy_label,
+      autoprovisioning_args=autoprovisioning_args,
+      worker_image=worker_image,
+      is_tpu=workload_system.accelerator_type == AcceleratorType.TPU,
+  )
 
 
 def workload_create_pathways(args) -> None:
@@ -332,13 +380,16 @@ def workload_create(args) -> None:
     0 if successful and 1 otherwise.
   """
   if should_validate_dependencies(args):
-    validate_dependencies_list([
-        SystemDependency.KUBECTL,
-        SystemDependency.GCLOUD,
-        SystemDependency.DOCKER
-        if not FeatureFlags.CRANE_WORKLOADS_ENABLED
-        else SystemDependency.CRANE,
-    ])
+    validate_dependencies_list(
+        args,
+        [
+            SystemDependency.KUBECTL,
+            SystemDependency.GCLOUD,
+            SystemDependency.DOCKER
+            if not FeatureFlags.CRANE_WORKLOADS_ENABLED
+            else SystemDependency.CRANE,
+        ],
+    )
   k8s_api_client = None
   if not is_dry_run():
     k8s_api_client = setup_k8s_env(args)
@@ -347,11 +398,21 @@ def workload_create(args) -> None:
   workload_exists = check_if_workload_exists(args)
 
   if workload_exists:
-    xpk_print(
-        f'{args.workload} already exists, XPK will not create this workload.'
-        ' Please pick a new workload name'
+    will_delete = ask_for_user_consent(
+        f'{args.workload} already exists, do you want to overwrite it?'
     )
-    xpk_exit(1)
+    if will_delete:
+      xpk_print(f'Deleting {args.workload} to overwrite it...')
+      return_code = delete_workloads(args, [args.workload])
+      if return_code != 0:
+        xpk_print(f'Delete Workload request returned ERROR {return_code}')
+        xpk_exit(return_code)
+    else:
+      xpk_print(
+          f'{args.workload} already exists, XPK will not create this workload.'
+          ' Please pick a new workload name'
+      )
+      xpk_exit(1)
 
   workload_system, return_code = get_system_characteristics(args)
   if return_code > 0 or workload_system is None:
@@ -562,6 +623,28 @@ def workload_create(args) -> None:
 
   # TODO(b/466943057): Add ANP label for NAP (if not possible, use CCC)
 
+  if use_sub_slicing:
+    xpk_print('Workload will be scheduled using the Sub-slicing feature.')
+  if use_super_slicing:
+    xpk_print('Workload will be scheduled using the Super-slicing feature.')
+
+  machine_label = (
+      create_machine_label(cluster_system)
+      if use_sub_slicing and cluster_system
+      else create_machine_label(workload_system)
+  )
+  node_selector_machine_label = machine_label if not use_super_slicing else ''
+  tpu_slice_topology_annotation = (
+      create_tpu_slice_topology_annotation(workload_system.topology)
+      if use_super_slicing
+      else ''
+  )
+  jobset_annotations = (
+      ''
+      if use_super_slicing or use_sub_slicing
+      else ONE_TO_ONE_REPLICA_NODE_POOL_ASSIGNMENT_ANNOTATION
+  )
+
   # Create the workload file based on accelerator type or workload type.
   if workload_system.accelerator_type == AcceleratorType.GPU:
     container, debugging_dashboard_id = get_user_workload_container(
@@ -648,46 +731,19 @@ def workload_create(args) -> None:
   elif args.use_pathways and ensure_pathways_workload_prerequisites(
       args, workload_system
   ):
-    yml_string = PW_WORKLOAD_CREATE_YAML.format(
+    yml_string = _generate_pathways_workload_yaml(
         args=args,
-        topology=create_tpu_topology(workload_system),
-        machine_type=create_tpu_machine_type(workload_system),
-        custom_pathways_proxy_server=append_custom_pathways_proxy_server(args),
-        custom_pathways_server=append_custom_pathways_server(args),
-        custom_pathways_worker=append_custom_pathways_worker(args),
-        colocated_python_sidecar=append_custom_colocated_python_sidecar(args),
-        user_workload=get_user_workload_for_pathways(
-            args, workload_system, parallel_containers
-        ),
-        local_queue_name=LOCAL_QUEUE_NAME,
-        autoprovisioning_args=autoprovisioning_args,
+        workload_system=workload_system,
+        parallel_containers=parallel_containers,
         placement_policy_label=placement_policy_label,
+        autoprovisioning_args=autoprovisioning_args,
+        node_selector_machine_label=node_selector_machine_label,
+        tpu_slice_topology_annotation=tpu_slice_topology_annotation,
+        jobset_annotations=jobset_annotations,
     )
   else:
-    if use_sub_slicing:
-      xpk_print('Workload will be scheduled using the Sub-slicing feature.')
-    if use_super_slicing:
-      xpk_print('Workload will be scheduled using the Super-slicing feature.')
-
     container, debugging_dashboard_id = get_user_workload_container(
         args, workload_system, parallel_containers
-    )
-
-    machine_label = (
-        create_machine_label(cluster_system)
-        if use_sub_slicing and cluster_system
-        else create_machine_label(workload_system)
-    )
-    node_selector_machine_label = machine_label if not use_super_slicing else ''
-    tpu_slice_topology_annotation = (
-        create_tpu_slice_topology_annotation(workload_system.topology)
-        if use_super_slicing
-        else ''
-    )
-    jobset_annotations = (
-        ''
-        if use_super_slicing or use_sub_slicing
-        else ONE_TO_ONE_REPLICA_NODE_POOL_ASSIGNMENT_ANNOTATION
     )
 
     yml_string = WORKLOAD_CREATE_YAML.format(
@@ -787,7 +843,7 @@ def workload_create(args) -> None:
           f' {pathways_proxy_link} '
       )
     xpk_print(
-        'Follow your Pathways workload and other resources here : '
+        'Follow your Pathways workload and other resources here: '
         f'{get_pathways_unified_query_link(args)}'
     )
   else:
@@ -840,6 +896,46 @@ def get_restart_exit_codes(args) -> list:
   return list(set(exit_codes))
 
 
+def delete_workloads(args, workloads: list[str]) -> int:
+  """Helper function to delete workloads.
+
+  Args:
+    args: user provided arguments for running the command.
+    workloads: list of workloads to delete.
+
+  Returns:
+    0 if successful and non-zero otherwise.
+  """
+  # If PathwaysJob exists, delete it.
+  if check_if_pathways_job_is_installed(
+      args
+  ) and try_to_delete_pathwaysjob_first(args, workloads):
+    return 0
+  # PathwaysJob workload does not exist, delete JobSet
+  commands = []
+  task_names = []
+  for workload in workloads:
+    args.workload = workload
+    command = f'kubectl delete jobset {workload} -n default'
+    task_name = f'WorkloadDelete-{workload}'
+    commands.append(command)
+    task_names.append(task_name)
+
+  # Not batching deletion for single workload
+  if len(workloads) == 1:
+    return_code = run_command_with_updates(commands[0], 'Delete Workload')
+  else:
+    maybe_failure = run_commands(
+        commands,
+        'Delete Workload',
+        task_names,
+        batch=100,
+    )
+    return_code = maybe_failure[0].return_code if maybe_failure else 0
+
+  return return_code
+
+
 def workload_delete(args) -> None:
   """Function around workload delete.
 
@@ -851,7 +947,7 @@ def workload_delete(args) -> None:
   """
   if should_validate_dependencies(args):
     validate_dependencies_list(
-        [SystemDependency.KUBECTL, SystemDependency.GCLOUD]
+        args, [SystemDependency.KUBECTL, SystemDependency.GCLOUD]
     )
   xpk_print('Starting Workload delete', flush=True)
   add_zone_and_project(args)
@@ -882,35 +978,7 @@ def workload_delete(args) -> None:
   elif not will_delete:
     xpk_print('Skipping delete command.')
   else:
-    # If PathwaysJob exists, delete it.
-    if check_if_pathways_job_is_installed(
-        args
-    ) and try_to_delete_pathwaysjob_first(args, workloads):
-      xpk_exit(0)
-    # PathwaysJob workload does not exist, delete JobSet
-    commands = []
-    task_names = []
-    for workload in workloads:
-      args.workload = workload
-      command = f'kubectl delete jobset {workload} -n default'
-      task_name = f'WorkloadDelete-{workload}'
-      commands.append(command)
-      task_names.append(task_name)
-
-    # Not batching deletion for single workload
-    if len(workloads) == 1:
-      return_code = run_command_with_updates(commands[0], 'Delete Workload')
-    else:
-      maybe_failure = run_commands(
-          commands,
-          'Delete Workload',
-          task_names,
-          batch=100,
-      )
-      return_code = (
-          maybe_failure.return_code if maybe_failure is not None else 0
-      )
-
+    return_code = delete_workloads(args, workloads)
     if return_code != 0:
       xpk_print(f'Delete Workload request returned ERROR {return_code}')
       xpk_exit(return_code)
@@ -928,7 +996,7 @@ def workload_list(args) -> None:
   """
   if should_validate_dependencies(args):
     validate_dependencies_list(
-        [SystemDependency.KUBECTL, SystemDependency.GCLOUD]
+        args, [SystemDependency.KUBECTL, SystemDependency.GCLOUD]
     )
   xpk_print('Starting workload list', flush=True)
   add_zone_and_project(args)

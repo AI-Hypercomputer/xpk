@@ -31,15 +31,9 @@ Ensure the following tools are installed and configured before proceeding.
     * Run `gcloud init`
     * [Authenticate](https://cloud.google.com/sdk/gcloud/reference/auth/application-default/login) to Google Cloud.
     * *Check:* `gcloud auth list`
-* **Kubectl**: [Install from here](https://cloud.google.com/kubernetes-engine/docs/how-to/cluster-access-for-kubectl#install_kubectl).
-    * Install the auth plugin: `gke-gcloud-auth-plugin` ([Guide](https://cloud.google.com/kubernetes-engine/docs/how-to/cluster-access-for-kubectl#install_plugin)).
-    * *Check:* `kubectl version --client`
 * **Docker**: [Install from here](https://docs.docker.com/engine/install/).
     * *Linux users:* [Configure sudoless docker](https://docs.docker.com/engine/install/linux-postinstall/).
     * Run `gcloud auth configure-docker` to enable image uploads to the registry.
-* **Crane** (optional, experimental): [Install from here](https://github.com/google/go-containerregistry/tree/main/cmd/crane#installation).
-    * *Check:* `crane --help`
-    * This is an experimental replacement for Docker, to use run `CRANE_WORKLOADS_ENABLED=True xpk workload create <arguments>`
 
 
 ### Method-Specific Requirements
@@ -47,7 +41,6 @@ Depending on your chosen installation method, you may need these additional tool
 
 | Install Method | Tool | Notes |
 | :--- | :--- | :--- |
-| **Pip** | **kueuectl** | [Installation instructions](https://kueue.sigs.k8s.io/docs/reference/kubectl-kueue/installation/) |
 | **Source** | **git** | Install via your package manager (e.g., `sudo apt-get install git` on Debian/Ubuntu) |
 | **Source** | **make** | Install via your package manager (e.g., `sudo apt-get install make` on Debian/Ubuntu) |
 

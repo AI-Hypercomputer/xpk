@@ -174,6 +174,7 @@ class SchedulingTestCase:
   cluster_system: SystemCharacteristics | None = None
   resources_config_map: dict[str, str] | None = None
   kueue_version: str | None = None
+  kueue_version_return_code: int = 0
   sub_slicing_feature_enabled: bool = False
   sub_slicing_topology_set: bool = False
   super_slicing_topology_set: bool = False
@@ -270,6 +271,16 @@ SUPER_SLICING_CASE = SchedulingTestCase(
             WorkloadScheduling.UNAVAILABLE,
         ),
         (
+            'Sub-slicing, with unparseable Kueue version (SHA)',
+            dataclasses.replace(SUB_SLICING_CASE, kueue_version='sha256-12345'),
+            WorkloadScheduling.SUB_SLICING_AVAILABLE,
+        ),
+        (
+            'Sub-slicing, with failing Kueue version check',
+            dataclasses.replace(SUB_SLICING_CASE, kueue_version_return_code=1),
+            WorkloadScheduling.SUB_SLICING_AVAILABLE,
+        ),
+        (
             'Sub-slicing, but low Kueue version',
             dataclasses.replace(SUB_SLICING_CASE, kueue_version='0.12.0'),
             WorkloadScheduling.UNAVAILABLE,
@@ -326,6 +337,20 @@ SUPER_SLICING_CASE = SchedulingTestCase(
         (
             'Correct Super-slicing',
             SUPER_SLICING_CASE,
+            WorkloadScheduling.SUPER_SLICING_AVAILABLE,
+        ),
+        (
+            'Super-slicing, with unparseable Kueue version (SHA)',
+            dataclasses.replace(
+                SUPER_SLICING_CASE, kueue_version='sha256-12345'
+            ),
+            WorkloadScheduling.SUPER_SLICING_AVAILABLE,
+        ),
+        (
+            'Super-slicing, with failing Kueue version check',
+            dataclasses.replace(
+                SUPER_SLICING_CASE, kueue_version_return_code=1
+            ),
             WorkloadScheduling.SUPER_SLICING_AVAILABLE,
         ),
         (
@@ -418,7 +443,7 @@ def test_check_if_workload_can_schedule(
   FeatureFlags.SUB_SLICING_ENABLED = case.sub_slicing_feature_enabled
   commands_tester.set_result_for_command(
       (
-          0,
+          case.kueue_version_return_code,
           f'registry.k8s.io/kueue/kueue:v{case.kueue_version}'
           if case.kueue_version
           else '',

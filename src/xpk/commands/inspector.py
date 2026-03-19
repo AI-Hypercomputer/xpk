@@ -158,7 +158,7 @@ def inspector(args) -> None:
   # 3. Split inspector into different subcommands to parse info easier.
   if should_validate_dependencies(args):
     validate_dependencies_list(
-        [SystemDependency.KUBECTL, SystemDependency.GCLOUD]
+        args, [SystemDependency.KUBECTL, SystemDependency.GCLOUD]
     )
   final_return_code = 0
   xpk_print(args)

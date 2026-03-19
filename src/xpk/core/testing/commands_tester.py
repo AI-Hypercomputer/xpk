@@ -122,17 +122,20 @@ class CommandsTester:
       jobname: str,
       per_command_name: list[str],
       output_logs: list[str],
-  ) -> FailedCommand | None:
+  ) -> list[FailedCommand]:
+    failures = []
     for i, command in enumerate(commands):
       result = self.__common_fake_run_command(command, (0, ""))[0]
       if result != 0:
-        return FailedCommand(
-            return_code=result,
-            name=per_command_name[i],
-            command=command,
-            logfile=output_logs[i],
+        failures.append(
+            FailedCommand(
+                return_code=result,
+                name=per_command_name[i],
+                command=command,
+                logfile=output_logs[i],
+            )
         )
-    return None
+    return failures
 
   def __fake_run_command_with_full_controls(
       self,

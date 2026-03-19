@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+import typing
 from tabulate import tabulate
 
 from ..utils.feature_flags import FeatureFlags
@@ -302,10 +303,14 @@ def _set_cluster_topology_defaults(
   if return_code != 0:
     xpk_exit(return_code)
 
-  if capacity_type == CapacityType.RESERVATION and args.reservation and FeatureFlags.RESERVATIONS_VALIDATION_ENABLED:
+  if (
+      capacity_type == CapacityType.RESERVATION
+      and args.reservation
+      and FeatureFlags.RESERVATIONS_VALIDATION_ENABLED
+  ):
     xpk_print('Assessing reservation capacity to determine number of slices...')
     reservations = get_reservations_list(args)
-    
+
     vms_per_pool = (
         getattr(args, 'num_nodes', None)
         if system.accelerator_type == AcceleratorType.GPU
@@ -318,30 +323,37 @@ def _set_cluster_topology_defaults(
         reservations,
         force_sub_block_targeting=args.super_slicing,
         system=system,
-        vms_per_slice=vms_per_pool,
+        vms_per_slice=typing.cast(int, vms_per_pool),
     )
     if return_code != 0:
       xpk_print('Error assessing available slices.')
       xpk_exit(return_code)
 
-    if system.accelerator_type == AcceleratorType.GPU and getattr(args, 'num_nodes', None) is None:
+    if (
+        system.accelerator_type == AcceleratorType.GPU
+        and getattr(args, 'num_nodes', None) is None
+    ):
       total_vms = sum(cap.available_slices for cap in temp_capacity)
       if total_vms > 0:
         xpk_print(f'Automatically setting --num-nodes to {total_vms}')
         args.num_nodes = total_vms
         available_capacity = []
         for cap in temp_capacity:
-          available_capacity.append(ReservationCapacity(
-            reservation=cap.reservation,
-            available_slices=cap.available_slices // args.num_nodes
-          ))
+          available_capacity.append(
+              ReservationCapacity(
+                  reservation=cap.reservation,
+                  available_slices=cap.available_slices // args.num_nodes,
+              )
+          )
       else:
         available_capacity = temp_capacity
     else:
       available_capacity = temp_capacity
 
   if system.accelerator_type == AcceleratorType.GPU:
-    args.num_nodes = 2 if getattr(args, 'num_nodes', None) is None else args.num_nodes
+    args.num_nodes = (
+        2 if getattr(args, 'num_nodes', None) is None else args.num_nodes
+    )
 
   if (
       args.num_slices is None

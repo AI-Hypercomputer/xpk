@@ -217,8 +217,8 @@ def _check_super_slicing_availability(
   ):
     return False
 
-  return_code, sub_slicing_enabled = has_super_slicing_enabled()
-  if return_code != 0 or not sub_slicing_enabled:
+  return_code, super_slicing_enabled = has_super_slicing_enabled()
+  if return_code != 0 or not super_slicing_enabled:
     return False
 
   return_code, current_version = get_installed_kueue_version(

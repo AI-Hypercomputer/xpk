@@ -268,7 +268,7 @@ kubectl apply -f 6083d72fc3ba2ac7d243c1269dd67717abd4086bf64e397e3a1737de415dd13
 kubectl get node --no-headers | wc -l
 [XPK] Try 1: Updating Controller Manager resources
 [XPK] Task: `Updating Controller Manager resources` is implemented by the following command not running since it is a dry run. 
-kubectl patch deployment kueue-controller-manager -n kueue-system --type='strategic' --patch='{"spec": {"template": {"spec": {"containers": [{"name": "manager", "resources": {"limits": {"memory": "4096Mi"}}}]}}}}'
+kubectl patch deployment kueue-controller-manager -n kueue-system --type='strategic' --patch='{"spec": {"template": {"spec": {"containers": [{"name": "manager", "resources": {"requests": {"cpu": "2", "memory": "4096Mi"}, "limits": {"cpu": "2", "memory": "4096Mi"}}}]}}}}'
 [XPK] Try 1: Deleting old RayCluster
 [XPK] Task: `Deleting old RayCluster` is implemented by the following command not running since it is a dry run. 
 kubectl delete rayclusters -n ray --all

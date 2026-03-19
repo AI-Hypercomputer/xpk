@@ -54,8 +54,10 @@ KUEUE_GKE_DEFAULT_TOPOLOGY_JINJA_FILE = "kueue_gke_default_topology.yaml.j2"
 KUEUE_CONTROLLER_MANAGER_JINJA_FILE = "kueue_controller_manager.yaml.j2"
 KUEUE_SUB_SLICING_TOPOLOGY_JINJA_FILE = "kueue_sub_slicing_topology.yaml.j2"
 KUEUE_SUPER_SLICING_TOPOLOGY_JINJA_FILE = "kueue_super_slicing_topology.yaml.j2"
-MEMORY_SIZE_PER_VM = 1.2
+MEMORY_SIZE_PER_VM = 32
 MIN_MEMORY_LIMIT_SIZE = 4096
+CPU_SIZE_PER_VM = 0.004
+MIN_CPU_LIMIT_SIZE = 2
 
 
 @dataclass(frozen=True)
@@ -485,14 +487,21 @@ class KueueManager:
     )
     if return_code != 0:
       xpk_exit(1)
-    # 1.2MiB per VM or 4GiB (whichever is greater).
+    # 32MiB per VM or 4GiB (whichever is greater).
     new_memory_limit = (
         f"{max(math.ceil(int(out) * MEMORY_SIZE_PER_VM), MIN_MEMORY_LIMIT_SIZE)}Mi"
+    )
+    # 4 CPUs per 1000 VMs or 2 CPUs (whichever is greater).
+    new_cpu_limit = max(
+        math.ceil(int(out) * CPU_SIZE_PER_VM), MIN_CPU_LIMIT_SIZE
     )
     return patch_controller_manager_resources(
         name="kueue-controller-manager",
         namespace="kueue-system",
         patch_resources=PatchResources(
+            cpu_request=new_cpu_limit,
+            cpu_limit=new_cpu_limit,
+            memory_request=new_memory_limit,
             memory_limit=new_memory_limit,
         ),
     )

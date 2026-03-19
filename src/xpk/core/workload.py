@@ -14,85 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+import json
 import re
 from ..utils.console import xpk_exit, xpk_print
 from .commands import run_command_for_value
 from .gcloud_context import get_cluster_location
-
-
-def workload_list_awk_command(filter_key) -> str:
-  """Function returns the awk command needed from the filter specified.
-
-  Args:
-    filter_key: workload list filter to awk against
-
-  Returns:
-    awk command to use in filtering workload list.
-  """
-
-  return f" | awk -e 'NR == 1 || {filter_key} {{print $0}}'"
-
-
-def determine_workload_list_filter_by_status(args) -> str:
-  """Function to create the filtered view of workload list.
-
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    the argument needed to filter by status of jobs in workload list.
-  """
-
-  # Argument positions related to columns created by workload list command.
-  status_arg = '$7'
-  running_vms_arg = '$5'
-  status_verbose_arg = '$9'
-  if args.filter_by_status == 'EVERYTHING':
-    return ''
-  elif args.filter_by_status == 'RUNNING':
-    # Running includes the status Admitted or Evicted, and when the number of
-    # vms running is > 0.
-    return workload_list_awk_command(
-        f'({status_arg} ~ "Admitted|Evicted" && {running_vms_arg} ~ /^[0-9]+$/'
-        f' && {running_vms_arg} > 0)'
-    )
-  elif args.filter_by_status == 'QUEUED':
-    # Queued includes the status Admitted or Evicted, and when the number of
-    # vms running is 0.
-    return workload_list_awk_command(
-        f'({status_arg} ~ "Admitted|Evicted|QuotaReserved" &&'
-        f' ({running_vms_arg} ~ "<none>" || {running_vms_arg} == 0))'
-    )
-  elif args.filter_by_status == 'FINISHED':
-    return workload_list_awk_command(f'{status_arg} == "Finished"')
-  elif args.filter_by_status == 'FAILED':
-    # Failed includes the status Finished, and when the verbose reason is failed.
-    return workload_list_awk_command(
-        f'({status_arg} == "Finished" && {status_verbose_arg} ~ "failed")'
-    )
-  elif args.filter_by_status == 'SUCCESSFUL':
-    # Failed includes the status Finished, and when the verbose reason is finished/success.
-    return workload_list_awk_command(
-        f'({status_arg} == "Finished" && {status_verbose_arg} ~ "finished")'
-    )
-  raise RuntimeError(f'Can not find filter type: {args.filter_by_status}')
-
-
-def determine_workload_list_filter_by_job(args) -> str:
-  """Function to filter view of workload list based on job name.
-
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    the argument needed to filter job names from workload list
-  """
-  # Argument positions related to columns created by workload list command.
-  if not hasattr(args, 'filter_by_job') or args.filter_by_job is None:
-    return ''
-  else:
-    job_name_arg = '$1'
-    return workload_list_awk_command(f'{job_name_arg} ~ "{args.filter_by_job}"')
 
 
 def get_workload_list(args) -> tuple[int, str]:
@@ -105,34 +31,108 @@ def get_workload_list(args) -> tuple[int, str]:
     return_code: 0 if successful and 1 otherwise.
     return_value: workloads in the cluster matching the criteria.
   """
-  columns = {
-      'Jobset Name': '.metadata.ownerReferences[0].name',
-      'Created Time': '.metadata.creationTimestamp',
-      'Priority': '.spec.priorityClassName',
-      'TPU VMs Needed': '.spec.podSets[0].count',
-      'TPU VMs Running/Ran': '.status.admission.podSetAssignments[-1].count',
-      'TPU VMs Done': '.status.reclaimablePods[0].count',
-      'Status': '.status.conditions[-1].type',
-      'Status Message': '.status.conditions[-1].message',
-      'Status Time': '.status.conditions[-1].lastTransitionTime',
-  }
-  s = ','.join([key + ':' + value for key, value in columns.items()])
-
-  workload_list_filter_status_cmd = determine_workload_list_filter_by_status(
-      args
-  )
-  workload_list_filter_job_cmd = determine_workload_list_filter_by_job(args)
-  command = (
-      f'kubectl get workloads --ignore-not-found -o=custom-columns="{s}" '
-      f'{workload_list_filter_status_cmd} {workload_list_filter_job_cmd}'
-  )
+  command = 'kubectl get workloads --ignore-not-found -o json'
 
   task = f'List Jobs with filter-by-status={args.filter_by_status}'
-  if hasattr(args, 'filter_by_job'):
+  if hasattr(args, 'filter_by_job') and args.filter_by_job:
     task += f' with filter-by-job={args.filter_by_job}'
 
   return_code, return_value = run_command_for_value(command, task)
-  return return_code, return_value
+  if return_code != 0:
+    return return_code, return_value
+
+  try:
+    if not return_value.strip():
+      workloads_json = {'items': []}
+    else:
+      workloads_json = json.loads(return_value)
+  except json.JSONDecodeError:
+    return 1, f"Failed to parse kubectl output as JSON: {return_value}"
+
+  items = workloads_json.get('items', [])
+  
+  rows = []
+  headers = [
+      'Jobset Name',
+      'Created Time',
+      'Priority',
+      'TPU VMs Needed',
+      'TPU VMs Running/Ran',
+      'TPU VMs Done',
+      'Status',
+      'Status Message',
+      'Status Time',
+  ]
+  
+  for item in items:
+    metadata = item.get('metadata', {})
+    spec = item.get('spec', {})
+    status = item.get('status', {})
+    
+    owner_refs = metadata.get('ownerReferences', [])
+    jobset_name = owner_refs[0].get('name', '<none>') if owner_refs else '<none>'
+    
+    if hasattr(args, 'filter_by_job') and args.filter_by_job:
+      if not re.search(args.filter_by_job, jobset_name):
+        continue
+        
+    created_time = metadata.get('creationTimestamp', '<none>')
+    priority = spec.get('priorityClassName', '<none>')
+    
+    pod_sets = spec.get('podSets', [])
+    tpu_vms_needed = str(pod_sets[0].get('count', '<none>')) if pod_sets else '<none>'
+    
+    admission = status.get('admission', {})
+    pod_set_assignments = admission.get('podSetAssignments', [])
+    tpu_vms_running = str(pod_set_assignments[-1].get('count', '<none>')) if pod_set_assignments else '<none>'
+    
+    reclaimable = status.get('reclaimablePods', [])
+    tpu_vms_done = str(reclaimable[0].get('count', '<none>')) if reclaimable else '<none>'
+    
+    conditions = status.get('conditions', [])
+    if conditions:
+      latest_cond = sorted(conditions, key=lambda c: c.get('lastTransitionTime', ''))[-1]
+      cond_type = latest_cond.get('type', '<none>')
+      cond_msg = latest_cond.get('message', '<none>')
+      cond_time = latest_cond.get('lastTransitionTime', '<none>')
+    else:
+      cond_type = '<none>'
+      cond_msg = '<none>'
+      cond_time = '<none>'
+      
+    keep = False
+    filter_status = getattr(args, 'filter_by_status', 'EVERYTHING')
+    if filter_status == 'EVERYTHING':
+      keep = True
+    elif filter_status == 'RUNNING':
+      if cond_type in ('Admitted', 'Evicted') and tpu_vms_running.isdigit() and int(tpu_vms_running) > 0:
+        keep = True
+    elif filter_status == 'QUEUED':
+      if cond_type in ('Admitted', 'Evicted', 'QuotaReserved') and (tpu_vms_running == '<none>' or tpu_vms_running == '0'):
+        keep = True
+    elif filter_status == 'FINISHED':
+      if cond_type == 'Finished':
+        keep = True
+    elif filter_status == 'FAILED':
+      if cond_type == 'Finished' and 'failed' in cond_msg.lower():
+        keep = True
+    elif filter_status == 'SUCCESSFUL':
+      if cond_type == 'Finished' and ('finished' in cond_msg.lower() or 'success' in cond_msg.lower()):
+        keep = True
+    else:
+      return 1, f"Can not find filter type: {filter_status}"
+        
+    if keep:
+      rows.append([jobset_name, created_time, priority, tpu_vms_needed, tpu_vms_running, tpu_vms_done, cond_type, cond_msg, cond_time])
+      
+  all_data = [headers] + rows
+  col_widths = [max(len(str(item)) for item in col) for col in zip(*all_data)]
+  
+  lines = []
+  for row in all_data:
+      lines.append('   '.join(str(item).ljust(width) for item, width in zip(row, col_widths)))
+      
+  return 0, '\n'.join(lines)
 
 
 def check_if_workload_exists(args) -> bool:
@@ -199,7 +199,7 @@ def wait_for_job_completion(args) -> int:
       f'{timeout_val}s' if timeout_val != -1 else 'max timeout (1 week)'
   )
   wait_cmd = (
-      "kubectl  wait --for jsonpath='.status.conditions[-1].type'=Finished"
+      'kubectl wait --for=condition=Finished'
       f' workload {full_workload_name} --timeout={timeout_val}s'
   )
   return_code, return_value = run_command_for_value(
@@ -227,7 +227,7 @@ def wait_for_job_completion(args) -> int:
   )
   status_cmd = (
       f'kubectl get jobset {args.workload} -o'
-      " jsonpath='{.status.conditions[-1].type}'"
+      " jsonpath='{.status.conditions[?(@.type==\"Completed\")].status}'"
   )
   return_code, return_value = run_command_for_value(
       status_cmd, 'Get jobset status'
@@ -235,11 +235,30 @@ def wait_for_job_completion(args) -> int:
   if return_code != 0:
     xpk_print(f'Get workload status request returned ERROR {return_code}')
     return return_code
-  xpk_print(f'Your workload finished with status: {return_value}')
-  if return_value != 'Completed':
-    xpk_print('Your workload did not complete successfully')
-    return 125
-  return 0
+
+  if return_value == 'True':
+    xpk_print(f'Your workload finished with Completed status: {return_value}')
+    return 0
+
+  # If not True, check for Failed condition to output a cleaner message
+  failed_status_cmd = (
+      f'kubectl get jobset {args.workload} -o'
+      " jsonpath='{.status.conditions[?(@.type==\"Failed\")].status}'"
+  )
+  failed_return_code, failed_return_value = run_command_for_value(
+      failed_status_cmd, 'Get jobset failed status'
+  )
+  if failed_return_code != 0:
+    xpk_print(f'Get workload failed status request returned ERROR {failed_return_code}')
+    return failed_return_code
+    
+  if failed_return_value == 'True':
+    xpk_print(f'Your workload failed with Failed status: {failed_return_value}')
+  else:
+    xpk_print('Your workload finished without a Completed or Failed status')
+    
+  xpk_print('Your workload did not complete successfully')
+  return 125
 
 
 GCP_NAME_FILTER_VALUE_REGEX = re.compile(r'[a-z0-9\-]+')

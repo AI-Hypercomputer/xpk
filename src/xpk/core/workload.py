@@ -98,6 +98,12 @@ def _parse_workload_status(
     return _WorkloadStatus.UNKNOWN
 
 
+def _get_latest_condition(conditions: list[dict[str, Any]]) -> dict[str, Any]:
+  if not conditions:
+    return {}
+  return max(conditions, key=lambda c: c.get('lastTransitionTime') or '')
+
+
 def _parse_workload_item(item: dict[str, Any]) -> _WorkloadListRow:
   owner_refs = item.get('metadata', {}).get('ownerReferences') or [{}]
   jobset_name = owner_refs[0].get('name', '') or None
@@ -136,12 +142,7 @@ def _parse_workload_item(item: dict[str, Any]) -> _WorkloadListRow:
 
   conditions = item.get('status', {}).get('conditions') or []
 
-  if not conditions:
-    latest_condition = {}
-  else:
-    latest_condition = max(
-        conditions, key=lambda c: c.get('lastTransitionTime') or ''
-    )
+  latest_condition = _get_latest_condition(conditions)
 
   status = _parse_workload_status(latest_condition.get('type'))
 
@@ -358,6 +359,26 @@ def check_if_workload_exists(args) -> bool:
   return False
 
 
+def _get_jobset_status(workload_name: str) -> tuple[int, str]:
+  status_cmd = f'kubectl get jobset {workload_name} -o json'
+  return_code, return_value = run_command_for_value(
+      status_cmd, 'Get jobset status'
+  )
+  if return_code != 0:
+    xpk_print(f'Get workload status request returned ERROR {return_code}')
+    return return_code, 'Unknown'
+
+  try:
+    jobset_json = json.loads(return_value)
+    conditions = jobset_json.get('status', {}).get('conditions', [])
+    latest_condition = _get_latest_condition(conditions)
+    final_status = latest_condition.get('type', 'Unknown')
+    return 0, final_status
+  except json.JSONDecodeError:
+    xpk_print('Failed to parse jobset status JSON')
+    return 125, 'Unknown'
+
+
 def wait_for_job_completion(args) -> int:
   """Function to wait for job completion.
 
@@ -416,26 +437,9 @@ def wait_for_job_completion(args) -> int:
       # pylint: disable=line-too-long
       f' https://console.cloud.google.com/kubernetes/service/{get_cluster_location(args.project, args.cluster, args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
   )
-  status_cmd = f'kubectl get jobset {args.workload} -o json'
-  return_code, return_value = run_command_for_value(
-      status_cmd, 'Get jobset status'
-  )
+  return_code, return_value = _get_jobset_status(args.workload)
   if return_code != 0:
-    xpk_print(f'Get workload status request returned ERROR {return_code}')
     return return_code
-
-  try:
-    jobset_json = json.loads(return_value)
-    conditions = jobset_json.get('status', {}).get('conditions', [])
-    final_status = 'Unknown'
-    for c in conditions:
-      if c.get('type') in ['Completed', 'Failed'] and c.get('status') == 'True':
-        final_status = c.get('type')
-        break
-    return_value = final_status
-  except json.JSONDecodeError:
-    xpk_print('Failed to parse jobset status JSON')
-    return 125
 
   xpk_print(f'Your workload finished with status: {return_value}')
   if return_value != 'Completed':

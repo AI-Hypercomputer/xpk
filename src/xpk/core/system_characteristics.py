@@ -299,7 +299,9 @@ ALSO ADD CORRESPONDING MODIFICATIONS TO UserFacingNameToSystemCharacteristics
 IN MaxText/accelerator_to_spec_map.py !!!!! """
 # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 UserFacingNameToSystemCharacteristics = {
-    # GPU system characteristics
+    # GPU system characteristics.
+    # Note: For all GPUs (even multi-host like A3/H100), `vms_per_slice=1` because a single VM is the fundamental atomic unit.
+    # Multi-node GPU topologies are built by grouping these 1-VM units into node pools of size `args.num_nodes` at runtime.
     # l4-$CHIPSc
     'l4-1': SystemCharacteristics(
         topology='N/A',

@@ -18,6 +18,8 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"sort"
+	"strings"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -76,4 +78,29 @@ func isError(slice *v1beta1.Slice) bool {
 		return false
 	}
 	return condReady.Reason == string(MMIGHealthStatusFailed) || (!features.Enabled(features.UseRetryMechanismForSliceCreation) && condReady.Reason == string(SliceCreationFailed))
+}
+
+func SlicesToMapByName(slicesList []v1beta1.Slice) map[string]*v1beta1.Slice {
+	m := make(map[string]*v1beta1.Slice, len(slicesList))
+	for i := range slicesList {
+		m[slicesList[i].Name] = &slicesList[i]
+	}
+	return m
+}
+
+func BuildCreationEventMessage(slices []v1beta1.Slice) string {
+	sliceNames := make([]string, len(slices))
+	for index, slice := range slices {
+		sliceNames[index] = fmt.Sprintf("%q", slice.Name)
+	}
+	sort.Strings(sliceNames)
+	return fmt.Sprintf("The Slices %s have been created", strings.Join(sliceNames, ", "))
+}
+
+func GroupSlicesByState(slices []v1beta1.Slice, activationTimeout time.Duration) map[SliceState][]v1beta1.Slice {
+	slicesByState := make(map[SliceState][]v1beta1.Slice)
+	for _, slice := range slices {
+		slicesByState[GetSliceState(slice, activationTimeout)] = append(slicesByState[GetSliceState(slice, activationTimeout)], slice)
+	}
+	return slicesByState
 }

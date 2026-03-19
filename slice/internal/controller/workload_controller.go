@@ -21,7 +21,6 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"sort"
 	"strings"
 	"time"
 
@@ -581,11 +580,6 @@ func (r *WorkloadReconciler) syncSlices(
 	if ac.State == kueue.CheckStateRetry || ac.State == kueue.CheckStateRejected {
 		return nil, existingSlices, nil
 	}
-	existingSlicesByName := make(map[string]*v1beta1.Slice, len(existingSlices))
-	for i := range existingSlices {
-		existingSlicesByName[existingSlices[i].Name] = &existingSlices[i]
-	}
-
 	var allDeletedSliceNames []string
 	allCreatedSlices := make([]v1beta1.Slice, 0, len(wl.Status.Admission.PodSetAssignments))
 	for _, psa := range wl.Status.Admission.PodSetAssignments {
@@ -595,7 +589,7 @@ func (r *WorkloadReconciler) syncSlices(
 		ps := podset.FindPodSetByName(wl.Spec.PodSets, psa.Name)
 		desiredNumberOfSlices := ptr.Deref(ps.TopologyRequest.SubGroupCount, 1)
 
-		createdSlices, deletedSlices, err := r.syncSlicesForAssignment(ctx, wl, ac, &psa, nodes, existingSlicesByName, desiredNumberOfSlices)
+		createdSlices, deletedSlices, err := r.syncSlicesForAssignment(ctx, wl, ac, &psa, nodes, existingSlices, desiredNumberOfSlices)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -618,7 +612,7 @@ func (r *WorkloadReconciler) syncSlices(
 	}
 
 	if len(allCreatedSlices) > 0 {
-		msg := buildCreationEventMessage(allCreatedSlices)
+		msg := core.BuildCreationEventMessage(allCreatedSlices)
 		ctrl.LoggerFrom(ctx).V(3).Info(msg)
 		r.record.Event(wl, corev1.EventTypeNormal, SlicesCreatedEventType, api.TruncateEventMessage(msg))
 	}
@@ -651,7 +645,9 @@ func totalDesiredSlices(wl *kueue.Workload, nodes map[string]corev1.Node) int {
 	return count
 }
 
-func (r *WorkloadReconciler) syncSlicesForAssignment(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, psa *kueue.PodSetAssignment, nodes map[string]corev1.Node, existingSlicesByName map[string]*v1beta1.Slice, desiredNumberOfSlices int32) ([]v1beta1.Slice, []string, error) {
+func (r *WorkloadReconciler) syncSlicesForAssignment(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, psa *kueue.PodSetAssignment, nodes map[string]corev1.Node, existingSlices []v1beta1.Slice, desiredNumberOfSlices int32) ([]v1beta1.Slice, []string, error) {
+	existingSlicesByName := core.SlicesToMapByName(existingSlices)
+
 	ps := podset.FindPodSetByName(wl.Spec.PodSets, psa.Name)
 	label := topology.GetPartitionIDLabel(ps.Template)
 	parsedAssignment := topology.ParseAssignment(psa.TopologyAssignment, nodes, label)
@@ -816,15 +812,6 @@ func (r *WorkloadReconciler) updateWorkloadAdmissionCheckStatus(ctx context.Cont
 	return err
 }
 
-func buildCreationEventMessage(slices []v1beta1.Slice) string {
-	sliceNames := make([]string, len(slices))
-	for index, slice := range slices {
-		sliceNames[index] = fmt.Sprintf("%q", slice.Name)
-	}
-	sort.Strings(sliceNames)
-	return fmt.Sprintf("The Slices %s have been created", strings.Join(sliceNames, ", "))
-}
-
 // syncAdmissionCheckStatus syncs the admission check status with the state of the Slices.
 func (r *WorkloadReconciler) syncAdmissionCheckStatus(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, slices []v1beta1.Slice, desiredSlicesCount int) error {
 	originalState := ac.State
@@ -866,21 +853,13 @@ func (r *WorkloadReconciler) syncAdmissionCheckStatus(ctx context.Context, wl *k
 	return nil
 }
 
-func groupSlicesByState(slices []v1beta1.Slice, activationTimeout time.Duration) map[core.SliceState][]v1beta1.Slice {
-	slicesByState := make(map[core.SliceState][]v1beta1.Slice)
-	for _, slice := range slices {
-		slicesByState[core.GetSliceState(slice, activationTimeout)] = append(slicesByState[core.GetSliceState(slice, activationTimeout)], slice)
-	}
-	return slicesByState
-}
-
 func (r *WorkloadReconciler) prepareAdmissionCheckStatus(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, slices []v1beta1.Slice, desiredSlicesCount int) {
 	log := ctrl.LoggerFrom(ctx).V(2)
 	// wait for Kueue to reset check to Pending after eviction
 	if ac.State == kueue.CheckStateRetry {
 		return
 	}
-	slicesByState := groupSlicesByState(slices, r.activationTimeout)
+	slicesByState := core.GroupSlicesByState(slices, r.activationTimeout)
 
 	switch {
 	case desiredSlicesCount == len(slicesByState[core.SliceStateActive])+len(slicesByState[core.SliceStateActiveDegraded]):

@@ -102,9 +102,7 @@ func main() {
 	flag.StringVar(&sliceHealthNodeAffinityMode, "default-slice-health-node-affinity", "HEALTHY",
 		"Default slice health node affinity. Possible values are HEALTHY or HEALTHY_AND_DEGRADED.")
 	flag.StringVar(&featureGates, "feature-gates", "", "A set of key=value pairs that describe feature gates for alpha/experimental features.")
-	opts := zap.Options{
-		Development: true,
-	}
+	opts := zap.Options{}
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
 

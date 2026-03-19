@@ -56,6 +56,7 @@ import (
 	"tpu-slice-controller/internal/util/api"
 	"tpu-slice-controller/internal/util/node"
 	utilpod "tpu-slice-controller/internal/util/pod"
+	utilworkload "tpu-slice-controller/internal/util/workload"
 )
 
 const (
@@ -120,7 +121,7 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	// If the workload has been deleted, evicted, has finished, or is no longer active,
 	// finalize the Workload by removing its slices and then the finalizer.
-	if finalize, reason := shouldFinalize(wl); finalize {
+	if finalize, reason := utilworkload.ShouldFinalize(wl); finalize {
 		if controllerutil.ContainsFinalizer(wl, SliceControllerName) {
 			log.V(3).Info("Cleaning up the Slices and finalizing the Workload", "reason", reason)
 			cleanedUp, err := r.cleanupSlices(ctx, wl)
@@ -250,52 +251,6 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	return ctrl.Result{}, nil
 }
 
-func shouldFinalize(wl *kueue.Workload) (bool, string) {
-	if !wl.DeletionTimestamp.IsZero() {
-		return true, "it has been deleted"
-	}
-
-	if workload.IsFinished(wl) {
-		return true, "it has finished"
-	}
-
-	if workload.IsEvicted(wl) {
-		return true, "it was evicted"
-	}
-
-	if !workload.IsActive(wl) {
-		return true, "it is no longer active"
-	}
-
-	if !controllerutil.HasControllerReference(wl) {
-		return true, "it doesn't have owner"
-	}
-
-	if !hasSupportedOwner(wl) {
-		return true, "it has an unsupported owner"
-	}
-
-	return false, ""
-}
-
-func hasSupportedOwner(wl *kueue.Workload) bool {
-	return isJobSetOwner(wl) || isJobOwner(wl)
-}
-
-func isJobSetOwner(wl *kueue.Workload) bool {
-	if owner := metav1.GetControllerOf(wl); owner != nil {
-		return owner.APIVersion == jobset.SchemeGroupVersion.String() && owner.Kind == "JobSet"
-	}
-	return false
-}
-
-func isJobOwner(wl *kueue.Workload) bool {
-	if owner := metav1.GetControllerOf(wl); owner != nil {
-		return owner.APIVersion == batchv1.SchemeGroupVersion.String() && owner.Kind == "Job"
-	}
-	return false
-}
-
 func (r *WorkloadReconciler) cleanupSlices(ctx context.Context, wl *kueue.Workload) (bool, error) {
 	log := ctrl.LoggerFrom(ctx)
 
@@ -417,10 +372,10 @@ func (r *WorkloadReconciler) deleteSlicesForEvictedWorkload(ctx context.Context,
 }
 
 func (r *WorkloadReconciler) ownerPodsFinished(ctx context.Context, wl *kueue.Workload) (bool, error) {
-	if isJobSetOwner(wl) {
+	if utilworkload.IsJobSetOwner(wl) {
 		return r.jobSetPodsFinished(ctx, wl)
 	}
-	if isJobOwner(wl) {
+	if utilworkload.IsJobOwner(wl) {
 		return r.jobPodsFinished(ctx, wl)
 	}
 	// Finalize Workloads that have no owner or have unsupported owner types.
@@ -519,7 +474,7 @@ func (r *WorkloadReconciler) finalizeWorkload(ctx context.Context, wl *kueue.Wor
 }
 
 func validateRelevantWorkload(wl *kueue.Workload, nodes map[string]corev1.Node) error {
-	if !hasSupportedOwner(wl) {
+	if !utilworkload.HasSupportedOwner(wl) {
 		return errors.New("does not have a supported owner")
 	}
 	if !hasRelevantPodSet(wl.Spec.PodSets) {

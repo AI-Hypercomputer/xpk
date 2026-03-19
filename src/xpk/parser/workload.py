@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+import argparse
 from argparse import ArgumentParser
 from ..commands.workload import (
     workload_create,
@@ -581,6 +582,14 @@ def add_shared_workload_create_optional_arguments(args_parsers):
         help=(
             'The name of the docker-image to use, default and typically'
             ' `jax-tpu`.'
+        ),
+    )
+    custom_parser.add_argument(
+        '--use-parallel-containers',
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help=(
+            'Whether to use parallel_containers in JobSet. Enabled by default.'
         ),
     )
     custom_parser.add_argument(

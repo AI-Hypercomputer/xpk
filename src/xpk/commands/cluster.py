@@ -25,7 +25,6 @@ from ..core.cluster import (
     install_nccl_on_cluster,
     install_nri_on_cluster,
     set_jobset_on_cluster,
-    set_pathways_job_on_cluster,
     setup_k8s_env,
     count_nodes_on_cluster,
     update_cluster_with_gcpfilestore_driver_if_necessary,
@@ -34,6 +33,7 @@ from ..core.cluster import (
     update_cluster_with_pd_driver_if_necessary,
     update_cluster_with_lustre_driver_if_necessary,
     update_cluster_with_workload_identity_if_necessary,
+    update_cluster_with_mtc_if_necessary,
 )
 from ..core.cluster_private import authorize_private_cluster_access_if_necessary
 from ..core.commands import run_command_for_value, run_command_with_updates
@@ -185,11 +185,6 @@ def cluster_adapt(args) -> None:
   set_jobset_on_cluster_code = set_jobset_on_cluster(args)
   if set_jobset_on_cluster_code != 0:
     xpk_exit(set_jobset_on_cluster_code)
-
-  # TODO: Uncomment when cluster_adapt will support TPU cluters
-  # set_pathways_job_on_cluster_code = set_pathways_job_on_cluster(args)
-  # if set_pathways_job_on_cluster_code != 0:
-  #   xpk_exit(set_pathways_job_on_cluster_code)
 
   install_kueue_code = _install_kueue(args, system, autoprovisioning_config)
   if install_kueue_code != 0:
@@ -372,6 +367,12 @@ def cluster_create(args) -> None:
     if update_cluster_command_code != 0:
       xpk_exit(update_cluster_command_code)
 
+  # Enable MTC if not enabled already.
+  if getattr(args, 'enable_mtc', False):
+    update_cluster_command_code = update_cluster_with_mtc_if_necessary(args)
+    if update_cluster_command_code != 0:
+      xpk_exit(update_cluster_command_code)
+
   get_cluster_credentials(args)
 
   update_coredns_command_code = update_coredns_if_necessary(args)
@@ -446,10 +447,6 @@ def cluster_create(args) -> None:
   update_jobset_resources_code = update_jobset_resources_if_necessary()
   if update_jobset_resources_code != 0:
     xpk_exit(update_jobset_resources_code)
-
-  set_pathways_job_on_cluster_code = set_pathways_job_on_cluster(args)
-  if set_pathways_job_on_cluster_code != 0:
-    xpk_exit(set_pathways_job_on_cluster_code)
 
   install_kueue_code = _install_kueue(args, system, autoprovisioning_config)
   if install_kueue_code != 0:

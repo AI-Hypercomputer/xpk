@@ -51,11 +51,11 @@ kubectl wait deployment/coredns --for=condition=Available=true --namespace=kube-
 [XPK] Task: `Determine current gke master version` is implemented by the following command not running since it is a dry run. 
 gcloud beta container clusters describe golden-cluster-private --location us-central1 --project golden-project --format="value(currentMasterVersion)"
 [XPK] Creating 1 node pool or pools of v5p-8
-We assume that the underlying system is: SystemCharacteristics(topology='2x2x1', vms_per_slice=1, gke_accelerator='tpu-v5p-slice', gce_machine_type='ct5p-hightpu-4t', chips_per_vm=4, accelerator_type=TPU, device_type='v5p-8', supports_sub_slicing=False, supports_super_slicing=False, supports_accelerator_network_profile=False, docker_platform=<DockerPlatform.AMD: 'linux/amd64'>, requires_workload_policy=False, gpu_config=None, parallel_containers=1)
+We assume that the underlying system is: SystemCharacteristics(topology='2x2x1', vms_per_slice=1, gke_accelerator='tpu-v5p-slice', gce_machine_type='ct5p-hightpu-4t', chips_per_vm=4, accelerator_type=TPU, device_type='v5p-8', supports_sub_slicing=False, supports_super_slicing=False, supports_accelerator_network_profile=False, docker_platform=<DockerPlatform.AMD: 'linux/amd64'>, requires_workload_policy=False, gpu_config=None, parallel_containers=1, pathways_tpu_version='tpuv5')
 [XPK] Task: `Get All Node Pools` is implemented by the following command not running since it is a dry run. 
 gcloud beta container node-pools list --cluster golden-cluster-private --project=golden-project --location=us-central1 --format="csv[no-heading](name)"
 [XPK] Creating 1 node pool or pools of v5p-8
-Underlyingly, we assume that means: SystemCharacteristics(topology='2x2x1', vms_per_slice=1, gke_accelerator='tpu-v5p-slice', gce_machine_type='ct5p-hightpu-4t', chips_per_vm=4, accelerator_type=TPU, device_type='v5p-8', supports_sub_slicing=False, supports_super_slicing=False, supports_accelerator_network_profile=False, docker_platform=<DockerPlatform.AMD: 'linux/amd64'>, requires_workload_policy=False, gpu_config=None, parallel_containers=1)
+Underlyingly, we assume that means: SystemCharacteristics(topology='2x2x1', vms_per_slice=1, gke_accelerator='tpu-v5p-slice', gce_machine_type='ct5p-hightpu-4t', chips_per_vm=4, accelerator_type=TPU, device_type='v5p-8', supports_sub_slicing=False, supports_super_slicing=False, supports_accelerator_network_profile=False, docker_platform=<DockerPlatform.AMD: 'linux/amd64'>, requires_workload_policy=False, gpu_config=None, parallel_containers=1, pathways_tpu_version='tpuv5')
 [XPK] Task: `Get Node Pool Zone` is implemented by the following command not running since it is a dry run. 
 gcloud beta container node-pools describe 0 --cluster golden-cluster-private --project=golden-project --location=us-central1 --format="value(locations)"
 [XPK] Task: `GKE Cluster Get ConfigMap` is implemented by the following command not running since it is a dry run. 
@@ -178,9 +178,6 @@ spec:
 [XPK] Try 1: Updating jobset Controller Manager resources
 [XPK] Task: `Updating jobset Controller Manager resources` is implemented by the following command not running since it is a dry run. 
 kubectl apply -f 1b31e624e490f9c8c4ef4e369f08d3fa467990af5a261e4405bd045265d70e95
-[XPK] Try 1: Install PathwaysJob on golden-cluster-private
-[XPK] Task: `Install PathwaysJob on golden-cluster-private` is implemented by the following command not running since it is a dry run. 
-kubectl apply --server-side -f https://github.com/google/pathways-job/releases/download/v0.1.4/install.yaml
 [XPK] Enabling Kueue on the cluster
 [XPK] Task: `Get kueue version on server` is implemented by the following command not running since it is a dry run. 
 kubectl get deployment kueue-controller-manager -n kueue-system -o jsonpath='{.spec.template.spec.containers[0].image}'
@@ -283,7 +280,7 @@ kubectl apply -f 2e0015f210b664c3b767ae4e11af51387b01d4d6b36e20fecbdee137d3d2700
 kubectl get node --no-headers | wc -l
 [XPK] Try 1: Updating Controller Manager resources
 [XPK] Task: `Updating Controller Manager resources` is implemented by the following command not running since it is a dry run. 
-kubectl patch deployment kueue-controller-manager -n kueue-system --type='strategic' --patch='{"spec": {"template": {"spec": {"containers": [{"name": "manager", "resources": {"limits": {"memory": "4096Mi"}}}]}}}}'
+kubectl patch deployment kueue-controller-manager -n kueue-system --type='strategic' --patch='{"spec": {"template": {"spec": {"containers": [{"name": "manager", "resources": {"requests": {"cpu": "2", "memory": "4096Mi"}, "limits": {"cpu": "2", "memory": "4096Mi"}}}]}}}}'
 [XPK] GKE commands done! Resources are created.
 [XPK] See your GKE Cluster here: https://console.cloud.google.com/kubernetes/clusters/details/us-central1/golden-cluster-private/details?project=golden-project
 [XPK] Exiting XPK cleanly

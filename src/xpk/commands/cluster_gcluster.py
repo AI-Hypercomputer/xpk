@@ -41,7 +41,7 @@ from ..core.reservation import (
 )
 from ..core.cluster import get_cluster_credentials
 from ..core.commands import run_command_for_value
-from ..core.docker_manager import DockerManager
+from ..core.cluster_toolkit.docker_manager import DockerManager
 from ..core.gcloud_context import zone_to_region
 from ..core.gcluster_manager import GclusterManager
 from ..core.remote_state.fuse_remote_state import FuseStateClient

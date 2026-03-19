@@ -24,9 +24,10 @@ import dataclasses
 from pathlib import Path
 from itertools import product
 
-_KUBECTL_VERSION: str = "v1.30.0"
+_KUBECTL_VERSION: str = "v1.35.2"
 _KUEUE_VERSION: str = "v0.15.2"
-_CRANE_VERSION: str = "v0.20.7"
+_CRANE_VERSION: str = "v0.21.2"
+_GCLUSTER_VERSION: str = "v1.84.0"
 
 _COPYRIGHT_STRING = """
 Copyright 2026 Google LLC
@@ -55,6 +56,7 @@ class _DependencyInfo:
   archive_type: str
   binary_name: str
   arch_map: dict[str, str] = dataclasses.field(default_factory=dict)
+  os_map: dict[str, str] = dataclasses.field(default_factory=dict)
 
 
 _DEPENDENCIES: list[_DependencyInfo] = [
@@ -77,15 +79,24 @@ _DEPENDENCIES: list[_DependencyInfo] = [
     _DependencyInfo(
         name="crane",
         version=_CRANE_VERSION,
-        url_template="https://github.com/google/go-containerregistry/releases/download/{version}/go-containerregistry_{os_capitalized}_{arch}.tar.gz",
+        url_template="https://github.com/google/go-containerregistry/releases/download/{version}/go-containerregistry_{os}_{arch}.tar.gz",
         archive_type="tar.gz",
         binary_name="crane",
         arch_map={"amd64": "x86_64", "arm64": "arm64"},
+        os_map={"linux": "Linux", "darwin": "Darwin"},
+    ),
+    _DependencyInfo(
+        name="gcluster",
+        version=_GCLUSTER_VERSION,
+        url_template="https://github.com/GoogleCloudPlatform/cluster-toolkit/releases/download/{version}/gcluster_bundle_{os}.zip",
+        archive_type="zip",
+        binary_name="gcluster",
+        os_map={"darwin": "mac"},
     ),
 ]
 
-_OS_MAP: dict[str, str] = {"linux": "linux", "darwin": "darwin"}
-_ARCH_MAP: dict[str, str] = {"amd64": "amd64", "arm64": "arm64"}
+_OS_MAP: list[str] = ["darwin", "linux"]
+_ARCH_MAP: list[str] = ["amd64", "arm64"]
 
 _SCRIPT_DIR = Path(__file__).parent.resolve()
 _OUTPUT_FILE = (
@@ -108,14 +119,14 @@ def _get_hash(url: str) -> str:
 
 def _get_dep_checksums(dep_info: _DependencyInfo) -> dict[str, str]:
   checksums: dict[str, str] = {}
-  for os_val, arch_val in product(_OS_MAP.values(), _ARCH_MAP.values()):
+  for os_val, arch_val in product(_OS_MAP, _ARCH_MAP):
     print(f" Calculating checksum for {os_val}_{arch_val}")
     mapped_arch = dep_info.arch_map.get(arch_val, arch_val)
+    mapped_os = dep_info.os_map.get(os_val, os_val)
     url = dep_info.url_template.format(
         version=dep_info.version,
-        os=os_val,
+        os=mapped_os,
         arch=mapped_arch,
-        os_capitalized=os_val.capitalize(),
     )
     checksums[f"{os_val}_{arch_val}"] = _get_hash(url)
   return checksums
@@ -155,6 +166,10 @@ def _store_checksums(
     f.write("    version: str\n")
     f.write(
         "    arch_map: dict[str, str] ="
+        " dataclasses.field(default_factory=dict)\n"
+    )
+    f.write(
+        "    os_map: dict[str, str] ="
         " dataclasses.field(default_factory=dict)\n\n"
     )
     f.write("class BinaryDependencies(enum.Enum):\n")
@@ -174,6 +189,9 @@ def _store_checksums(
       if dep_info.arch_map:
         arch_map_str = pprint.pformat(dep_info.arch_map, indent=12)
         f.write(f"        arch_map={arch_map_str},\n")
+      if dep_info.os_map:
+        os_map_str = pprint.pformat(dep_info.os_map, indent=12)
+        f.write(f"        os_map={os_map_str},\n")
       f.write("    )\n")
   print(f"Checksums written to {_OUTPUT_FILE}")
 

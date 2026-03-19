@@ -29,6 +29,7 @@ class BinaryDependency:
   url_template: str
   version: str
   arch_map: dict[str, str] = dataclasses.field(default_factory=dict)
+  os_map: dict[str, str] = dataclasses.field(default_factory=dict)
 
 
 class BinaryDependencies(enum.Enum):
@@ -39,22 +40,22 @@ class BinaryDependencies(enum.Enum):
       binary_name='kubectl',
       checksums={
           'darwin_amd64': (
-              'bcfa57d020b8d07d0ea77235ce8012c2c28fefdfd7cb9738f33674a7b16cef08'
+              '163955964d4ed9e66656eab45c0114f5c1110d1b430ace432b20ddc430023df5'
           ),
           'darwin_arm64': (
-              '45cfa208151320153742062824398f22bb6bfb5a142bf6238476d55dacbd1bdd'
+              'b0b59cdd7ba20ca20b85214943100e578dd50ddd85242fcddf277a87c2249706'
           ),
           'linux_amd64': (
-              '7c3807c0f5c1b30110a2ff1e55da1d112a6d0096201f1beb81b269f582b5d1c5'
+              '924eb50779153f20cb668117d141440b95df2f325a64452d78dff9469145e277'
           ),
           'linux_arm64': (
-              '669af0cf520757298ea60a8b6eb6b719ba443a9c7d35f36d3fb2fd7513e8c7d2'
+              'cd859449f54ad2cb05b491c490c13bb836cdd0886ae013c0aed3dd67ff747467'
           ),
       },
       url_template=(
           'https://dl.k8s.io/release/{version}/bin/{os}/{arch}/kubectl'
       ),
-      version='v1.30.0',
+      version='v1.35.2',
   )
   KUBECTL_KUEUE = BinaryDependency(
       archive_type='binary',
@@ -81,19 +82,41 @@ class BinaryDependencies(enum.Enum):
       binary_name='crane',
       checksums={
           'darwin_amd64': (
-              '69af8da281cd2cd56245bf178de8719bbcdd2ffdeae46b4c621c02bfc6f75e22'
+              '4f9ee5012e767f510abd9a31abb7da0de36fa07494e6a310c7b667dc40a5e108'
           ),
           'darwin_arm64': (
-              '210da17a7269a9904a9b6797efbf97f4b1e5567c0962f168d1489a7bd375f14a'
+              'd3ee7088bec79c7950efae4c9496efbc64d6bb9d393a882e0d9d38a7d1dd4a11'
           ),
           'linux_amd64': (
-              '8ef3564d264e6b5ca93f7b7f5652704c4dd29d33935aff6947dd5adefd05953e'
+              '897e7c342db072ba76531246fc18fbf3e8e298688b6ecf98916770984b263866'
           ),
           'linux_arm64': (
-              'b04ee6e4904d9219c76383f5b73521a63f69ecc93c0b1840846eebfd071a6355'
+              '162c602f2ae4c4b15c36a08eaf501d301493fb128ca32443611107a1b26868fa'
           ),
       },
-      url_template='https://github.com/google/go-containerregistry/releases/download/{version}/go-containerregistry_{os_capitalized}_{arch}.tar.gz',
-      version='v0.20.7',
+      url_template='https://github.com/google/go-containerregistry/releases/download/{version}/go-containerregistry_{os}_{arch}.tar.gz',
+      version='v0.21.2',
       arch_map={'amd64': 'x86_64', 'arm64': 'arm64'},
+      os_map={'darwin': 'Darwin', 'linux': 'Linux'},
+  )
+  GCLUSTER = BinaryDependency(
+      archive_type='zip',
+      binary_name='gcluster',
+      checksums={
+          'darwin_amd64': (
+              'f1d5f71bd239743d6e29471993ed1fe52b889a71a19b7c6b6e7027e8a75fafbd'
+          ),
+          'darwin_arm64': (
+              'f1d5f71bd239743d6e29471993ed1fe52b889a71a19b7c6b6e7027e8a75fafbd'
+          ),
+          'linux_amd64': (
+              'c224041a09259c47da924f542fc4e8c866fb6027581915bd7a3f48738f7c785b'
+          ),
+          'linux_arm64': (
+              'c224041a09259c47da924f542fc4e8c866fb6027581915bd7a3f48738f7c785b'
+          ),
+      },
+      url_template='https://github.com/GoogleCloudPlatform/cluster-toolkit/releases/download/{version}/gcluster_bundle_{os}.zip',
+      version='v1.84.0',
+      os_map={'darwin': 'mac'},
   )

@@ -208,8 +208,10 @@ def run_gke_node_pool_create_command(
         'Delete Nodepools',
         delete_task_names,
     )
-    if maybe_failure is not None:
-      xpk_print(f'Delete Nodepools returned ERROR {maybe_failure.return_code}')
+    if maybe_failure:
+      xpk_print(
+          f'Delete Nodepools returned ERROR {maybe_failure[0].return_code}'
+      )
       return 1
 
   # Enable Workload Identity on existing Nodepools
@@ -232,10 +234,10 @@ def run_gke_node_pool_create_command(
           'Enable Workload Identity on existing Nodepools',
           update_WI_task_names,
       )
-      if maybe_failure is not None:
+      if maybe_failure:
         xpk_print(
             'Enable Workload Identity on existing Nodepools returned ERROR'
-            f' {maybe_failure.return_code}'
+            f' {maybe_failure[0].return_code}'
         )
         return 1
 
@@ -279,7 +281,10 @@ def run_gke_node_pool_create_command(
       np for np in desired_node_pool_names if np not in node_pools_to_remain
   ]
   reservations_iter: Iterator[ReservationLink] | None = None
-  if capacity_type == CapacityType.RESERVATION:
+  if (
+      capacity_type == CapacityType.RESERVATION
+      and len(node_pools_to_create) > 0
+  ):
     reservations = get_reservations_list(args)
     if FeatureFlags.RESERVATIONS_VALIDATION_ENABLED:
       vms_per_pool = (
@@ -422,9 +427,17 @@ def run_gke_node_pool_create_command(
       create_task_names,
       batch=100,
   )
-  if maybe_failure is not None:
-    display_nodepool_creation_error(maybe_failure)
-    return 1
+  if maybe_failure:
+    display_nodepool_creation_error(maybe_failure[0])
+    xpk_print(
+        'Successfully created'
+        f' {len(create_commands) - len(maybe_failure)}/{len(create_commands)} of'
+        ' requested nodepools.'
+    )
+
+    if not getattr(args, 'ignore_nodepool_creation_errors', False):
+      return 1
+    xpk_print('Ignoring nodepool creation errors and continuing as requested.')
 
   xpk_print('Create or delete node pool request complete.')
   return 0
@@ -749,7 +762,7 @@ def recreate_nodes_in_existing_node_pools(args) -> int:
       'Recreate nodes in nodepools',
       task_names,
   )
-  return maybe_failure.return_code if maybe_failure is not None else 0
+  return maybe_failure[0].return_code if maybe_failure else 0
 
 
 def _prepare_reservation_iterator(

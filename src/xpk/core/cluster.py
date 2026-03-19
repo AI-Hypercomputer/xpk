@@ -38,7 +38,6 @@ from .resources import get_cluster_system_characteristics
 from .system_characteristics import INSTALLER_NCCL_TCPXO, SystemCharacteristics
 
 JOBSET_VERSION = 'v0.8.0'
-PATHWAYS_JOB_VERSION = 'v0.1.4'
 NRI_DEVICE_INJECTOR = 'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/nri_device_injector/nri-device-injector.yaml'
 
 DEFAULT_NAMESPACE = 'default'
@@ -88,35 +87,6 @@ def set_jobset_on_cluster(args) -> int:
     )
 
   return 0
-
-
-def set_pathways_job_on_cluster(args) -> int:
-  """Add PathwaysJob command on server side and ask user to verify it is created.
-
-  Args:
-    args: user provided arguments for running the command.
-
-  Returns:
-    0 if successful and 1 otherwise.
-  """
-  command = (
-      'kubectl apply --server-side -f'
-      f' https://github.com/google/pathways-job/releases/download/{PATHWAYS_JOB_VERSION}/install.yaml'
-  )
-  task = f'Install PathwaysJob on {args.cluster}'
-  return_code = run_command_with_updates_retry(command, task)
-
-  if return_code != 0:
-    xpk_print(f'{task} returned with ERROR {return_code}.\n')
-    xpk_print(
-        "This LIKELY means you're missing Kubernetes Permissions, you can"
-        ' validate this by checking if the error references permission problems'
-        ' such as `requires one of ["container.*"] permission(s)`. Follow our'
-        ' readme:'
-        ' https://github.com/google/xpk/blob/main/README.md#troubleshooting for'
-        ' instructions on how to fix these permissions.'
-    )
-  return return_code
 
 
 def install_nccl_on_cluster(system: SystemCharacteristics) -> int:
@@ -233,8 +203,8 @@ def update_cluster_with_gcpfilestore_driver_if_necessary(args) -> int:
 
   if is_driver_enabled_on_cluster(args, driver='gcpFilestoreCsiDriver'):
     return 0
-  cluster_update_return_code = update_gke_cluster_with_addon(
-      args, 'GcpFilestoreCsiDriver'
+  cluster_update_return_code = update_gke_cluster_with_addons(
+      args, addons=['GcpFilestoreCsiDriver']
   )
   if cluster_update_return_code > 0:
     xpk_print('Updating GKE cluster to enable GCPFilestore CSI driver failed!')
@@ -252,8 +222,8 @@ def update_cluster_with_parallelstore_driver_if_necessary(args) -> int:
   """
   if is_driver_enabled_on_cluster(args, driver='parallelstoreCsiDriver'):
     return 0
-  cluster_update_return_code = update_gke_cluster_with_addon(
-      args, 'ParallelstoreCsiDriver'
+  cluster_update_return_code = update_gke_cluster_with_addons(
+      args, addons=['ParallelstoreCsiDriver']
   )
   if cluster_update_return_code > 0:
     xpk_print('Updating GKE cluster to enable Parallelstore CSI driver failed!')
@@ -271,8 +241,8 @@ def update_cluster_with_pd_driver_if_necessary(args) -> int:
   """
   if is_driver_enabled_on_cluster(args, driver='gcePersistentDiskCsiDriver'):
     return 0
-  cluster_update_return_code = update_gke_cluster_with_addon(
-      args, 'GcePersistentDiskCsiDriver'
+  cluster_update_return_code = update_gke_cluster_with_addons(
+      args, addons=['GcePersistentDiskCsiDriver']
   )
   if cluster_update_return_code > 0:
     xpk_print(
@@ -341,21 +311,25 @@ def is_driver_enabled_on_cluster(
   return False
 
 
-def update_gke_cluster_with_addon(args, addon: str) -> int:
-  """Run the GKE cluster update command for existing cluster and enabling passed addon.
+def update_gke_cluster_with_addons(args, addons: list[str]) -> int:
+  """Run the GKE cluster update command for existing cluster and enabling passed addons.
   Args:
     args: user provided arguments for running the command.
+    addons: list of addons to enable.
   Returns:
     0 if successful and 1 otherwise.
   """
+  addons_str = ','.join([f'{addon}=ENABLED' for addon in addons])
   command = (
       'gcloud container clusters update'
       f' {args.cluster} --project={args.project} --location={get_cluster_location(args.project, args.cluster, args.zone)} --update-addons'
-      f' {addon}=ENABLED --quiet'
+      f' {addons_str} --quiet'
   )
-  xpk_print(f'Updating GKE cluster to enable {addon}, may take a while!')
+  xpk_print(
+      f'Updating GKE cluster to enable {", ".join(addons)}, may take a while!'
+  )
   return_code = run_command_with_updates(
-      command, f'GKE Cluster Update to enable {addon}'
+      command, f'GKE Cluster Update to enable {", ".join(addons)}'
   )
   if return_code != 0:
     xpk_print(f'GKE Cluster Update request returned ERROR {return_code}')
@@ -701,6 +675,28 @@ def update_cluster_with_gcsfuse_driver_if_necessary(args) -> int:
   )
   if cluster_update_return_code > 0:
     xpk_print('Updating GKE cluster to enable GCSFuse CSI driver failed!')
+    return cluster_update_return_code
+
+  return 0
+
+
+def update_cluster_with_mtc_if_necessary(args) -> int:
+  """Updates a GKE cluster to enable MTC components, if not enabled already.
+  Args:
+    args: user provided arguments for running the command.
+  Returns:
+    0 if successful and error code otherwise.
+  """
+  if is_driver_enabled_on_cluster(args, driver='highScaleCheckpointing'):
+    return 0
+
+  # As per the MTC design, we need to update addons HighScaleCheckpointing and GcsFuseCsiDriver
+  cluster_update_return_code = update_gke_cluster_with_addons(
+      args, addons=['HighScaleCheckpointing', 'GcsFuseCsiDriver']
+  )
+
+  if cluster_update_return_code > 0:
+    xpk_print('Updating GKE cluster to enable MTC failed!')
     return cluster_update_return_code
 
   return 0

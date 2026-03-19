@@ -19,6 +19,7 @@ import yaml
 
 from ..core.cluster import JOBSET_VERSION
 from ..core.cluster import setup_k8s_env
+from ..core.commands import run_command_with_updates
 from ..utils import templates
 from ..utils.console import xpk_exit
 from ..utils.console import xpk_print
@@ -26,6 +27,37 @@ from ..utils.kubectl import apply_kubectl_manifest
 
 
 MTC_CPC_PATH = "/../templates/mtc-cpc.yaml"
+
+
+def add_mtc_bucket_iam_member(args) -> None:
+  """
+  Adds IAM members to the MTC GCS bucket.
+
+  This grants the gke-checkpointing-multitier-node service account
+  the necessary roles/storage.objectUser role.
+  """
+  role = "roles/storage.objectUser"
+
+  member = (
+      f"principal://iam.googleapis.com/projects/{args.project_number}/"
+      f"locations/global/workloadIdentityPools/{args.project}.svc.id.goog/"
+      "subject/ns/gke-managed-checkpointing/sa/gke-checkpointing-multitier-node"
+  )
+
+  command = (
+      "gcloud storage buckets add-iam-policy-binding"
+      f" gs://{args.mtc_gcs_bucket}"
+      f" --member='{member}'"
+      f" --role='{role}'"
+      f" --project={args.project} --quiet"
+  )
+  xpk_print(f"Adding {member} with role {role} to {args.mtc_gcs_bucket}.")
+  return_code = run_command_with_updates(
+      command, "Add IAM policy binding to MTC GCS bucket", args
+  )
+  if return_code != 0:
+    xpk_print("Failed to add IAM policy binding to MTC GCS bucket.")
+    xpk_exit(return_code)
 
 
 def create_mtc_cpc(
@@ -81,6 +113,10 @@ def install_mtc_on_cluster(args, system) -> int:
     args.mtc_toleration_key = "google.com/tpu"
 
   k8s_api_client = setup_k8s_env(args)
+
+  xpk_print("Setting up MTC bucket IAM permissions")
+  add_mtc_bucket_iam_member(args)
+
   jobset_manifest = update_jobset_manifest()
   if jobset_manifest is None:
     xpk_print(

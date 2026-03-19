@@ -66,6 +66,16 @@ def set_installed_kueue_version(
   )
 
 
+def set_custom_installed_kueue_version(
+    commands_tester: CommandsTester, image: str
+):
+  commands_tester.set_result_for_command(
+      (0, image),
+      "kubectl get deployment kueue-controller-manager",
+      "containers[0].image",
+  )
+
+
 @pytest.fixture(autouse=True)
 def mock_ask_for_user_consent(mocker: MockerFixture) -> MagicMock:
   return mocker.patch(
@@ -97,6 +107,21 @@ def test_install_or_upgrade_when_newer_version_already_installed(
 ):
   """Test install_or_upgrade when Kueue is already up to date."""
   set_installed_kueue_version(mock_commands, Version("0.99.0"))
+
+  result = kueue_manager.install_or_upgrade(KUEUE_CONFIG)
+
+  assert result == 0
+  mock_commands.assert_command_not_run("kubectl apply")
+
+
+def test_install_or_upgrade_when_custom_version_already_installed(
+    mock_commands: CommandsTester, kueue_manager: KueueManager
+):
+  """Test install_or_upgrade when a custom Kueue build is installed."""
+  set_custom_installed_kueue_version(
+      mock_commands,
+      "us-central1-docker.pkg.dev/dummy-project/kueue/kueue@sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+  )
 
   result = kueue_manager.install_or_upgrade(KUEUE_CONFIG)
 
@@ -251,11 +276,15 @@ def test_resource_update_for_small_cluster(
 
   assert result == 0
 
-  # 100 * 1.2 = 120, which is less than 4096. So it should be 4096.
+  # 100 * 32 = 3200, which is less than 4096. So it should be 4096.
+  # 100 * 0.004 = 0.4, which is less than 2. So it should be 2.
   mock_patch_controller_manager_resources.assert_called_with(
       name="kueue-controller-manager",
       namespace="kueue-system",
       patch_resources=PatchResources(
+          cpu_request=2,
+          cpu_limit=2,
+          memory_request="4096Mi",
           memory_limit="4096Mi",
       ),
   )
@@ -273,12 +302,16 @@ def test_resource_update_for_large_cluster(
   result = kueue_manager.install_or_upgrade(KUEUE_CONFIG)
 
   assert result == 0
-  # 5000 * 1.2 = 6000, which is > 4096.
+  # 5000 * 32 = 160000, which is > 4096.
+  # 5000 * 0.004 = 20, which is > 2.
   mock_patch_controller_manager_resources.assert_called_with(
       name="kueue-controller-manager",
       namespace="kueue-system",
       patch_resources=PatchResources(
-          memory_limit="6000Mi",
+          cpu_request=20,
+          cpu_limit=20,
+          memory_request="160000Mi",
+          memory_limit="160000Mi",
       ),
   )
 

@@ -265,3 +265,38 @@ def test_cluster_adapt_cpu_limit_is_shown():
   help_str = parser.format_help()
 
   assert "--cpu-limit" in help_str
+
+
+def test_cluster_create_ignore_nodepool_creation_errors_is_shown():
+  parser = argparse.ArgumentParser()
+
+  set_cluster_create_parser(parser)
+  help_str = parser.format_help()
+
+  assert "--ignore-nodepool-creation-errors" in help_str
+
+
+def test_cluster_create_ignore_nodepool_creation_errors_is_false_by_default():
+  parser = argparse.ArgumentParser()
+
+  set_cluster_create_parser(parser)
+  args = parser.parse_args(
+      ["--cluster", "test-cluster", "--tpu-type", "tpu7x-2"]
+  )
+
+  assert args.ignore_nodepool_creation_errors is False
+
+
+def test_cluster_create_ignore_nodepool_creation_errors_can_be_set():
+  parser = argparse.ArgumentParser()
+
+  set_cluster_create_parser(parser)
+  args = parser.parse_args([
+      "--cluster",
+      "test-cluster",
+      "--tpu-type",
+      "tpu7x-2",
+      "--ignore-nodepool-creation-errors",
+  ])
+
+  assert args.ignore_nodepool_creation_errors is True

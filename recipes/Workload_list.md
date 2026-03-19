@@ -17,10 +17,10 @@ gcloud container clusters get-credentials golden-cluster --location=us-central1 
 [XPK] Task: `Test kubectl credentials` is implemented by the following command not running since it is a dry run. 
 kubectl get pods
 [XPK] Finished get-credentials and kubectl setup.
-[XPK] Task: `List Jobs with filter-by-status=EVERYTHING with filter-by-job=None` is implemented by the following command not running since it is a dry run. 
-kubectl get workloads --ignore-not-found -o=custom-columns="Jobset Name:.metadata.ownerReferences[0].name,Created Time:.metadata.creationTimestamp,Priority:.spec.priorityClassName,TPU VMs Needed:.spec.podSets[0].count,TPU VMs Running/Ran:.status.admission.podSetAssignments[-1].count,TPU VMs Done:.status.reclaimablePods[0].count,Status:.status.conditions[-1].type,Status Message:.status.conditions[-1].message,Status Time:.status.conditions[-1].lastTransitionTime"  
+[XPK] Task: `List Jobs with filter-by-status=EVERYTHING` is implemented by the following command not running since it is a dry run. 
+kubectl get workloads --ignore-not-found -o=json
 [XPK] Workload List Output:
-0
+Jobset Name   Created Time   Priority   TPU/GPU VMs Needed   TPU/GPU VMs Running/Ran   TPU/GPU VMs Done   Status   Status Message   Status Time
 [XPK] See your workloads in Cloud Console: https://console.cloud.google.com/kubernetes/aiml/deployments/jobs?project=golden-project
 [XPK] Exiting XPK cleanly
 -->

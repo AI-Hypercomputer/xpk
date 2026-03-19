@@ -204,15 +204,15 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	// Create any missing Slices based on the Workload's PodSet assignments.
 	originalSlicesCount := len(slices)
-	newSlices, err := r.syncSlices(ctx, wl, ac, &slices, nodes)
+	newSlices, retainedSlices, err := r.syncSlices(ctx, wl, ac, slices, nodes)
 	if err != nil {
 		if errors.Is(err, errWorkloadEvicted) {
 			return ctrl.Result{RequeueAfter: initializationRetryAfter}, nil
 		}
 		return ctrl.Result{}, err
 	}
-	if len(newSlices) > 0 || len(slices) != originalSlicesCount {
-		slices = append(slices, newSlices...)
+	if len(newSlices) > 0 || len(retainedSlices) != originalSlicesCount {
+		slices = append(retainedSlices, newSlices...)
 		grouped = r.groupSlices(slices)
 	}
 
@@ -568,22 +568,22 @@ func (r *WorkloadReconciler) sliceAC(ctx context.Context, wl *kueue.Workload) (*
 }
 
 // syncSlices creates missing Slices and deletes existing Slices with incorrect partition IDs.
-// As a side-effect, it modifies the provided `slices` pointer to remove any elements that were deleted during synchronization.
+// It returns the newly created Slices, and the list of retained (non-deleted) existing Slices.
 func (r *WorkloadReconciler) syncSlices(
 	ctx context.Context,
 	wl *kueue.Workload,
 	ac *kueue.AdmissionCheckState,
-	slices *[]v1beta1.Slice,
+	existingSlices []v1beta1.Slice,
 	nodes map[string]corev1.Node,
-) ([]v1beta1.Slice, error) {
+) ([]v1beta1.Slice, []v1beta1.Slice, error) {
 	// this is to prevent from creating slices when AC is Retry
 	// and the workload still has the old Admission
 	if ac.State == kueue.CheckStateRetry || ac.State == kueue.CheckStateRejected {
-		return nil, nil
+		return nil, existingSlices, nil
 	}
-	existingSlicesByName := make(map[string]*v1beta1.Slice, len(*slices))
-	for i := range *slices {
-		existingSlicesByName[(*slices)[i].Name] = &(*slices)[i]
+	existingSlicesByName := make(map[string]*v1beta1.Slice, len(existingSlices))
+	for i := range existingSlices {
+		existingSlicesByName[existingSlices[i].Name] = &existingSlices[i]
 	}
 
 	var allDeletedSliceNames []string
@@ -597,24 +597,24 @@ func (r *WorkloadReconciler) syncSlices(
 
 		createdSlices, deletedSlices, err := r.syncSlicesForAssignment(ctx, wl, ac, &psa, nodes, existingSlicesByName, desiredNumberOfSlices)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		allCreatedSlices = append(allCreatedSlices, createdSlices...)
 		allDeletedSliceNames = append(allDeletedSliceNames, deletedSlices...)
 	}
 
+	retainedSlices := existingSlices
 	if len(allDeletedSliceNames) > 0 {
-		newSlicesList := make([]v1beta1.Slice, 0, len(*slices))
+		retainedSlices = make([]v1beta1.Slice, 0, len(existingSlices))
 		deletedSet := make(map[string]bool)
 		for _, name := range allDeletedSliceNames {
 			deletedSet[name] = true
 		}
-		for _, s := range *slices {
+		for _, s := range existingSlices {
 			if !deletedSet[s.Name] {
-				newSlicesList = append(newSlicesList, s)
+				retainedSlices = append(retainedSlices, s)
 			}
 		}
-		*slices = newSlicesList
 	}
 
 	if len(allCreatedSlices) > 0 {
@@ -623,7 +623,7 @@ func (r *WorkloadReconciler) syncSlices(
 		r.record.Event(wl, corev1.EventTypeNormal, SlicesCreatedEventType, api.TruncateEventMessage(msg))
 	}
 
-	return allCreatedSlices, nil
+	return allCreatedSlices, retainedSlices, nil
 }
 
 func shouldCreateSlicesForPodSetAssignment(wl *kueue.Workload, psa kueue.PodSetAssignment, nodes map[string]corev1.Node) bool {

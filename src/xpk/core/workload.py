@@ -181,17 +181,10 @@ def _parse_workload_item(item: dict[str, Any]) -> _WorkloadListRow:
   latest_condition = _get_latest_condition(k8s_status)
 
   status = _parse_workload_status(
-      latest_condition.type
-      if latest_condition and latest_condition.type
-      else ''
+      latest_condition and latest_condition.type  # type: ignore[arg-type]
   )
-
-  status_message = (
-      latest_condition.message or None if latest_condition else None
-  )
-  status_time = (
-      latest_condition.lastTransitionTime or None if latest_condition else None
-  )
+  status_message = latest_condition and latest_condition.message or None
+  status_time = latest_condition and latest_condition.lastTransitionTime or None
 
   return _WorkloadListRow(
       jobset_name=jobset_name,
@@ -416,10 +409,7 @@ def _get_jobset_status(workload_name: str) -> tuple[int, str]:
     jobset_json = json.loads(return_value)
     k8s_status = _parse_kubernetes_status(jobset_json.get('status'))
     latest_condition = _get_latest_condition(k8s_status)
-    if latest_condition and latest_condition.type:
-      final_status = latest_condition.type
-    else:
-      final_status = 'Unknown'
+    final_status = (latest_condition and latest_condition.type) or 'Unknown'
     return 0, final_status
   except json.JSONDecodeError:
     xpk_print('Failed to parse jobset status JSON')

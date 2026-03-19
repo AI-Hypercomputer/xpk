@@ -98,7 +98,7 @@ def _parse_workload_status(
     return _WorkloadStatus.UNKNOWN
 
 
-@dataclass
+@dataclass(frozen=True)
 class _KubernetesCondition:
   type: str | None = None
   status: str | None = None
@@ -106,7 +106,7 @@ class _KubernetesCondition:
   message: str | None = None
 
 
-@dataclass
+@dataclass(frozen=True)
 class _KubernetesStatus:
   conditions: list[_KubernetesCondition] = field(default_factory=list)
 

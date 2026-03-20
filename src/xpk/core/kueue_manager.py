@@ -68,6 +68,7 @@ class KueueConfig:
   memory_limit: str
   configure_sub_slicing: bool
   configure_super_slicing: bool
+  gpu_requires_topology: bool = False
   is_pathways_cluster: bool = False
   autoprovisioning_enabled: bool = False
   flex: bool = False
@@ -282,6 +283,7 @@ class KueueManager:
         kueue_config.system,
         kueue_config.configure_sub_slicing,
         kueue_config.configure_super_slicing,
+        kueue_config.gpu_requires_topology,
     )
     topology_name = (
         topology_name_and_yaml.name if topology_name_and_yaml else None
@@ -412,10 +414,11 @@ class KueueManager:
       system: SystemCharacteristics,
       configure_sub_slicing: bool,
       configure_super_slicing: bool,
+      gpu_requires_topology: bool,
   ) -> _NameAndYaml | None:
     if (
         system.accelerator_type == AcceleratorType["GPU"]
-        and system.gpu_requires_topology
+        and gpu_requires_topology
     ):
       return _NameAndYaml(
           name="gke-default",

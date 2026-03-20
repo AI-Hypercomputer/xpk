@@ -84,7 +84,12 @@ from ..utils.file import write_tmp_file
 from ..utils.execution_context import is_dry_run, is_quiet
 from ..utils.validation import validate_dependencies_list, SystemDependency, should_validate_dependencies
 from . import cluster_gcluster
-from .common import set_cluster_command, validate_sub_slicing_system, validate_super_slicing_system
+from .common import (
+    is_GPU_TAS_possible,
+    set_cluster_command,
+    validate_sub_slicing_system,
+    validate_super_slicing_system,
+)
 from jinja2 import Environment, FileSystemLoader
 from ..utils.templates import get_templates_absolute_path
 import shutil
@@ -1367,6 +1372,9 @@ def _install_kueue(
               FeatureFlags.SUB_SLICING_ENABLED and args.sub_slicing
           ),
           configure_super_slicing=args.super_slicing,
+          gpu_requires_topology=is_GPU_TAS_possible(
+              system, get_capacity_type(args), args.cluster, args.zone, args.project
+          )
       )
   )
 

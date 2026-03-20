@@ -465,6 +465,7 @@ def test_configure_generates_correct_manifest_with_gke_default_topology(
   set_installed_kueue_version(mock_commands, None)
   kueue_config = dataclasses.replace(
       KUEUE_CONFIG,
+      gpu_requires_topology=True,
       system=SystemCharacteristics(
           topology="2x2x1",
           vms_per_slice=1,
@@ -477,8 +478,7 @@ def test_configure_generates_correct_manifest_with_gke_default_topology(
           supports_super_slicing=False,
           docker_platform=DockerPlatform.ARM,
           supports_accelerator_network_profile=True,
-          gpu_config=GpuConfig(requires_topology=True),
-      ),
+          gpu_config=GpuConfig(requires_topology=True),      ),
   )
 
   kueue_manager.install_or_upgrade(kueue_config)
@@ -624,6 +624,7 @@ def test_configure_generates_correct_manifest_for_a4x(
   set_installed_kueue_version(mock_commands, None)
   kueue_config = dataclasses.replace(
       KUEUE_CONFIG,
+      gpu_requires_topology=True,
       system=UserFacingNameToSystemCharacteristics["gb200-4"],
   )
 

@@ -15,11 +15,46 @@ limitations under the License.
 """
 
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import json
 from typing import Any
 
 from .commands import run_command_with_updates_retry
+
+
+@dataclass(frozen=True)
+class KubernetesCondition:
+  type: str | None = None
+  status: str | None = None
+  lastTransitionTime: str | None = None
+  message: str | None = None
+
+
+@dataclass(frozen=True)
+class KubernetesStatus:
+  conditions: list[KubernetesCondition] = field(default_factory=list)
+
+
+def parse_kubernetes_status(
+    status_dict: dict[str, Any] | None,
+) -> KubernetesStatus:
+  if not status_dict:
+    return KubernetesStatus()
+
+  conditions = []
+  for c in status_dict.get("conditions") or []:
+    if not isinstance(c, dict):
+      continue
+    conditions.append(
+        KubernetesCondition(
+            type=c.get("type") or None,
+            status=c.get("status") or None,
+            lastTransitionTime=c.get("lastTransitionTime") or None,
+            message=c.get("message") or None,
+        )
+    )
+
+  return KubernetesStatus(conditions=conditions)
 
 
 @dataclass(frozen=True)

@@ -167,3 +167,47 @@ def test_patch_controller_manager_resources_propagates_error(
   )
 
   assert result == 123
+
+
+from xpk.core.kubectl_common import parse_kubernetes_status, KubernetesStatus
+
+
+def test_parse_kubernetes_status():
+  test_dict = {
+      "conditions": [
+          {
+              "type": "Ready",
+              "status": "True",
+              "lastTransitionTime": "2023-01-01T00:00:00Z",
+              "message": "All good",
+          },
+          {"type": "Test", "status": "", "lastTransitionTime": None},
+      ]
+  }
+  status = parse_kubernetes_status(test_dict)
+  assert isinstance(status, KubernetesStatus)
+  assert len(status.conditions) == 2
+
+  assert status.conditions[0].type == "Ready"
+  assert status.conditions[0].status == "True"
+  assert status.conditions[0].lastTransitionTime == "2023-01-01T00:00:00Z"
+  assert status.conditions[0].message == "All good"
+
+  assert status.conditions[1].type == "Test"
+  assert status.conditions[1].status is None
+  assert status.conditions[1].lastTransitionTime is None
+  assert status.conditions[1].message is None
+
+
+def test_parse_kubernetes_status_empty():
+  status = parse_kubernetes_status(None)
+  assert isinstance(status, KubernetesStatus)
+  assert len(status.conditions) == 0
+
+  status2 = parse_kubernetes_status({})
+  assert isinstance(status2, KubernetesStatus)
+  assert len(status2.conditions) == 0
+
+  status3 = parse_kubernetes_status({"conditions": None})
+  assert isinstance(status3, KubernetesStatus)
+  assert len(status3.conditions) == 0

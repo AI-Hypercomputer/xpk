@@ -15,7 +15,7 @@ limitations under the License.
 """
 
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 import re
 from typing import Any, Optional, Callable, Union
@@ -23,6 +23,7 @@ from typing import Any, Optional, Callable, Union
 from ..utils.console import xpk_exit, xpk_print
 from .commands import run_command_for_value
 from .gcloud_context import get_cluster_location
+from .kubectl_common import KubernetesCondition, KubernetesStatus, parse_kubernetes_status
 
 
 def _safe_int(val: Any) -> int:
@@ -98,44 +99,9 @@ def _parse_workload_status(
     return _WorkloadStatus.UNKNOWN
 
 
-@dataclass(frozen=True)
-class _KubernetesCondition:
-  type: str | None = None
-  status: str | None = None
-  lastTransitionTime: str | None = None
-  message: str | None = None
-
-
-@dataclass(frozen=True)
-class _KubernetesStatus:
-  conditions: list[_KubernetesCondition] = field(default_factory=list)
-
-
-def _parse_kubernetes_status(
-    status_dict: dict[str, Any] | None,
-) -> _KubernetesStatus:
-  if not status_dict:
-    return _KubernetesStatus()
-
-  conditions = []
-  for c in status_dict.get('conditions') or []:
-    if not isinstance(c, dict):
-      continue
-    conditions.append(
-        _KubernetesCondition(
-            type=c.get('type') or None,
-            status=c.get('status') or None,
-            lastTransitionTime=c.get('lastTransitionTime') or None,
-            message=c.get('message') or None,
-        )
-    )
-
-  return _KubernetesStatus(conditions=conditions)
-
-
 def _get_latest_condition(
-    k8s_status: _KubernetesStatus,
-) -> _KubernetesCondition | None:
+    k8s_status: KubernetesStatus,
+) -> KubernetesCondition | None:
   if not k8s_status.conditions:
     return None
   return max(k8s_status.conditions, key=lambda c: c.lastTransitionTime or '')
@@ -177,7 +143,7 @@ def _parse_workload_item(item: dict[str, Any]) -> _WorkloadListRow:
       else None
   )
 
-  k8s_status = _parse_kubernetes_status(item.get('status'))
+  k8s_status = parse_kubernetes_status(item.get('status'))
   latest_condition = _get_latest_condition(k8s_status)
 
   status = _parse_workload_status(
@@ -407,7 +373,7 @@ def _get_jobset_status(workload_name: str) -> tuple[int, str]:
 
   try:
     jobset_json = json.loads(return_value)
-    k8s_status = _parse_kubernetes_status(jobset_json.get('status'))
+    k8s_status = parse_kubernetes_status(jobset_json.get('status'))
     latest_condition = _get_latest_condition(k8s_status)
     final_status = (latest_condition and latest_condition.type) or 'Unknown'
     return 0, final_status

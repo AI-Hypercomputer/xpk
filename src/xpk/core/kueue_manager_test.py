@@ -478,7 +478,8 @@ def test_configure_generates_correct_manifest_with_gke_default_topology(
           supports_super_slicing=False,
           docker_platform=DockerPlatform.ARM,
           supports_accelerator_network_profile=True,
-          gpu_config=GpuConfig(requires_topology=True),      ),
+          gpu_config=GpuConfig(requires_topology=True),
+      ),
   )
 
   kueue_manager.install_or_upgrade(kueue_config)

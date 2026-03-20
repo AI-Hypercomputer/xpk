@@ -1373,8 +1373,12 @@ def _install_kueue(
           ),
           configure_super_slicing=args.super_slicing,
           gpu_requires_topology=is_GPU_TAS_possible(
-              system, get_capacity_type(args), args.cluster, args.zone, args.project
-          )
+              system,
+              get_capacity_type(args)[0],
+              args.cluster,
+              args.zone,
+              args.project,
+          ),
       )
   )
 

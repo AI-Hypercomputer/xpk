@@ -44,7 +44,6 @@ class _FeatureFlags:
   DEPENDENCY_AUTO_DOWNLOAD = _get_boolean_flag(
       "DEPENDENCY_AUTO_DOWNLOAD", default=True
   )
-  OPTIONAL_NUM_SLICES = _get_boolean_flag("OPTIONAL_NUM_SLICES", default=False)
   NATIVE_CLUSTER_TOOLKIT_ENABLED = _get_boolean_flag(
       "NATIVE_CLUSTER_TOOLKIT_ENABLED", default=False
   )

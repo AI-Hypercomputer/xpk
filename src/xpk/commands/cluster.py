@@ -333,7 +333,7 @@ def _assess_reservation_capacity(
     xpk_exit(return_code)
 
   if (
-      FeatureFlags.OPTIONAL_NUM_SLICES
+      FeatureFlags.RESERVATIONS_VALIDATION_ENABLED
       and system.accelerator_type == AcceleratorType.GPU
       and getattr(args, 'num_nodes', None) is None
   ):
@@ -388,18 +388,20 @@ def _set_cluster_topology_defaults(
     )
 
   if (
-      FeatureFlags.OPTIONAL_NUM_SLICES
+      FeatureFlags.RESERVATIONS_VALIDATION_ENABLED
       and args.num_slices is None
       and args.num_cubes is None
       and args.reservation
       and available_capacity is not None
   ):
     total_available = sum(cap.available_slices for cap in available_capacity)
-    if total_available > 0:
+    if total_available >= 0:
       xpk_print(f'Automatically setting --num-slices to {total_available}')
       args.num_slices = total_available
 
-  args.num_slices = args.num_slices or args.num_cubes or 1
+  if args.num_slices is None:
+    args.num_slices = args.num_cubes if args.num_cubes is not None else 1
+
   if args.super_slicing:
     args.num_cubes = args.num_slices
 

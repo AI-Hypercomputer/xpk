@@ -22,7 +22,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from xpk.core.telemetry import MetricsCollector
-from xpk.commands.cluster import _install_kueue, _validate_cluster_create_args, _get_coredns_replica_count, run_gke_cluster_create_command, cluster_create, _log_cluster_create_telemetry
+from xpk.commands.cluster import _install_kueue, _validate_cluster_create_args, _validate_private_cluster_args, _get_coredns_replica_count, run_gke_cluster_create_command, cluster_create, _log_cluster_create_telemetry
 from xpk.core.capacity import CapacityType
 from xpk.core.system_characteristics import SystemCharacteristics, UserFacingNameToSystemCharacteristics
 from xpk.core.testing.commands_tester import CommandsTester
@@ -95,7 +95,7 @@ def construct_args(**kwargs: Any) -> Namespace:
       sub_slicing=False,
       super_slicing=False,
       gke_version='',
-      private=False,
+      private=None,
       authorized_networks=None,
       pathways_gce_machine_type='n2-standard-64',
       enable_pathways=False,
@@ -131,6 +131,9 @@ def construct_args(**kwargs: Any) -> Namespace:
       managed_mldiagnostics=False,
       output_manifest_file='',
       num_cubes=None,
+      enable_private_endpoint=None,
+      private_endpoint_subnetwork=None,
+      enable_master_global_access=False,
       use_parallel_containers=True,
   )
   args_dict.update(kwargs)
@@ -179,6 +182,9 @@ def cluster_create_mocks(mocker) -> _ClusterCreateMocks:
 GPU_TEST_SYSTEM: SystemCharacteristics = UserFacingNameToSystemCharacteristics[
     'l4-1'
 ]
+A3_MEGA_TEST_SYSTEM: SystemCharacteristics = (
+    UserFacingNameToSystemCharacteristics['h100-mega-80gb-8']
+)
 SUB_SLICING_SYSTEM: SystemCharacteristics = (
     UserFacingNameToSystemCharacteristics['v6e-4x4']
 )
@@ -328,6 +334,119 @@ def test_validate_cluster_create_args_for_valid_pathways_machine_type(
   _validate_cluster_create_args(args, TPU_TEST_SYSTEM)
 
   assert mocks.commands_print_mock.call_count == 0
+
+
+def test_validate_private_cluster_args_private_endpoint_subnetwork_not_allowed_for_gpu(
+    mocks: _Mocks,
+):
+  args = construct_args(private_endpoint_subnetwork='my-subnet')
+
+  with pytest.raises(SystemExit):
+    _validate_private_cluster_args(args, A3_MEGA_TEST_SYSTEM)
+
+  assert mocks.commands_print_mock.call_count == 2
+  assert any(
+      '--private-endpoint-subnetwork is not supported for GPU' in call[0][0]
+      for call in mocks.commands_print_mock.call_args_list
+  )
+
+
+def test_validate_private_cluster_args_private_endpoint_subnetwork_allowed_for_tpu(
+    mocks: _Mocks,
+):
+  args = construct_args(
+      private_endpoint_subnetwork='my-subnet',
+      enable_private_endpoint=True,
+      private=True,
+  )
+
+  _validate_private_cluster_args(args, TPU_TEST_SYSTEM)
+
+  assert mocks.commands_print_mock.call_count == 0
+
+
+def test_validate_private_cluster_args_auto_enables_private_endpoint_for_subnetwork(
+    mocks: _Mocks,
+):
+  args = construct_args(private_endpoint_subnetwork='my-subnet', private=True)
+
+  _validate_private_cluster_args(args, TPU_TEST_SYSTEM)
+
+  assert args.enable_private_endpoint is True
+  assert mocks.commands_print_mock.call_count == 1
+  assert (
+      '--enable-private-endpoint is automatically enabled'
+      in mocks.commands_print_mock.call_args[0][0]
+  )
+
+
+def test_validate_cluster_create_args_custom_cluster_arguments_warns_for_gpu(
+    mocks: _Mocks,
+):
+  args = construct_args(custom_cluster_arguments='--foo=bar')
+
+  _validate_cluster_create_args(args, A3_MEGA_TEST_SYSTEM)
+
+  assert mocks.commands_print_mock.call_count == 1
+  assert (
+      'Warning: --custom-cluster-arguments is ignored for GPU clusters'
+      in mocks.commands_print_mock.call_args[0][0]
+  )
+
+
+def test_validate_cluster_create_args_custom_cluster_arguments_no_warn_for_tpu(
+    mocks: _Mocks,
+):
+  args = construct_args(custom_cluster_arguments='--foo=bar')
+
+  _validate_cluster_create_args(args, TPU_TEST_SYSTEM)
+
+  assert mocks.commands_print_mock.call_count == 0
+
+
+def test_validate_cluster_create_args_auto_sets_private_when_private_endpoint(
+    mocks: _Mocks,
+):
+  args = construct_args(enable_private_endpoint=True, private=None)
+
+  _validate_cluster_create_args(args, TPU_TEST_SYSTEM)
+
+  assert args.private is True
+  assert mocks.commands_print_mock.call_count == 1
+  assert (
+      '--private is automatically enabled'
+      in mocks.commands_print_mock.call_args[0][0]
+  )
+
+
+def test_validate_cluster_create_args_auto_sets_private_when_master_global_access(
+    mocks: _Mocks,
+):
+  args = construct_args(enable_master_global_access=True, private=None)
+
+  _validate_cluster_create_args(args, TPU_TEST_SYSTEM)
+
+  assert args.private is True
+  assert mocks.commands_print_mock.call_count == 1
+  assert (
+      '--private is automatically enabled'
+      in mocks.commands_print_mock.call_args[0][0]
+  )
+
+
+def test_validate_cluster_create_args_auto_sets_private_when_authorized_networks(
+    mocks: _Mocks,
+):
+  args = construct_args(authorized_networks=['10.0.0.0/24'], private=None)
+
+  _validate_cluster_create_args(args, TPU_TEST_SYSTEM)
+
+  assert args.private is True
+  assert mocks.commands_print_mock.call_count == 1
+  assert (
+      '--private is automatically enabled'
+      in mocks.commands_print_mock.call_args[0][0]
+  )
 
 
 @patch('xpk.commands.cluster.KueueManager.install_or_upgrade')

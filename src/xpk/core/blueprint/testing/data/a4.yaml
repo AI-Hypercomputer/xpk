@@ -111,10 +111,11 @@ deployment_groups:
       name_suffix: gke-a4
       enable_dcgm_monitoring: true
       enable_gcsfuse_csi: true
+      enable_private_nodes: false
       enable_private_endpoint: false
       master_authorized_networks:
       - cidr_block: 10.0.0.0/32
-        display_name: kubectl-access-network
+        display_name: authorized-network-0
       additional_networks: $(concat([{network=gke-a4-net-1.network_name, subnetwork=gke-a4-net-1.subnetwork_name,
         subnetwork_project="foo", nic_type="GVNIC", queue_count=null,
         network_ip=null, stack_type=null, access_config=[{nat_ip=null, public_ptr_domain_name=null,
@@ -122,6 +123,7 @@ deployment_groups:
       release_channel: RAPID
       version_prefix: '1.2'
       min_master_version: 1.2.3
+      enable_master_global_access: false
     use:
     - gke-a4-net-0
   - !DeploymentModule

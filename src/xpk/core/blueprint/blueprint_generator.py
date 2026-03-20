@@ -90,7 +90,7 @@ class BlueprintGenerator:
       blueprint_name: str,
       region: str,
       zone: str,
-      auth_cidr: str,
+      auth_cidr: list[str],
       cluster_version: str,
       release_channel: ReleaseChannel,
       prefix: str = "",
@@ -109,6 +109,9 @@ class BlueprintGenerator:
       gcs_bucket: Optional[str | None] = None,
       capacity_type: CapacityType = CapacityType.ON_DEMAND,
       system_node_pool_min_node_count: int = 2,
+      enable_private_nodes: bool = False,
+      enable_private_endpoint: bool = False,
+      enable_master_global_access: bool = False,
   ) -> BlueprintGeneratorOutput:
     """Create A3 mega blueprint and directory containing its dependencies.
 
@@ -164,15 +167,14 @@ class BlueprintGenerator:
             "min_master_version": cluster_version,
             "prefix_with_deployment_name": False,
             "name_suffix": cluster_name,
-            "enable_private_endpoint": False,
+            "enable_private_nodes": enable_private_nodes,
+            "enable_private_endpoint": enable_private_endpoint,
             "enable_gcsfuse_csi": True,
             "enable_filestore_csi": True,
-            "master_authorized_networks": [{
-                "cidr_block": (
-                    f"{auth_cidr}"
-                ),  # Allows your machine run kubectl command. It's required for the multi-network setup.
-                "display_name": "kubectl-access-network",
-            }],
+            "master_authorized_networks": [
+                {"cidr_block": cidr, "display_name": f"authorized-network-{i}"}
+                for i, cidr in enumerate(auth_cidr)
+            ],  # Allows your machine run kubectl command. It's required for the multi-network setup.
             "system_node_pool_machine_type": system_node_pool_machine_type,
             "system_node_pool_node_count": {
                 "total_min_nodes": system_node_pool_min_node_count,
@@ -183,6 +185,7 @@ class BlueprintGenerator:
                 "gvnic_postfix": "-subnet",
                 "gvnic_start_index": 0,
             },
+            "enable_master_global_access": enable_master_global_access,
         },
         outputs=["instructions"],
     )
@@ -342,85 +345,6 @@ class BlueprintGenerator:
         blueprint_dependencies=blueprint_dependencies,
     )
 
-  def generate_gke_ml_blueprint(
-      self,
-      cluster_name: str,
-      blueprint_name: str,
-      project_id: str,
-      region: str,
-      auth_cidr: str,
-      prefix: str = "",
-      gcs_bucket: Optional[str | None] = None,
-  ) -> BlueprintGeneratorOutput:
-    """Create a simple gke cluster
-
-    Returns:
-        Blueprint: blueprint of simple cluster to create. This blueprint doesn't have any dependencies.
-    """
-
-    network1 = DeploymentModule(
-        id="network1",
-        source="modules/network/vpc",
-        settings={
-            "subnetwork_name": f"{blueprint_name}-gke-subnet",
-            "secondary_ranges": {
-                f"{blueprint_name}-gke-subnet": [
-                    {"range_name": "pods", "ip_cidr_range": "10.4.0.0/14"},
-                    {
-                        "range_name": "services",
-                        "ip_cidr_range": "10.0.32.0/20",
-                    },
-                ]
-            },
-        },
-    )
-
-    gke_cluster = DeploymentModule(
-        id="gke_cluster",
-        source="modules/scheduler/gke-cluster",
-        use=["network1"],
-        settings={
-            "prefix_with_deployment_name": False,
-            "name_suffix": cluster_name,
-            "enable_private_endpoint": (
-                "false"
-            ),  # Allows for access from authorized public IPs
-            "master_authorized_networks": [{
-                "display_name": "deployment-machine",
-                "cidr_block": auth_cidr,
-            }],
-        },
-        outputs=["instructions"],
-    )
-
-    primary_group = DeploymentGroup(
-        group="primary",
-        modules=[network1, gke_cluster],
-    )
-    ml_gke = Blueprint(
-        terraform_backend_defaults=self._getblock_terraform_backend(
-            gcs_bucket, cluster_name, prefix
-        ),
-        blueprint_name=blueprint_name,
-        toolkit_modules_url=cluster_toolkit_url,
-        toolkit_modules_version=cluster_toolkit_version,
-        deployment_groups=[primary_group],
-        vars={
-            "project_id": project_id,
-            "deployment_name": blueprint_name,
-            "region": region,
-        },
-    )
-
-    blueprint_file_path = self._save_blueprint_to_file(
-        blueprint_name, ml_gke, prefix
-    )
-    blueprint_dependencies = ""
-    return BlueprintGeneratorOutput(
-        blueprint_file=blueprint_file_path,
-        blueprint_dependencies=blueprint_dependencies,
-    )
-
   def generate_a3_ultra_blueprint(
       self,
       project_id: str,
@@ -428,7 +352,7 @@ class BlueprintGenerator:
       blueprint_name: str,
       region: str,
       zone: str,
-      auth_cidr: str,
+      auth_cidr: list[str],
       system_node_pool_machine_type: str,
       cluster_version: str,
       release_channel: ReleaseChannel,
@@ -440,6 +364,9 @@ class BlueprintGenerator:
       mtu_size: int = 8896,
       system_node_pool_min_node_count: int = 2,
       capacity_type: CapacityType = CapacityType.ON_DEMAND,
+      enable_private_nodes: bool = False,
+      enable_private_endpoint: bool = False,
+      enable_master_global_access: bool = False,
   ) -> BlueprintGeneratorOutput:
     """Create A3 ultra blueprint.
 
@@ -540,11 +467,12 @@ class BlueprintGenerator:
             "enable_dcgm_monitoring": True,
             "enable_gcsfuse_csi": True,
             "enable_filestore_csi": enable_filestore_csi_driver,
-            "enable_private_endpoint": False,
-            "master_authorized_networks": [{
-                "cidr_block": auth_cidr,
-                "display_name": "kubectl-access-network",
-            }],
+            "enable_private_nodes": enable_private_nodes,
+            "enable_private_endpoint": enable_private_endpoint,
+            "master_authorized_networks": [
+                {"cidr_block": cidr, "display_name": f"authorized-network-{i}"}
+                for i, cidr in enumerate(auth_cidr)
+            ],
             "system_node_pool_node_count": {
                 "total_min_nodes": system_node_pool_min_node_count,
                 "total_max_nodes": 1000,
@@ -566,6 +494,7 @@ class BlueprintGenerator:
                 "gvnic_prefix": f"{cluster_name}-sub-",
                 "gvnic_start_index": 1,
             },
+            "enable_master_global_access": enable_master_global_access,
         },
         outputs=["instructions"],
     )
@@ -719,7 +648,7 @@ class BlueprintGenerator:
       blueprint_name: str,
       region: str,
       zone: str,
-      auth_cidr: str,
+      auth_cidr: list[str],
       system_node_pool_machine_type: str,
       cluster_version: str,
       release_channel: ReleaseChannel,
@@ -729,6 +658,9 @@ class BlueprintGenerator:
       prefix: str = "",
       system_node_pool_min_node_count: int = 2,
       capacity_type: CapacityType = CapacityType.ON_DEMAND,
+      enable_private_nodes: bool = False,
+      enable_private_endpoint: bool = False,
+      enable_master_global_access: bool = False,
   ) -> BlueprintGeneratorOutput:
     """Create A4 blueprint.
 
@@ -832,11 +764,12 @@ class BlueprintGenerator:
             "name_suffix": cluster_name,
             "enable_dcgm_monitoring": True,
             "enable_gcsfuse_csi": True,
-            "enable_private_endpoint": False,
-            "master_authorized_networks": [{
-                "cidr_block": auth_cidr,
-                "display_name": "kubectl-access-network",
-            }],
+            "enable_private_nodes": enable_private_nodes,
+            "enable_private_endpoint": enable_private_endpoint,
+            "master_authorized_networks": [
+                {"cidr_block": cidr, "display_name": f"authorized-network-{i}"}
+                for i, cidr in enumerate(auth_cidr)
+            ],
             "additional_networks": (
                 f"$(concat([{{network={cluster_name}-net-1.network_name,"
                 f" subnetwork={cluster_name}-net-1.subnetwork_name,"
@@ -847,6 +780,7 @@ class BlueprintGenerator:
                 " alias_ip_range=[]}],"
                 f" {cluster_name}-rdma-net.subnetwork_interfaces_gke))"
             ),
+            "enable_master_global_access": enable_master_global_access,
         },
         outputs=["instructions"],
     )

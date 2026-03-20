@@ -309,6 +309,13 @@ def generate_blueprint(
 
   num_nodes = 2 if args.num_nodes is None else args.num_nodes
 
+  if args.authorized_networks:
+    auth_cidr = args.authorized_networks
+  elif args.enable_private_endpoint:
+    auth_cidr = ['127.0.0.1/32']
+  else:
+    auth_cidr = [all_IPs_cidr]
+
   reservations = get_reservations_list(args)
   if len(reservations) > 1:
     xpk_print(
@@ -346,7 +353,7 @@ def generate_blueprint(
           region=zone_to_region(args.zone),
           project_id=args.project,
           zone=args.zone,
-          auth_cidr=all_IPs_cidr,
+          auth_cidr=auth_cidr,
           num_nodes=num_nodes,
           reservation_maintenance_interval=maintenance_interval,
           reservation_placement_policy=placement_policy,
@@ -361,6 +368,9 @@ def generate_blueprint(
           gcs_bucket=args.cluster_state_gcs_bucket,
           cluster_version=gke_control_plane_version,
           release_channel=release_channel,
+          enable_private_nodes=bool(args.private),
+          enable_private_endpoint=bool(args.enable_private_endpoint),
+          enable_master_global_access=args.enable_master_global_access,
       )
     if args.device_type == a3ultra_device_type:
       return bpg.generate_a3_ultra_blueprint(
@@ -370,7 +380,7 @@ def generate_blueprint(
           region=zone_to_region(args.zone),
           project_id=args.project,
           zone=args.zone,
-          auth_cidr=all_IPs_cidr,
+          auth_cidr=auth_cidr,
           num_nodes=num_nodes,
           reservation=(
               to_reservation_path(reservation, args.project)
@@ -384,6 +394,9 @@ def generate_blueprint(
           gcs_bucket=args.cluster_state_gcs_bucket,
           cluster_version=gke_control_plane_version,
           release_channel=release_channel,
+          enable_private_nodes=bool(args.private),
+          enable_private_endpoint=bool(args.enable_private_endpoint),
+          enable_master_global_access=args.enable_master_global_access,
       )
     if args.device_type == a4_device_type:
       return bpg.generate_a4_blueprint(
@@ -393,7 +406,7 @@ def generate_blueprint(
           region=zone_to_region(args.zone),
           project_id=args.project,
           zone=args.zone,
-          auth_cidr=all_IPs_cidr,
+          auth_cidr=auth_cidr,
           num_nodes=num_nodes,
           reservation=(
               to_reservation_path(reservation, args.project)
@@ -405,6 +418,9 @@ def generate_blueprint(
           system_node_pool_min_node_count=args.default_pool_cpu_num_nodes,
           cluster_version=gke_control_plane_version,
           release_channel=release_channel,
+          enable_private_nodes=bool(args.private),
+          enable_private_endpoint=bool(args.enable_private_endpoint),
+          enable_master_global_access=args.enable_master_global_access,
       )
   xpk_print('Device type is not supported.')
   xpk_exit(1)

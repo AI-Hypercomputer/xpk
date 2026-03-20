@@ -333,7 +333,8 @@ def _assess_reservation_capacity(
     xpk_exit(return_code)
 
   if (
-      system.accelerator_type == AcceleratorType.GPU
+      FeatureFlags.OPTIONAL_NUM_SLICES
+      and system.accelerator_type == AcceleratorType.GPU
       and getattr(args, 'num_nodes', None) is None
   ):
     max_vms = max(
@@ -387,7 +388,8 @@ def _set_cluster_topology_defaults(
     )
 
   if (
-      args.num_slices is None
+      FeatureFlags.OPTIONAL_NUM_SLICES
+      and args.num_slices is None
       and args.num_cubes is None
       and args.reservation
       and available_capacity is not None

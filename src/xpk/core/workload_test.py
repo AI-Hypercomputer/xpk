@@ -14,13 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+from unittest.mock import patch
 from unittest.mock import MagicMock
 import pytest
 import re
 import json
 from pytest_mock import MockerFixture
 from xpk.core.testing.commands_tester import CommandsTester
-from xpk.core.workload import _parse_workload_item, get_jobsets_list_gcp_link, get_workload_list
+from xpk.core.workload import _parse_workload_item, get_jobsets_list_gcp_link, get_workload_list, wait_for_job_completion, _get_jobset_status
 
 
 from dataclasses import dataclass
@@ -375,6 +376,93 @@ def test_parse_workload_item_priority_not_found():
   }
   row = _parse_workload_item(item)
   assert row.priority is None
+
+
+def test_get_jobset_status_success(commands_tester: CommandsTester):
+  mock_status = json.dumps({
+      'status': {
+          'conditions': [{
+              'type': 'Completed',
+              'status': 'True',
+              'lastTransitionTime': '2024-01-01T00:00:00Z',
+          }]
+      }
+  })
+  commands_tester.set_result_for_command(
+      (0, mock_status), 'kubectl', 'get', 'jobset', 'test-job', '-o', 'json'
+  )
+  return_code, status = _get_jobset_status('test-job')
+  assert return_code == 0
+  assert status == 'Completed'
+
+
+def test_get_jobset_status_json_error(commands_tester: CommandsTester):
+  commands_tester.set_result_for_command(
+      (0, 'invalid json'), 'kubectl', 'get', 'jobset', 'test-job', '-o', 'json'
+  )
+  return_code, status = _get_jobset_status('test-job')
+  assert return_code == 125
+  assert status == 'Unknown'
+
+
+def test_get_jobset_status_cmd_error(commands_tester: CommandsTester):
+  commands_tester.set_result_for_command(
+      (1, 'error'), 'kubectl', 'get', 'jobset', 'test-job', '-o', 'json'
+  )
+  return_code, status = _get_jobset_status('test-job')
+  assert return_code == 1
+  assert status == 'Unknown'
+
+
+@patch('xpk.core.workload.check_if_workload_exists', return_value=True)
+def test_wait_for_job_completion(mock_exists, commands_tester: CommandsTester):
+  args = MagicMock()
+  args.wait_for_job_completion = 'test-job'
+  args.timeout = 100
+  args.project = 'test-project'
+  args.cluster = 'test-cluster'
+  args.zone = 'test-zone'
+
+  commands_tester.set_result_for_command(
+      (0, 'jobset-test-job-12345    other stuff'),
+      'kubectl',
+      'get',
+      'workloads',
+      'grep',
+      'jobset-test-job',
+  )
+
+  commands_tester.set_result_for_command(
+      (0, ''),
+      'kubectl',
+      'wait',
+      '--for=condition=Finished',
+      'workload',
+      'jobset-test-job-12345',
+      '--timeout=100s',
+  )
+
+  mock_status = json.dumps(
+      {'status': {'conditions': [{'type': 'Completed', 'status': 'True'}]}}
+  )
+  commands_tester.set_result_for_command(
+      (0, mock_status), 'kubectl', 'get', 'jobset', 'test-job', '-o', 'json'
+  )
+
+  return_code = wait_for_job_completion(args)
+  assert return_code == 0
+
+  commands_tester.assert_command_run(
+      'kubectl',
+      'wait',
+      '--for=condition=Finished',
+      'workload',
+      'jobset-test-job-12345',
+      '--timeout=100s',
+  )
+  commands_tester.assert_command_run(
+      'kubectl', 'get', 'jobset', 'test-job', '-o', 'json'
+  )
 
 
 def test_parse_workload_item_excludes_pathways_head():

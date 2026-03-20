@@ -24,6 +24,7 @@ from typing import Any, Optional, Callable, Union
 from ..utils.console import xpk_exit, xpk_print
 from .commands import run_command_for_value
 from .gcloud_context import get_cluster_location
+from .kubectl_common import KubernetesCondition, KubernetesStatus, parse_kubernetes_status
 
 _ACCELERATOR_LABELS = frozenset({
     'cloud.google.com/gke-accelerator',
@@ -106,6 +107,14 @@ def _parse_workload_status(
     return _WorkloadStatus.UNKNOWN
 
 
+def _get_latest_condition(
+    k8s_status: KubernetesStatus,
+) -> KubernetesCondition | None:
+  if not k8s_status.conditions:
+    return None
+  return max(k8s_status.conditions, key=lambda c: c.lastTransitionTime or '')
+
+
 def _is_accelerator_pod_set(ps: dict[str, Any]) -> bool:
   """Determines if a PodSet requests accelerator resources."""
   spec = ps.get('template', {}).get('spec', {})
@@ -179,12 +188,16 @@ def _parse_workload_item(item: dict[str, Any]) -> _WorkloadListRow:
       else None
   )
 
-  conditions = item.get('status', {}).get('conditions', [{}])
-  status_str = conditions[-1].get('type', '')
-  status = _parse_workload_status(status_str)
+  k8s_status = parse_kubernetes_status(item.get('status'))
+  latest_condition = _get_latest_condition(k8s_status)
 
-  status_message = conditions[-1].get('message', '') or None
-  status_time = conditions[-1].get('lastTransitionTime', '') or None
+  status = _parse_workload_status(
+      latest_condition.type if latest_condition else None
+  )
+  status_message = latest_condition.message if latest_condition else None
+  status_time = (
+      latest_condition.lastTransitionTime if latest_condition else None
+  )
 
   return _WorkloadListRow(
       jobset_name=jobset_name,
@@ -396,6 +409,28 @@ def check_if_workload_exists(args) -> bool:
   return False
 
 
+def _get_jobset_status(workload_name: str) -> tuple[int, str]:
+  status_cmd = f'kubectl get jobset {workload_name} -o json'
+  return_code, return_value = run_command_for_value(
+      status_cmd, 'Get jobset status'
+  )
+  if return_code != 0:
+    xpk_print(f'Get workload status request returned ERROR {return_code}')
+    return return_code, 'Unknown'
+
+  try:
+    jobset_json = json.loads(return_value)
+    k8s_status = parse_kubernetes_status(jobset_json.get('status'))
+    latest_condition = _get_latest_condition(k8s_status)
+    final_status = (
+        latest_condition.type if latest_condition else None
+    ) or 'Unknown'
+    return 0, final_status
+  except json.JSONDecodeError:
+    xpk_print('Failed to parse jobset status JSON')
+    return 125, 'Unknown'
+
+
 def wait_for_job_completion(args) -> int:
   """Function to wait for job completion.
 
@@ -428,7 +463,7 @@ def wait_for_job_completion(args) -> int:
       f'{timeout_val}s' if timeout_val != -1 else 'max timeout (1 week)'
   )
   wait_cmd = (
-      "kubectl  wait --for jsonpath='.status.conditions[-1].type'=Finished"
+      'kubectl wait --for=condition=Finished'
       f' workload {full_workload_name} --timeout={timeout_val}s'
   )
   return_code, return_value = run_command_for_value(
@@ -454,16 +489,10 @@ def wait_for_job_completion(args) -> int:
       # pylint: disable=line-too-long
       f' https://console.cloud.google.com/kubernetes/service/{get_cluster_location(args.project, args.cluster, args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
   )
-  status_cmd = (
-      f'kubectl get jobset {args.workload} -o'
-      " jsonpath='{.status.conditions[-1].type}'"
-  )
-  return_code, return_value = run_command_for_value(
-      status_cmd, 'Get jobset status'
-  )
+  return_code, return_value = _get_jobset_status(args.workload)
   if return_code != 0:
-    xpk_print(f'Get workload status request returned ERROR {return_code}')
     return return_code
+
   xpk_print(f'Your workload finished with status: {return_value}')
   if return_value != 'Completed':
     xpk_print('Your workload did not complete successfully')

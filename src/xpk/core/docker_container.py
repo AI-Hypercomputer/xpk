@@ -55,7 +55,23 @@ def get_main_and_sidecar_container(
   )
   yaml = """- name: stacktrace-explorer
                 image: busybox:1.28
-                args: [/bin/sh, -c, "check_signal() (while [ ! -f /shared-volume/stacktrace_signal ]; do sleep 1; done; pid=$(pidof 'tail'); kill $pid;); check_signal & while [ ! -d /tmp/debugging ]; do sleep 60; done; while [ ! -e /tmp/debugging/* ]; do sleep 60; done; tail -n+1 -f /tmp/debugging/*; exit 0;"]
+                args:
+                - /bin/sh
+                - -c
+                - |
+                  while [ ! -d /tmp/debugging ] && [ ! -f /shared-volume/stacktrace_signal ]; do sleep 5; done
+                  while ! ls /tmp/debugging/* >/dev/null 2>&1 && [ ! -f /shared-volume/stacktrace_signal ]; do sleep 5; done
+                  if ls /tmp/debugging/* >/dev/null 2>&1; then
+                    if [ -f /shared-volume/stacktrace_signal ]; then
+                      cat /tmp/debugging/*
+                    else
+                      tail -n+1 -f /tmp/debugging/* & TAIL_PID=$!
+                      while [ ! -f /shared-volume/stacktrace_signal ]; do sleep 1; done
+                      sleep 2
+                      kill $TAIL_PID 2>/dev/null
+                    fi
+                  fi
+                  exit 0
                 volumeMounts:
                 - name: tpu-stack-trace
                   readOnly: true

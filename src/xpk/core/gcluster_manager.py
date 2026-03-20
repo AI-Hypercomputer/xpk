@@ -14,8 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from .docker_manager import CommandRunner
+from .cluster_toolkit.command_runner import CommandRunner
 from ..utils.console import xpk_exit, xpk_print
+from ..utils.feature_flags import FeatureFlags
 from .remote_state.remote_state_client import RemoteStateClient
 
 xpk_gcloud_cfg_path = '~/gcloud/cfg'
@@ -68,6 +69,8 @@ class GclusterManager:
     deploy_cmd = (
         f'{gcluster_deploy_command} {self._get_deployment_path(prefix)}/{deployment_name}'
     )
+    if FeatureFlags.NATIVE_CLUSTER_TOOLKIT_ENABLED:
+      deploy_cmd += ' --download-dependencies'
     if auto_approve is True:
       deploy_cmd += ' --auto-approve'
     if dry_run is True:
@@ -117,6 +120,8 @@ class GclusterManager:
     destroy_cmd = (
         f'{gcluster_destroy_command} {self._get_deployment_path(prefix)}/{deployment_name}'
     )
+    if FeatureFlags.NATIVE_CLUSTER_TOOLKIT_ENABLED:
+      destroy_cmd += ' --download-dependencies'
     if auto_approve is True:
       destroy_cmd += ' --auto-approve'
     if dry_run is True:
@@ -125,8 +130,7 @@ class GclusterManager:
     self.gcluster_command_runner.run_command(destroy_cmd)
 
   def _get_deployment_path(self, prefix: str = '') -> str:
-    prefix = f'/{prefix}' if prefix != '' else ''
-    return f'deployments{prefix}'
+    return self.gcluster_command_runner.get_deployment_dir(prefix)
 
   def destroy_deployment(self, deployment_name: str, prefix: str = '') -> None:
     """Destroy deployment.

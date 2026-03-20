@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+import itertools
 import json
 from dataclasses import dataclass
 from enum import Enum
@@ -24,6 +25,13 @@ from ..utils.console import xpk_exit, xpk_print
 from .commands import run_command_for_value
 from .gcloud_context import get_cluster_location
 from .kubectl_common import KubernetesCondition, KubernetesStatus, parse_kubernetes_status
+
+_ACCELERATOR_LABELS = frozenset({
+    'cloud.google.com/gke-accelerator',
+    'cloud.google.com/gke-tpu-topology',
+    'cloud.google.com/gke-tpu-accelerator',
+    'cloud.google.com/tpu-topology',
+})
 
 
 def _safe_int(val: Any) -> int:
@@ -57,9 +65,9 @@ class _WorkloadListRow:
   jobset_name: Optional[str]
   created_time: Optional[str]
   priority: Optional[str]
-  tpu_vms_needed: Optional[int]
-  tpu_vms_running_ran: Optional[int]
-  tpu_vms_done: Optional[int]
+  tpu_gpu_needed: Optional[int]
+  tpu_gpu_running_ran: Optional[int]
+  tpu_gpu_done: Optional[int]
   status: Optional[_WorkloadStatus]
   status_message: Optional[str]
   status_time: Optional[str]
@@ -77,11 +85,11 @@ _WORKLOAD_COLUMNS: list[_WorkloadListColumn] = [
     _WorkloadListColumn('Jobset Name', lambda row: row.jobset_name),
     _WorkloadListColumn('Created Time', lambda row: row.created_time),
     _WorkloadListColumn('Priority', lambda row: row.priority),
-    _WorkloadListColumn('TPU VMs Needed', lambda row: row.tpu_vms_needed),
+    _WorkloadListColumn('TPU/GPU VMs Needed', lambda row: row.tpu_gpu_needed),
     _WorkloadListColumn(
-        'TPU VMs Running/Ran', lambda row: row.tpu_vms_running_ran
+        'TPU/GPU VMs Running/Ran', lambda row: row.tpu_gpu_running_ran
     ),
-    _WorkloadListColumn('TPU VMs Done', lambda row: row.tpu_vms_done),
+    _WorkloadListColumn('TPU/GPU VMs Done', lambda row: row.tpu_gpu_done),
     _WorkloadListColumn('Status', lambda row: row.status),
     _WorkloadListColumn('Status Message', lambda row: row.status_message),
     _WorkloadListColumn('Status Time', lambda row: row.status_time),
@@ -107,13 +115,31 @@ def _get_latest_condition(
   return max(k8s_status.conditions, key=lambda c: c.lastTransitionTime or '')
 
 
+def _is_accelerator_pod_set(ps: dict[str, Any]) -> bool:
+  """Determines if a PodSet requests accelerator resources."""
+  spec = ps.get('template', {}).get('spec', {})
+  containers = spec.get('containers', []) + spec.get('initContainers', [])
+  for container in containers:
+    resources = container.get('resources', {})
+    requests = resources.get('requests', {})
+    limits = resources.get('limits', {})
+    if any(
+        'google.com/tpu' in key or 'nvidia.com/gpu' in key
+        for key in itertools.chain(requests, limits)
+    ):
+      return True
+
+  node_selector = spec.get('nodeSelector', {})
+  return not _ACCELERATOR_LABELS.isdisjoint(node_selector)
+
+
 def _parse_workload_item(item: dict[str, Any]) -> _WorkloadListRow:
-  owner_refs = item.get('metadata', {}).get('ownerReferences') or [{}]
+  owner_refs = item.get('metadata', {}).get('ownerReferences', [{}])
   jobset_name = owner_refs[0].get('name', '') or None
 
   created_time = item.get('metadata', {}).get('creationTimestamp', '') or None
 
-  pod_sets = item.get('spec', {}).get('podSets') or []
+  pod_sets = item.get('spec', {}).get('podSets', [])
   priority = item.get('spec', {}).get('priorityClassName', '') or None
   if not priority and pod_sets:
     priority = (
@@ -121,24 +147,43 @@ def _parse_workload_item(item: dict[str, Any]) -> _WorkloadListRow:
         .get('template', {})
         .get('spec', {})
         .get('priorityClassName', '')
-        or None
-    )
+    ) or None
 
-  tpu_vms_needed = (
-      sum(_safe_int(ps.get('count')) for ps in pod_sets) if pod_sets else None
+  accelerator_pod_set_names = {
+      ps.get('name')
+      for ps in pod_sets
+      if _is_accelerator_pod_set(ps) and ps.get('name')
+  }
+
+  tpu_gpu_needed = (
+      sum(
+          _safe_int(ps.get('count'))
+          for ps in pod_sets
+          if ps.get('name') in accelerator_pod_set_names
+      )
+      if pod_sets
+      else None
   )
 
   admission_status = item.get('status', {}).get('admission', {})
-  pod_set_assignments = admission_status.get('podSetAssignments') or []
-  tpu_vms_running_ran = (
-      sum(_safe_int(psa.get('count')) for psa in pod_set_assignments)
+  pod_set_assignments = admission_status.get('podSetAssignments', [])
+  tpu_gpu_running_ran = (
+      sum(
+          _safe_int(psa.get('count'))
+          for psa in pod_set_assignments
+          if psa.get('name') in accelerator_pod_set_names
+      )
       if pod_set_assignments
       else None
   )
 
-  reclaimable_pods = item.get('status', {}).get('reclaimablePods') or []
-  tpu_vms_done = (
-      sum(_safe_int(rp.get('count')) for rp in reclaimable_pods)
+  reclaimable_pods = item.get('status', {}).get('reclaimablePods', [])
+  tpu_gpu_done = (
+      sum(
+          _safe_int(rp.get('count'))
+          for rp in reclaimable_pods
+          if rp.get('name') in accelerator_pod_set_names
+      )
       if reclaimable_pods
       else None
   )
@@ -158,9 +203,9 @@ def _parse_workload_item(item: dict[str, Any]) -> _WorkloadListRow:
       jobset_name=jobset_name,
       created_time=created_time,
       priority=priority,
-      tpu_vms_needed=tpu_vms_needed,
-      tpu_vms_running_ran=tpu_vms_running_ran,
-      tpu_vms_done=tpu_vms_done,
+      tpu_gpu_needed=tpu_gpu_needed,
+      tpu_gpu_running_ran=tpu_gpu_running_ran,
+      tpu_gpu_done=tpu_gpu_done,
       status=status,
       status_message=status_message,
       status_time=status_time,
@@ -221,7 +266,7 @@ def _filter_workload(
 
   status = row_data.status
   message = row_data.status_message or ''
-  running_count = row_data.tpu_vms_running_ran or 0
+  running_count = row_data.tpu_gpu_running_ran or 0
 
   match filter_by_status:
     case _StatusFilter.EVERYTHING:

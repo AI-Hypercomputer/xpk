@@ -41,7 +41,9 @@ from ..core.reservation import (
 )
 from ..core.cluster import get_cluster_credentials
 from ..core.commands import run_command_for_value
-from ..core.docker_manager import DockerManager
+from ..core.cluster_toolkit.command_runner import CommandRunner
+from ..core.cluster_toolkit.docker_manager import DockerManager
+from ..core.cluster_toolkit.native_manager import NativeCommandRunner
 from ..core.gcloud_context import zone_to_region
 from ..core.gcluster_manager import GclusterManager
 from ..core.remote_state.fuse_remote_state import FuseStateClient
@@ -265,12 +267,16 @@ def check_gcloud_authenticated():
 def prepare_gcluster_manager(
     remote_state_client: RemoteStateClient | None,
 ) -> GclusterManager:
-  dm = DockerManager(
-      working_dir=gcluster_working_dir, gcloud_cfg_path=gcloud_cfg_path
-  )
-  dm.initialize()
+  runner: CommandRunner
+  if FeatureFlags.NATIVE_CLUSTER_TOOLKIT_ENABLED:
+    runner = NativeCommandRunner(working_dir=gcluster_working_dir)
+  else:
+    runner = DockerManager(
+        working_dir=gcluster_working_dir, gcloud_cfg_path=gcloud_cfg_path
+    )
+  runner.initialize()
   return GclusterManager(
-      gcluster_command_runner=dm, remote_state_client=remote_state_client
+      gcluster_command_runner=runner, remote_state_client=remote_state_client
   )
 
 

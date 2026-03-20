@@ -54,11 +54,11 @@ def _format_url(
 ) -> str:
   """Formats the download URL based on OS and architecture."""
   mapped_arch = binary_dependency.arch_map.get(arch_name, arch_name)
+  mapped_os = binary_dependency.os_map.get(os_name, os_name)
   return binary_dependency.url_template.format(
       version=binary_dependency.version,
-      os=os_name,
+      os=mapped_os,
       arch=mapped_arch,
-      os_capitalized=os_name.capitalize(),
   )
 
 

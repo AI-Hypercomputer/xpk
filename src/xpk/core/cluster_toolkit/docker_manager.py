@@ -14,12 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from abc import ABC, abstractmethod
 import docker
 from docker.errors import ContainerError, APIError, ImageNotFound, BuildError
-from ..utils.console import xpk_print, xpk_exit
-from ..utils.file import ensure_directory_exists
-from ..utils.objects import hash_string
+from ...utils.console import xpk_print, xpk_exit
+from ...utils.file import ensure_directory_exists
+from ...utils.objects import hash_string
 from shutil import copytree, copy
 import requests
 import os
@@ -39,53 +38,7 @@ dockerfile_gh_path = f"https://raw.githubusercontent.com/GoogleCloudPlatform/clu
 upload_dir_name = "uploads"
 
 
-class CommandRunner(ABC):
-  """This is a base class that defines methods a class for running cluster toolkit command should implement."""
-
-  @abstractmethod
-  def initialize(self) -> None:
-    """initialize is a method that should implement all steps necessary to run command.
-
-    Returns:
-        None
-    """
-    return None
-
-  @abstractmethod
-  def run_command(self, cmd: str) -> None:
-    """run_command implements executing command. If command execution fails, exception should be raised.
-
-    Args:
-        cmd (str): command to run
-
-    Returns:
-        None:
-    """
-    return None
-
-  @abstractmethod
-  def upload_file_to_working_dir(self, path: str, prefix: str = "") -> str:
-    """Uploads single file to working directory.
-
-    Args:
-        path (str): path to file to upload
-
-    Returns:
-        str: path to a destination file
-    """
-    return ""
-
-  @abstractmethod
-  def upload_directory_to_working_dir(self, path: str, prefix: str = "") -> str:
-    """upload directory and its content to working directory.
-
-    Args:
-        path (str): path pointing to directory that will be uploaded.
-
-    Returns:
-        str: path to a target directory.
-    """
-    return ""
+from .command_runner import CommandRunner
 
 
 class DockerManager(CommandRunner):
@@ -245,6 +198,10 @@ class DockerManager(CommandRunner):
 
   def _get_upload_directory_mounted(self, prefix: str = "") -> str:
     return os.path.join(working_dir_mount_path, upload_dir_name, prefix)
+
+  def get_deployment_dir(self, prefix: str = "") -> str:
+    prefix = f"/{prefix}" if prefix != "" else ""
+    return f"deployments{prefix}"
 
   def _create_tmp_for_dockerfile(self) -> str:
     tmp_dir = os.path.join(tempfile.gettempdir(), "xpkutils")

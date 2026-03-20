@@ -582,6 +582,7 @@ func (r *WorkloadReconciler) syncSlices(
 	}
 	var allDeletedSliceNames []string
 	allCreatedSlices := make([]v1beta1.Slice, 0, len(wl.Status.Admission.PodSetAssignments))
+	existingSlicesByName := core.SlicesToMapByName(existingSlices)
 	for _, psa := range wl.Status.Admission.PodSetAssignments {
 		if !shouldCreateSlicesForPodSetAssignment(wl, psa, nodes) {
 			continue
@@ -589,7 +590,7 @@ func (r *WorkloadReconciler) syncSlices(
 		ps := podset.FindPodSetByName(wl.Spec.PodSets, psa.Name)
 		desiredNumberOfSlices := ptr.Deref(ps.TopologyRequest.SubGroupCount, 1)
 
-		createdSlices, deletedSlices, err := r.syncSlicesForAssignment(ctx, wl, ac, &psa, nodes, existingSlices, desiredNumberOfSlices)
+		createdSlices, deletedSlices, err := r.syncSlicesForAssignment(ctx, wl, ac, &psa, nodes, existingSlicesByName, desiredNumberOfSlices)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -645,9 +646,7 @@ func totalDesiredSlices(wl *kueue.Workload, nodes map[string]corev1.Node) int {
 	return count
 }
 
-func (r *WorkloadReconciler) syncSlicesForAssignment(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, psa *kueue.PodSetAssignment, nodes map[string]corev1.Node, existingSlices []v1beta1.Slice, desiredNumberOfSlices int32) ([]v1beta1.Slice, []string, error) {
-	existingSlicesByName := core.SlicesToMapByName(existingSlices)
-
+func (r *WorkloadReconciler) syncSlicesForAssignment(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, psa *kueue.PodSetAssignment, nodes map[string]corev1.Node, existingSlicesByName map[string]*v1beta1.Slice, desiredNumberOfSlices int32) ([]v1beta1.Slice, []string, error) {
 	ps := podset.FindPodSetByName(wl.Spec.PodSets, psa.Name)
 	label := topology.GetPartitionIDLabel(ps.Template)
 	parsedAssignment := topology.ParseAssignment(psa.TopologyAssignment, nodes, label)

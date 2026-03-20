@@ -100,7 +100,8 @@ func BuildCreationEventMessage(slices []v1beta1.Slice) string {
 func GroupSlicesByState(slices []v1beta1.Slice, activationTimeout time.Duration) map[SliceState][]v1beta1.Slice {
 	slicesByState := make(map[SliceState][]v1beta1.Slice)
 	for _, slice := range slices {
-		slicesByState[GetSliceState(slice, activationTimeout)] = append(slicesByState[GetSliceState(slice, activationTimeout)], slice)
+		sliceState := GetSliceState(slice, activationTimeout)
+		slicesByState[sliceState] = append(slicesByState[sliceState], slice)
 	}
 	return slicesByState
 }

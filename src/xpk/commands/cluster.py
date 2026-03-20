@@ -280,7 +280,7 @@ def _validate_gsc_reservation(args, creation_description: str):
       xpk_exit(1)
 
 
-def _validate_topology_args(args) -> None:
+def _validate_num_slices_and_set_default(args) -> None:
   """Validates the relationship between num_cubes and num_slices."""
   if args.num_cubes is not None and not args.super_slicing:
     xpk_print('--num-cubes can only be used with --super-slicing')
@@ -318,7 +318,7 @@ def _assess_reservation_capacity(
   ):
     return None
 
-  xpk_print('Assessing reservation capacity to determine number of slices...')
+  xpk_print('Assessing reservation capacity...')
   reservations = get_reservations_list(args)
   vms_per_pool = _get_vms_per_pool(args, system)
 
@@ -379,7 +379,7 @@ def _set_cluster_topology_defaults(
     available in the targeted reservation(s), or `None` if reservation capacity
     was not checked.
   """
-  _validate_topology_args(args)
+  _validate_num_slices_and_set_default(args)
   available_capacity = _assess_reservation_capacity(args, system)
 
   if system.accelerator_type == AcceleratorType.GPU:

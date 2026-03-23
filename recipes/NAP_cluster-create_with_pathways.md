@@ -126,10 +126,10 @@ data:
 [XPK] Enabling the jobset API on our cluster, to be deprecated when Jobset is globally available
 [XPK] Try 1: Install Jobset on golden-cluster
 [XPK] Task: `Install Jobset on golden-cluster` is implemented by the following command not running since it is a dry run. 
-kubectl apply --server-side --force-conflicts -f https://github.com/kubernetes-sigs/jobset/releases/download/v0.8.0/manifests.yaml
+kubectl apply --server-side --force-conflicts -f https://github.com/kubernetes-sigs/jobset/releases/download/v0.8.1/manifests.yaml
 [XPK] Task: `Count total nodes` is implemented by the following command not running since it is a dry run. 
 kubectl get node --no-headers | wc -l
-[XPK] Temp file (1b31e624e490f9c8c4ef4e369f08d3fa467990af5a261e4405bd045265d70e95) content: 
+[XPK] Temp file (4454b282a51eaf653c909ad5add4d0c9752c15027c8ab6f2cfc80eb02938705b) content: 
 
 apiVersion: apps/v1
 kind: Deployment
@@ -162,7 +162,7 @@ spec:
         - --zap-log-level=2
         command:
         - /manager
-        image: registry.k8s.io/jobset/jobset:v0.8.0
+        image: registry.k8s.io/jobset/jobset:v0.8.1
         livenessProbe:
           httpGet:
             path: /healthz
@@ -213,7 +213,7 @@ spec:
 
 [XPK] Try 1: Updating jobset Controller Manager resources
 [XPK] Task: `Updating jobset Controller Manager resources` is implemented by the following command not running since it is a dry run. 
-kubectl apply -f 1b31e624e490f9c8c4ef4e369f08d3fa467990af5a261e4405bd045265d70e95
+kubectl apply -f 4454b282a51eaf653c909ad5add4d0c9752c15027c8ab6f2cfc80eb02938705b
 [XPK] Enabling Kueue on the cluster
 [XPK] Task: `Get kueue version on server` is implemented by the following command not running since it is a dry run. 
 kubectl get deployment kueue-controller-manager -n kueue-system -o jsonpath='{.spec.template.spec.containers[0].image}'

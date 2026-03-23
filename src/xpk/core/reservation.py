@@ -184,7 +184,7 @@ def _get_reservation_cached(
   )
   dry_run_json = json.dumps({
       'specificReservation': {
-          'count': 100,
+          'count': 1,
           'inUseCount': 0,
           'instanceProperties': {},
       },

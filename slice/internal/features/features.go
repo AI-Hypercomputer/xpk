@@ -41,7 +41,7 @@ var defaultVersionedFeatureGates = map[featuregate.Feature]featuregate.Versioned
 	},
 
 	FailOnUntoleratedDegradedSlice: {
-		{Version: version.MustParse("0.1"), Default: true, PreRelease: featuregate.Beta},
+		{Version: version.MustParse("0.1"), Default: false, PreRelease: featuregate.Alpha},
 	},
 }
 

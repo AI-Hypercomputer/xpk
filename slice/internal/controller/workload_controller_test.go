@@ -187,16 +187,17 @@ func TestWorkloadReconciler(t *testing.T) {
 	podSetRequiringHealthy.Template.Spec.NodeSelector[core.TPUSliceHealthNodeSelectorKey] = core.TPUSliceHealthNodeSelectorHealthy
 
 	testCases := map[string]struct {
-		interceptorFuncsCreate func(ctx context.Context, client client.WithWatch, obj client.Object, opts ...client.CreateOption) error
-		request                types.NamespacedName
-		objs                   []client.Object
-		wantWorkloads          []kueue.Workload
-		wantSlices             []slice.Slice
-		wantJobSets            []jobset.JobSet
-		wantErr                error
-		wantEvents             []utiltesting.EventRecord
-		wantResult             controllerruntime.Result
-		enableRetryMechanism   bool
+		interceptorFuncsCreate               func(ctx context.Context, client client.WithWatch, obj client.Object, opts ...client.CreateOption) error
+		request                              types.NamespacedName
+		objs                                 []client.Object
+		wantWorkloads                        []kueue.Workload
+		wantSlices                           []slice.Slice
+		wantJobSets                          []jobset.JobSet
+		wantErr                              error
+		wantEvents                           []utiltesting.EventRecord
+		wantResult                           controllerruntime.Result
+		enableRetryMechanism                 bool
+		enableFailOnUntoleratedDegradedSlice bool
 	}{
 		"should skip reconciliation because the Workload was not found": {
 			request:       types.NamespacedName{Name: "other-workload", Namespace: corev1.NamespaceDefault},
@@ -2245,7 +2246,8 @@ func TestWorkloadReconciler(t *testing.T) {
 			},
 		},
 		"should retry if a PodSet requiring healthy slices gets a degraded slice": {
-			request: baseRequest,
+			enableFailOnUntoleratedDegradedSlice: true,
+			request:                              baseRequest,
 			objs: []client.Object{
 				worker1Node.DeepCopy(),
 				worker2Node.DeepCopy(),
@@ -2293,7 +2295,8 @@ func TestWorkloadReconciler(t *testing.T) {
 			},
 		},
 		"should be ready if a PodSet tolerating degraded slices gets a degraded slice": {
-			request: baseRequest,
+			enableFailOnUntoleratedDegradedSlice: true,
+			request:                              baseRequest,
 			objs: []client.Object{
 				worker1Node.DeepCopy(),
 				worker2Node.DeepCopy(),
@@ -2369,6 +2372,9 @@ func TestWorkloadReconciler(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			if tc.enableRetryMechanism {
 				features.SetFeatureGateDuringTest(t, features.UseRetryMechanismForSliceCreation, true)
+			}
+			if tc.enableFailOnUntoleratedDegradedSlice {
+				features.SetFeatureGateDuringTest(t, features.FailOnUntoleratedDegradedSlice, true)
 			}
 			scheme := runtime.NewScheme()
 			utilruntime.Must(corev1.AddToScheme(scheme))

@@ -311,10 +311,10 @@ def _assess_reservation_capacity(
   if return_code != 0:
     xpk_exit(return_code)
 
-  if not (
-      capacity_type == CapacityType.RESERVATION
-      and args.reservation
-      and FeatureFlags.RESERVATIONS_VALIDATION_ENABLED
+  if (
+      capacity_type != CapacityType.RESERVATION
+      or not args.reservation
+      or not FeatureFlags.RESERVATIONS_VALIDATION_ENABLED
   ):
     return None
 
@@ -333,8 +333,7 @@ def _assess_reservation_capacity(
     xpk_exit(return_code)
 
   if (
-      FeatureFlags.RESERVATIONS_VALIDATION_ENABLED
-      and system.accelerator_type == AcceleratorType.GPU
+      system.accelerator_type == AcceleratorType.GPU
       and getattr(args, 'num_nodes', None) is None
   ):
     max_vms = max(

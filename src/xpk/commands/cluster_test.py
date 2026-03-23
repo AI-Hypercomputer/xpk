@@ -888,28 +888,28 @@ def test_validate_cluster_create_args_optional_num_slices_zero_available(
 ):
   available_capacity = [
       ReservationCapacity(
-          reservation=ReservationLink(project="p", zone="z", name="r"),
+          reservation=ReservationLink(project='p', zone='z', name='r'),
           available_slices=0,
       )
   ]
 
   args = construct_args(
-      reservation="test-reservation",
+      reservation='test-reservation',
       num_slices=None,
       num_cubes=None,
   )
 
   with (
       unittest.mock.patch(
-          "xpk.commands.cluster.assess_available_slices",
+          'xpk.commands.cluster.assess_available_slices',
           return_value=(available_capacity, 0),
       ),
       unittest.mock.patch(
-          "xpk.commands.cluster.get_capacity_type",
+          'xpk.commands.cluster.get_capacity_type',
           return_value=(CapacityType.RESERVATION, 0),
       ),
       unittest.mock.patch(
-          "xpk.commands.cluster.get_reservations_list", return_value=["r"]
+          'xpk.commands.cluster.get_reservations_list', return_value=['r']
       ),
   ):
 
@@ -918,7 +918,7 @@ def test_validate_cluster_create_args_optional_num_slices_zero_available(
   assert args.num_slices == 0
   assert mocks.commands_print_mock.call_count == 2
   assert (
-      "Automatically setting --num-slices to 0"
+      'Automatically setting --num-slices to 0'
       in mocks.commands_print_mock.call_args_list[1][0][0]
   )
 

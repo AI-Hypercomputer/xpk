@@ -42,6 +42,40 @@ def prepare_test():
   os.mkdir(tmp_test_dir)
 
 
+def test_generate_a3_mega_blueprint_with_private_nodes():
+  prepare_test()
+  blueprint_name = "xpk-gke-a3-megagpu-private"
+  bp_generator = BlueprintGenerator(tmp_test_dir)
+  bp = bp_generator.generate_a3_mega_blueprint(
+      project_id="foo",
+      cluster_name="bar",
+      blueprint_name=blueprint_name,
+      prefix="prefix",
+      region="us-central1",
+      zone="us-central1-c",
+      auth_cidr=["10.0.0.0/32"],
+      enable_private_nodes=True,
+      enable_private_endpoint=True,
+      enable_master_global_access=True,
+      release_channel=ReleaseChannel.RAPID,
+      cluster_version="1.2.3",
+  )
+
+  with open(bp.blueprint_file, encoding="utf-8") as generated_blueprint:
+    ctk_test = yaml.load(generated_blueprint)
+    gke_module = next(
+        m
+        for g in ctk_test.deployment_groups
+        for m in g.modules
+        if m.id == "gke_cluster"
+    )
+    assert gke_module.settings["enable_private_nodes"] is True
+    assert gke_module.settings["enable_private_endpoint"] is True
+    assert gke_module.settings["enable_master_global_access"] is True
+
+  shutil.rmtree(tmp_test_dir)
+
+
 def test_generate_a3_mega_blueprint():
   prepare_test()
   blueprint_name = "xpk-gke-a3-megagpu"
@@ -53,7 +87,7 @@ def test_generate_a3_mega_blueprint():
       prefix="prefix",
       region="us-central1",
       zone="us-central1-c",
-      auth_cidr="10.0.0.0/32",
+      auth_cidr=["10.0.0.0/32"],
       reservation_placement_policy={
           "type": "COMPACT",
           "name": "test-reservation-placement",
@@ -99,7 +133,7 @@ def test_generate_a3_mega_spot_blueprint():
       prefix="prefix",
       region="us-central1",
       zone="us-central1-c",
-      auth_cidr="10.0.0.0/32",
+      auth_cidr=["10.0.0.0/32"],
       capacity_type=CapacityType.SPOT,
       system_node_pool_min_node_count=5,
       release_channel=ReleaseChannel.RAPID,
@@ -134,7 +168,7 @@ def test_generate_a3_ultra_blueprint():
       blueprint_name=blueprint_name,
       region="us-central1",
       zone="us-central1-c",
-      auth_cidr="10.0.0.0/32",
+      auth_cidr=["10.0.0.0/32"],
       reservation="test-reservation",
       system_node_pool_machine_type="e2-standard-16",
       capacity_type=CapacityType.RESERVATION,
@@ -181,7 +215,7 @@ def test_generate_a4_blueprint():
       blueprint_name=blueprint_name,
       region="us-central1",
       zone="us-central1-c",
-      auth_cidr="10.0.0.0/32",
+      auth_cidr=["10.0.0.0/32"],
       reservation="test-reservation",
       system_node_pool_machine_type="e2-standard-16",
       capacity_type=CapacityType.RESERVATION,

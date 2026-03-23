@@ -702,6 +702,7 @@ def add_shared_cluster_create_optional_arguments(
   parser_or_group.add_argument(
       '--private',
       action='store_true',
+      default=None,
       help=(
           'Creates a private GKE cluster, a VPC-native cluster in which Nodes'
           ' and Pods are isolated from the internet. If set,'
@@ -718,13 +719,47 @@ def add_shared_cluster_create_optional_arguments(
       nargs='+',
       help=(
           'Sets the provided cidrs as authorized IP ranges to access the'
-          " private cluster's control plan. Access to the control plane will"
-          " be provided to current machine's IP address even if"
+          " private cluster's control plane. Access to the control plane"
+          " will be provided to current machine's IP address even if"
           ' --authorized-networks is not set or it does not cover the IP'
-          ' address. If set, --private is considered true and a private'
-          ' cluster will be provisioned. It replaces existing authorized'
+          ' address. Automatically enables --private if not already set.'
+          ' It replaces existing authorized'
           ' networks if used with an existing private cluster.'
           ' Example usage: --authorized-networks 1.2.3.0/24 1.2.4.5/32'
+      ),
+  )
+  parser_or_group.add_argument(
+      '--enable-private-endpoint',
+      action='store_true',
+      default=None,
+      help=(
+          'Enables a fully private control plane endpoint for the GKE'
+          ' cluster. When set, the control plane has no public endpoint and'
+          ' can only be accessed from authorized internal networks. Requires'
+          ' --private. Use --private-endpoint-subnetwork to specify the'
+          ' subnet for the private endpoint.'
+      ),
+  )
+  parser_or_group.add_argument(
+      '--private-endpoint-subnetwork',
+      type=str,
+      default=None,
+      help=(
+          'The name or full path of the subnet to use for the private'
+          " control plane's endpoint. When set, the control plane's"
+          ' private endpoint IP is allocated from this subnet. Requires'
+          ' --enable-private-endpoint and --private.'
+          ' Example usage: --private-endpoint-subnetwork=my-cp-subnet'
+      ),
+  )
+  parser_or_group.add_argument(
+      '--enable-master-global-access',
+      action='store_true',
+      help=(
+          "Enables access to the private control plane's internal IP"
+          " address from any GCP region, not just the cluster's region."
+          ' Useful when VPN or other resources accessing the cluster are'
+          ' in a different region.'
       ),
   )
   parser_or_group.add_argument(

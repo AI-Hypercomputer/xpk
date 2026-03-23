@@ -213,7 +213,66 @@ def cluster_adapt(args) -> None:
   xpk_exit(0)
 
 
+def _validate_private_cluster_args(args, system: SystemCharacteristics):
+  """Validates arguments related to private cluster configuration."""
+  if args.private_endpoint_subnetwork:
+    if getattr(args, 'enable_private_endpoint', None) is None:
+      xpk_print(
+          'Note: --enable-private-endpoint is automatically enabled because'
+          ' --private-endpoint-subnetwork was set.'
+      )
+      args.enable_private_endpoint = True
+
+  if (
+      args.private_endpoint_subnetwork
+      and system.device_type in cluster_gcluster.supported_device_types
+  ):
+    xpk_print(
+        'Error: --private-endpoint-subnetwork is not supported for GPU'
+        f' clusters (device type: {system.device_type}). Cluster Toolkit'
+        ' blueprints do not have a corresponding module input.'
+    )
+    xpk_exit(1)
+
+  if args.authorized_networks is not None:
+    if getattr(args, 'private', None) is None:
+      xpk_print(
+          'Note: --private is automatically enabled because'
+          ' --authorized-networks was set.'
+      )
+      args.private = True
+
+  if args.enable_private_endpoint:
+    if getattr(args, 'private', None) is None:
+      xpk_print(
+          'Note: --private is automatically enabled because'
+          ' --enable-private-endpoint was set.'
+      )
+      args.private = True
+
+  if args.enable_master_global_access:
+    if getattr(args, 'private', None) is None:
+      xpk_print(
+          'Note: --private is automatically enabled because'
+          ' --enable-master-global-access was set.'
+      )
+      args.private = True
+
+
 def _validate_cluster_create_args(args, system: SystemCharacteristics):
+  _validate_private_cluster_args(args, system)
+
+  if (
+      args.custom_cluster_arguments
+      and system.device_type in cluster_gcluster.supported_device_types
+  ):
+    xpk_print(
+        'Warning: --custom-cluster-arguments is ignored for GPU clusters'
+        f' (device type: {system.device_type}). Cluster Toolkit blueprints'
+        ' do not support arbitrary gcloud arguments. Network and subnetwork'
+        ' are auto-configured by the blueprint.'
+    )
+
   if FeatureFlags.SUB_SLICING_ENABLED and args.sub_slicing:
     validate_sub_slicing_system(system)
     _validate_sub_slicing_reservation(args)
@@ -1244,7 +1303,6 @@ def run_gke_cluster_create_command(
       ' --enable-autoscaling'
       ' --total-min-nodes 1 --total-max-nodes 1000'
       f' --num-nodes {args.default_pool_cpu_num_nodes}'
-      ' --enable-dns-access'
       ' --autoscaling-profile=optimize-utilization'
       ' --labels=gke_product_type=xpk'
       f' --release-channel={release_channel.value.lower()}'
@@ -1256,8 +1314,22 @@ def run_gke_cluster_create_command(
   if args.gke_version:
     command += ' --no-enable-autoupgrade'
 
+  if not args.enable_private_endpoint:
+    command += ' --enable-dns-access'
+
   if args.private or args.authorized_networks is not None:
     command += ' --enable-master-authorized-networks --enable-private-nodes'
+
+  if args.enable_private_endpoint:
+    command += ' --enable-private-endpoint'
+
+  if args.enable_master_global_access:
+    command += ' --enable-master-global-access'
+
+  if args.private_endpoint_subnetwork:
+    command += (
+        f' --private-endpoint-subnetwork={args.private_endpoint_subnetwork}'
+    )
 
   if system.accelerator_type != AcceleratorType.GPU:
     command += ' --location-policy=BALANCED --scopes=storage-full,gke-default'

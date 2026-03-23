@@ -58,12 +58,13 @@ deployment_groups:
       min_master_version: 1.2.3
       prefix_with_deployment_name: false
       name_suffix: bar
+      enable_private_nodes: false
       enable_private_endpoint: false
       enable_gcsfuse_csi: true
       enable_filestore_csi: true
       master_authorized_networks:
       - cidr_block: 10.0.0.0/32  # Allows your machine run kubectl command. It's required for the multi-network setup.
-        display_name: "kubectl-access-network"
+        display_name: "authorized-network-0"
       system_node_pool_machine_type: "e2-standard-32"
       system_node_pool_node_count:
         total_min_nodes: 5
@@ -72,6 +73,7 @@ deployment_groups:
         gvnic_prefix: "bar-gpunet-"
         gvnic_postfix: "-subnet"
         gvnic_start_index: 0
+      enable_master_global_access: false
     outputs: [instructions]
 
   - !DeploymentModule

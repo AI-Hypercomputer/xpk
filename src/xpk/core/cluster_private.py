@@ -50,6 +50,19 @@ def authorize_private_cluster_access_if_necessary(args) -> int:
       check_if_new_authorized_networks_needed(args)
   )
 
+  # When private endpoint is enabled, GKE only accepts private (RFC 1918)
+  # CIDRs in authorized networks.
+  # Skip auto-adding the caller's public IP because it would be rejected by the API.
+  if getattr(args, 'enable_private_endpoint', False):
+    xpk_print(
+        'Private endpoint is enabled — skipping auto-addition of caller'
+        ' public IP to authorized networks (only private CIDRs allowed).'
+    )
+    if new_authorized_networks_needed:
+      return update_cluster_new_authorized_networks(args, authorized_networks)
+    xpk_print('No new authorized networks to update.')
+    return 0
+
   (
       add_current_machine_to_networks_return_code,
       is_current_machine_in_network,

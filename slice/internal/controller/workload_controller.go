@@ -844,20 +844,9 @@ func (r *WorkloadReconciler) prepareAdmissionCheckStatus(ctx context.Context, wl
 	effectiveActiveCount, effectiveFailedCount := calculateEffectiveSliceCounts(slicesByState, wl, podSetRequiresHealthy)
 
 	switch {
-	case len(slices) == desiredSlicesCount && len(slices) == effectiveActiveCount:
+	case desiredSlicesCount == effectiveActiveCount:
 		ac.State = kueue.CheckStateReady
-		var podSetUpdates []kueue.PodSetUpdate
-		for _, ps := range wl.Spec.PodSets {
-			if topology := core.GetTPUTopology(ps.Template); topology != "" {
-				podSetUpdates = append(podSetUpdates, kueue.PodSetUpdate{
-					Name: ps.Name,
-					NodeSelector: map[string]string{
-						core.TPUTopologyAnnotation: topology,
-					},
-				})
-			}
-		}
-		ac.PodSetUpdates = podSetUpdates
+		ac.PodSetUpdates = buildPodSetUpdates(wl)
 	case effectiveFailedCount > 0:
 		ac.State = kueue.CheckStateRetry
 		ac.RequeueAfterSeconds = ptr.To(int32(r.retryDelayOnSliceFailure.Round(time.Second).Seconds()))

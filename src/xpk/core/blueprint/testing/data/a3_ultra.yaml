@@ -153,7 +153,7 @@ deployment_groups:
     settings:
       jobset:
         install: true
-        version: v0.8.1
+        version: v0.7.2
       apply_manifests:
       - source: $(ghpc_stage("xpk-gke-a3-ultra"))/nccl-installer.yaml
       - source: $(ghpc_stage("xpk-gke-a3-ultra"))/mlgru-disable.yaml

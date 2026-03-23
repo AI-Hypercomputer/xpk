@@ -165,7 +165,7 @@ deployment_groups:
     settings:
       jobset:
         install: true
-        version: v0.8.1
+        version: v0.7.2
       apply_manifests:
       - source: $(ghpc_stage("xpk-gke-a4"))/nccl-rdma-installer-a4.yaml
       - source: $(ghpc_stage("xpk-gke-a4"))/storage_crd.yaml

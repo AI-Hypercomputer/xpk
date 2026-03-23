@@ -69,8 +69,13 @@ def run_gke_node_pool_create_command(
     0 if successful and 1 otherwise.
   """
   device_type = args.tpu_type if args.tpu_type else args.device_type
+  num_slices_str = (
+      args.num_slices
+      if getattr(args, 'num_slices', None) is not None
+      else 'determined dynamically'
+  )
   xpk_print(
-      f'Creating {args.num_slices} node pool or pools of {device_type}\n'
+      f'Creating {num_slices_str} node pool or pools of {device_type}\n'
       f'We assume that the underlying system is: {system}'
   )
   existing_node_pool_names, return_code = get_all_nodepools_programmatic(args)
@@ -100,17 +105,36 @@ def run_gke_node_pool_create_command(
   desired_node_pool_count = (
       1 if system.accelerator_type == AcceleratorType.GPU else args.num_slices
   )
-  message = (
-      (
-          f'Creating 1 node pool with {args.num_nodes} nodes of'
-          f' {system.device_type}\nUnderlyingly, we assume that means: {system}'
-      )
-      if system.accelerator_type == AcceleratorType.GPU
-      else (
-          f'Creating {args.num_slices} node pool or pools of'
-          f' {system.device_type}\nUnderlyingly, we assume that means: {system}'
-      )
-  )
+  if system.accelerator_type == AcceleratorType.GPU:
+    num_nodes_str = (
+        args.num_nodes
+        if getattr(args, 'num_nodes', None) is not None
+        else 'dynamically determined'
+    )
+    message = (
+        f'Creating 1 node pool with {num_nodes_str} nodes of'
+        f' {system.device_type}\nUnderlyingly, we assume that means: {system}'
+    )
+  else:
+    num_slices_str = (
+        args.num_slices
+        if getattr(args, 'num_slices', None) is not None
+        else 'determined dynamically'
+    )
+    message = (
+        f'Creating {num_slices_str} node pool or pools of'
+        f' {system.device_type}\nUnderlyingly, we assume that means: {system}'
+    )
+  cluster_node_pools = [
+      np
+      for np in existing_node_pool_names
+      if np.startswith(f'{args.cluster}-np-')
+  ]
+  if not cluster_node_pools:
+    return_code = _validate_sizing_flags(args, system)
+    if return_code != 0:
+      return return_code
+
   xpk_print(message)
   desired_node_pool_names = get_desired_node_pool_names(
       existing_node_pool_names, args.cluster, desired_node_pool_count
@@ -284,6 +308,12 @@ def run_gke_node_pool_create_command(
   node_pools_to_create = [
       np for np in desired_node_pool_names if np not in node_pools_to_remain
   ]
+
+  if len(node_pools_to_create) > 0:
+    return_code = _validate_sizing_flags(args, system)
+    if return_code != 0:
+      return return_code
+
   reservations_iter: Iterator[ReservationLink] | None = None
   if (
       capacity_type == CapacityType.RESERVATION
@@ -664,16 +694,50 @@ def get_nodepool_workload_metadata_mode(
   return 0, nodepool_WI_mode.strip()
 
 
+def _validate_sizing_flags(args, system: SystemCharacteristics) -> int:
+  """Validates that the appropriate sizing flags are provided.
+
+  Args:
+    args: user provided arguments for running the command.
+    system: System characteristics based on device type/topology.
+
+  Returns:
+    0 if validation succeeds, 1 if it fails.
+  """
+  if (
+      system.accelerator_type == AcceleratorType.GPU
+      and getattr(args, 'num_nodes', None) is None
+  ):
+    xpk_print(
+        'ERROR: Sizing flag --num-nodes must be provided when creating a new'
+        ' node pool.'
+    )
+    return 1
+  elif (
+      system.accelerator_type != AcceleratorType.GPU
+      and getattr(args, 'num_slices', None) is None
+  ):
+    xpk_print(
+        'ERROR: Sizing flag --num-slices must be provided when creating a new'
+        ' node pool.'
+    )
+    return 1
+  return 0
+
+
 def get_desired_node_pool_names(
     existing_node_pool_names: List[str],
     cluster_name: str,
-    desired_node_pool_count: int,
+    desired_node_pool_count: int | None,
 ) -> List[str]:
   cluster_node_pools = [
       np
       for np in existing_node_pool_names
       if np.startswith(f'{cluster_name}-np-')
   ]
+  if desired_node_pool_count is None:
+    return list(sorted(cluster_node_pools))
+
   result = set(cluster_node_pools[:desired_node_pool_count])
   i = 0
   while len(result) < desired_node_pool_count:

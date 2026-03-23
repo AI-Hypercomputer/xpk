@@ -23,7 +23,10 @@ from xpk.core.capacity import (
     H100_MEGA_DEVICE_TYPE,
     CapacityType,
 )
-from xpk.core.system_characteristics import SystemCharacteristics
+from xpk.core.system_characteristics import (
+    SystemCharacteristics,
+    AcceleratorType,
+)
 
 
 class CommonCommandsTest(unittest.TestCase):
@@ -79,6 +82,8 @@ class CommonCommandsTest(unittest.TestCase):
   def test_is_GPU_TAS_possible_h100_unsupported_capacity(self, mock_is_dry_run):
     """Test is_GPU_TAS_possible for H100 with unsupported capacity type."""
     mock_system = MagicMock(spec=SystemCharacteristics)
+    mock_system.accelerator_type = AcceleratorType.GPU
+    mock_system.gpu_requires_topology = True
     mock_system.device_type = H100_DEVICE_TYPE
     self.assertFalse(
         is_GPU_TAS_possible(
@@ -97,6 +102,8 @@ class CommonCommandsTest(unittest.TestCase):
   def test_is_GPU_TAS_possible_flex_start_capacity(self, mock_is_dry_run):
     """Test is_GPU_TAS_possible returns True for FLEX_START capacity."""
     mock_system = MagicMock(spec=SystemCharacteristics)
+    mock_system.accelerator_type = AcceleratorType.GPU
+    mock_system.gpu_requires_topology = True
     mock_system.device_type = "some-device"
     self.assertTrue(
         is_GPU_TAS_possible(
@@ -111,6 +118,8 @@ class CommonCommandsTest(unittest.TestCase):
   ):
     """Test is_GPU_TAS_possible with COMPACT placement returns True."""
     mock_system = MagicMock(spec=SystemCharacteristics)
+    mock_system.accelerator_type = AcceleratorType.GPU
+    mock_system.gpu_requires_topology = True
     mock_system.device_type = "a3-ultra"
     mock_run_command.return_value = (0, "some-nodepool\nsome-other-nodepool\n")
     self.assertTrue(
@@ -130,6 +139,8 @@ class CommonCommandsTest(unittest.TestCase):
   ):
     """Test is_GPU_TAS_possible without COMPACT placement returns False."""
     mock_system = MagicMock(spec=SystemCharacteristics)
+    mock_system.accelerator_type = AcceleratorType.GPU
+    mock_system.gpu_requires_topology = True
     mock_system.device_type = "a3-ultra"
     mock_run_command.return_value = (0, "")
     self.assertFalse(
@@ -150,6 +161,8 @@ class CommonCommandsTest(unittest.TestCase):
   ):
     """Test is_GPU_TAS_possible when gcloud command fails."""
     mock_system = MagicMock(spec=SystemCharacteristics)
+    mock_system.accelerator_type = AcceleratorType.GPU
+    mock_system.gpu_requires_topology = True
     mock_system.device_type = "a3-ultra"
     mock_run_command.return_value = (1, "Error")
     self.assertFalse(

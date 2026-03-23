@@ -21,6 +21,7 @@ from ..utils.console import xpk_print, xpk_exit
 from ..utils.execution_context import is_dry_run
 from ..core.system_characteristics import (
     SystemCharacteristics,
+    AcceleratorType,
 )
 
 
@@ -61,6 +62,12 @@ def is_GPU_TAS_possible(
   if system_characteristics is None:
     xpk_print('system_characteristics data was not found in configmaps.')
     xpk_exit(1)
+
+  if system_characteristics.accelerator_type == AcceleratorType.TPU:
+    return False
+
+  if not system_characteristics.gpu_requires_topology:
+    return False
 
   if capacity_type is None:
     xpk_print('capacity_type data was not found in configmaps.')

@@ -353,7 +353,8 @@ def _validate_num_slices_and_set_default(args):
     xpk_print('--num-cubes must not be different from --num-slices')
     xpk_exit(1)
 
-  args.num_slices = args.num_slices or args.num_cubes or 1
+  if args.num_slices is None:
+    args.num_slices = args.num_cubes if args.num_cubes is not None else 1
 
 
 def cluster_create(args) -> None:

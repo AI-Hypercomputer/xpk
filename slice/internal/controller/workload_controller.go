@@ -20,7 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -55,6 +55,7 @@ import (
 	"tpu-slice-controller/internal/util/api"
 	"tpu-slice-controller/internal/util/node"
 	utilpod "tpu-slice-controller/internal/util/pod"
+	utilworkload "tpu-slice-controller/internal/util/workload"
 )
 
 const (
@@ -119,7 +120,7 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	// If the workload has been deleted, evicted, has finished, or is no longer active,
 	// finalize the Workload by removing its slices and then the finalizer.
-	if finalize, reason := shouldFinalize(wl); finalize {
+	if finalize, reason := utilworkload.ShouldFinalize(wl); finalize {
 		if controllerutil.ContainsFinalizer(wl, SliceControllerName) {
 			log.V(3).Info("Cleaning up the Slices and finalizing the Workload", "reason", reason)
 			cleanedUp, err := r.cleanupSlices(ctx, wl)
@@ -184,7 +185,8 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	grouped := r.groupSlices(slices)
 
-	if ac.State == kueue.CheckStateReady && (len(grouped.deleted) > 0 || len(slices) != totalDesiredSlices(wl, nodes)) {
+	desiredSlicesCount := totalDesiredSlices(wl, nodes)
+	if ac.State == kueue.CheckStateReady && (len(grouped.deleted) > 0 || len(slices) != desiredSlicesCount) {
 		log.V(3).Info("Slice has been deleted, evicting workload")
 		if err := r.evictWorkload(ctx, wl, ac, "Slice has been deleted"); err != nil {
 			return ctrl.Result{}, err
@@ -201,20 +203,21 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	// Create any missing Slices based on the Workload's PodSet assignments.
-	newSlices, err := r.syncSlices(ctx, wl, ac, slices, nodes)
+	originalSlicesCount := len(slices)
+	newSlices, retainedSlices, err := r.syncSlices(ctx, wl, ac, slices, nodes)
 	if err != nil {
 		if errors.Is(err, errWorkloadEvicted) {
 			return ctrl.Result{RequeueAfter: initializationRetryAfter}, nil
 		}
 		return ctrl.Result{}, err
 	}
-	if len(newSlices) > 0 {
-		slices = append(slices, newSlices...)
+	if len(newSlices) > 0 || len(retainedSlices) != originalSlicesCount {
+		slices = append(retainedSlices, newSlices...)
 		grouped = r.groupSlices(slices)
 	}
 
 	// Update the Workload's AdmissionCheck status based on the current state of the Slices.
-	err = r.syncAdmissionCheckStatus(ctx, wl, ac, slices)
+	err = r.syncAdmissionCheckStatus(ctx, wl, ac, slices, desiredSlicesCount)
 	if err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
@@ -245,52 +248,6 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{RequeueAfter: initializationRetryAfter}, nil
 	}
 	return ctrl.Result{}, nil
-}
-
-func shouldFinalize(wl *kueue.Workload) (bool, string) {
-	if !wl.DeletionTimestamp.IsZero() {
-		return true, "it has been deleted"
-	}
-
-	if workload.IsFinished(wl) {
-		return true, "it has finished"
-	}
-
-	if workload.IsEvicted(wl) {
-		return true, "it was evicted"
-	}
-
-	if !workload.IsActive(wl) {
-		return true, "it is no longer active"
-	}
-
-	if !controllerutil.HasControllerReference(wl) {
-		return true, "it doesn't have owner"
-	}
-
-	if !hasSupportedOwner(wl) {
-		return true, "it has an unsupported owner"
-	}
-
-	return false, ""
-}
-
-func hasSupportedOwner(wl *kueue.Workload) bool {
-	return isJobSetOwner(wl) || isJobOwner(wl)
-}
-
-func isJobSetOwner(wl *kueue.Workload) bool {
-	if owner := metav1.GetControllerOf(wl); owner != nil {
-		return owner.APIVersion == jobset.SchemeGroupVersion.String() && owner.Kind == "JobSet"
-	}
-	return false
-}
-
-func isJobOwner(wl *kueue.Workload) bool {
-	if owner := metav1.GetControllerOf(wl); owner != nil {
-		return owner.APIVersion == batchv1.SchemeGroupVersion.String() && owner.Kind == "Job"
-	}
-	return false
 }
 
 func (r *WorkloadReconciler) cleanupSlices(ctx context.Context, wl *kueue.Workload) (bool, error) {
@@ -414,10 +371,10 @@ func (r *WorkloadReconciler) deleteSlicesForEvictedWorkload(ctx context.Context,
 }
 
 func (r *WorkloadReconciler) ownerPodsFinished(ctx context.Context, wl *kueue.Workload) (bool, error) {
-	if isJobSetOwner(wl) {
+	if utilworkload.IsJobSetOwner(wl) {
 		return r.jobSetPodsFinished(ctx, wl)
 	}
-	if isJobOwner(wl) {
+	if utilworkload.IsJobOwner(wl) {
 		return r.jobPodsFinished(ctx, wl)
 	}
 	// Finalize Workloads that have no owner or have unsupported owner types.
@@ -516,7 +473,7 @@ func (r *WorkloadReconciler) finalizeWorkload(ctx context.Context, wl *kueue.Wor
 }
 
 func validateRelevantWorkload(wl *kueue.Workload, nodes map[string]corev1.Node) error {
-	if !hasSupportedOwner(wl) {
+	if !utilworkload.HasSupportedOwner(wl) {
 		return errors.New("does not have a supported owner")
 	}
 	if !hasRelevantPodSet(wl.Spec.PodSets) {
@@ -564,24 +521,23 @@ func (r *WorkloadReconciler) sliceAC(ctx context.Context, wl *kueue.Workload) (*
 	return admissioncheck.FindAdmissionCheck(wl.Status.AdmissionChecks, relevantChecks[0]), nil
 }
 
+// syncSlices creates missing Slices and deletes existing Slices with incorrect partition IDs.
+// It returns the newly created Slices, and the list of retained (non-deleted) existing Slices.
 func (r *WorkloadReconciler) syncSlices(
 	ctx context.Context,
 	wl *kueue.Workload,
 	ac *kueue.AdmissionCheckState,
-	slices []v1beta1.Slice,
+	existingSlices []v1beta1.Slice,
 	nodes map[string]corev1.Node,
-) ([]v1beta1.Slice, error) {
+) ([]v1beta1.Slice, []v1beta1.Slice, error) {
 	// this is to prevent from creating slices when AC is Retry
 	// and the workload still has the old Admission
-	if ac.State != kueue.CheckStatePending {
-		return nil, nil
+	if ac.State == kueue.CheckStateRetry || ac.State == kueue.CheckStateRejected {
+		return nil, existingSlices, nil
 	}
-	existingSlicesByName := make(map[string]*v1beta1.Slice, len(slices))
-	for _, slice := range slices {
-		existingSlicesByName[slice.Name] = &slice
-	}
-
+	var allDeletedSliceNames []string
 	allCreatedSlices := make([]v1beta1.Slice, 0, len(wl.Status.Admission.PodSetAssignments))
+	existingSlicesByName := core.SlicesToMapByName(existingSlices)
 	for _, psa := range wl.Status.Admission.PodSetAssignments {
 		if !shouldCreateSlicesForPodSetAssignment(wl, psa, nodes) {
 			continue
@@ -589,20 +545,35 @@ func (r *WorkloadReconciler) syncSlices(
 		ps := podset.FindPodSetByName(wl.Spec.PodSets, psa.Name)
 		desiredNumberOfSlices := ptr.Deref(ps.TopologyRequest.SubGroupCount, 1)
 
-		createdSlices, err := r.createSlices(ctx, wl, ac, &psa, nodes, existingSlicesByName, desiredNumberOfSlices)
+		createdSlices, deletedSlices, err := r.syncSlicesForAssignment(ctx, wl, ac, &psa, nodes, existingSlicesByName, desiredNumberOfSlices)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		allCreatedSlices = append(allCreatedSlices, createdSlices...)
+		allDeletedSliceNames = append(allDeletedSliceNames, deletedSlices...)
+	}
+
+	retainedSlices := existingSlices
+	if len(allDeletedSliceNames) > 0 {
+		retainedSlices = make([]v1beta1.Slice, 0, len(existingSlices))
+		deletedSet := make(map[string]bool)
+		for _, name := range allDeletedSliceNames {
+			deletedSet[name] = true
+		}
+		for _, s := range existingSlices {
+			if !deletedSet[s.Name] {
+				retainedSlices = append(retainedSlices, s)
+			}
+		}
 	}
 
 	if len(allCreatedSlices) > 0 {
-		msg := buildCreationEventMessage(allCreatedSlices)
+		msg := core.BuildCreationEventMessage(allCreatedSlices)
 		ctrl.LoggerFrom(ctx).V(3).Info(msg)
 		r.record.Event(wl, corev1.EventTypeNormal, SlicesCreatedEventType, api.TruncateEventMessage(msg))
 	}
 
-	return allCreatedSlices, nil
+	return allCreatedSlices, retainedSlices, nil
 }
 
 func shouldCreateSlicesForPodSetAssignment(wl *kueue.Workload, psa kueue.PodSetAssignment, nodes map[string]corev1.Node) bool {
@@ -630,29 +601,49 @@ func totalDesiredSlices(wl *kueue.Workload, nodes map[string]corev1.Node) int {
 	return count
 }
 
-func (r *WorkloadReconciler) createSlices(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, psa *kueue.PodSetAssignment, nodes map[string]corev1.Node, existingSlicesByName map[string]*v1beta1.Slice, desiredNumberOfSlices int32) ([]v1beta1.Slice, error) {
+func (r *WorkloadReconciler) syncSlicesForAssignment(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, psa *kueue.PodSetAssignment, nodes map[string]corev1.Node, existingSlicesByName map[string]*v1beta1.Slice, desiredNumberOfSlices int32) ([]v1beta1.Slice, []string, error) {
 	ps := podset.FindPodSetByName(wl.Spec.PodSets, psa.Name)
 	label := topology.GetPartitionIDLabel(ps.Template)
 	parsedAssignment := topology.ParseAssignment(psa.TopologyAssignment, nodes, label)
 	chunkSize := int32(len(parsedAssignment.PartitionIDs) / int(desiredNumberOfSlices))
 	createdSlices := []v1beta1.Slice{}
 	slicesToCreate := []*v1beta1.Slice{}
+	var deletedSlices []string
 
 	for i := range desiredNumberOfSlices {
-		if _, exist := existingSlicesByName[core.SliceName(wl.Namespace, wl.Name, psa.Name, i)]; exist {
+		sliceName := core.SliceName(wl.Namespace, wl.Name, psa.Name, i)
+		start := i * chunkSize
+		end := start + chunkSize
+		var expectedPartitionIDs []string
+		if len(parsedAssignment.PartitionIDs) > 0 {
+			expectedPartitionIDs = parsedAssignment.PartitionIDs[start:end]
+		}
+
+		if existingSlice, exist := existingSlicesByName[sliceName]; exist {
+			if !slices.Equal(existingSlice.Spec.PartitionIds, expectedPartitionIDs) {
+				if existingSlice.DeletionTimestamp.IsZero() {
+					log := ctrl.LoggerFrom(ctx).WithValues("slice", klog.KObj(existingSlice))
+					log.V(2).Info("Existing Slice has wrong partition IDs, deleting it")
+					if err := r.client.Delete(ctx, existingSlice); client.IgnoreNotFound(err) != nil {
+						return nil, nil, err
+					}
+					deletedSlices = append(deletedSlices, existingSlice.Name)
+				}
+			}
 			// Slice already exists, nothing to do.
 			continue
 		}
 		slice := core.SliceWithMetadata(wl, psa.Name, i)
+		if features.Enabled(features.UseRetryMechanismForSliceCreation) {
+			slice.Annotations[core.RetryOnFailureAnnotation] = "true"
+		}
 		// Since Slice is a cluster-scoped object and Workload is namespaced,
 		// we cannot set a controller owner reference. The Workload's namespace and name
 		// are stored as annotations on the Slice for lookup.
 
 		slice.Spec.Type = v1beta1.Type(core.GetTPUAccelerator(ps.Template))
-		start := i * chunkSize
-		end := start + chunkSize
-		if len(parsedAssignment.PartitionIDs) > 0 {
-			slice.Spec.PartitionIds = parsedAssignment.PartitionIDs[start:end]
+		if len(expectedPartitionIDs) > 0 {
+			slice.Spec.PartitionIds = expectedPartitionIDs
 		}
 
 		slice.Spec.Topology = core.GetTPUTopology(ps.Template)
@@ -666,9 +657,9 @@ func (r *WorkloadReconciler) createSlices(ctx context.Context, wl *kueue.Workloa
 		log.V(2).Info("Slice validation failed, not creating Slices, evicting the workload", "error", err)
 		msg := err.Error()
 		if patchErr := r.evictWorkload(ctx, wl, ac, msg); patchErr != nil {
-			return nil, errors.Join(err, patchErr)
+			return nil, nil, errors.Join(err, patchErr)
 		}
-		return nil, errWorkloadEvicted
+		return nil, nil, errWorkloadEvicted
 	}
 
 	for _, slice := range slicesToCreate {
@@ -684,19 +675,23 @@ func (r *WorkloadReconciler) createSlices(ctx context.Context, wl *kueue.Workloa
 			ac.Message = api.TruncateConditionMessage(msg)
 			patchErr := r.updateWorkloadAdmissionCheckStatus(ctx, wl, ac)
 			if patchErr != nil {
-				return nil, errors.Join(err, patchErr)
+				return nil, nil, errors.Join(err, patchErr)
 			}
-			return nil, err
+			return nil, nil, err
 		}
 		createdSlices = append(createdSlices, *slice)
 	}
-	return createdSlices, nil
+	return createdSlices, deletedSlices, nil
 }
 
 func (r *WorkloadReconciler) validatePartitionConflicts(
 	ctx context.Context,
 	slicesToCreate []*v1beta1.Slice,
 ) error {
+	// if we use the retry mechanism, it is going to retry on partition conflicts
+	if features.Enabled(features.UseRetryMechanismForSliceCreation) {
+		return nil
+	}
 	log := ctrl.LoggerFrom(ctx)
 
 	allSlices, err := r.findAllSlices(ctx)
@@ -771,21 +766,12 @@ func (r *WorkloadReconciler) updateWorkloadAdmissionCheckStatus(ctx context.Cont
 	return err
 }
 
-func buildCreationEventMessage(slices []v1beta1.Slice) string {
-	sliceNames := make([]string, len(slices))
-	for index, slice := range slices {
-		sliceNames[index] = fmt.Sprintf("%q", slice.Name)
-	}
-	sort.Strings(sliceNames)
-	return fmt.Sprintf("The Slices %s have been created", strings.Join(sliceNames, ", "))
-}
-
 // syncAdmissionCheckStatus syncs the admission check status with the state of the Slices.
-func (r *WorkloadReconciler) syncAdmissionCheckStatus(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, slices []v1beta1.Slice) error {
+func (r *WorkloadReconciler) syncAdmissionCheckStatus(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, slices []v1beta1.Slice, desiredSlicesCount int) error {
 	originalState := ac.State
 	originalMessage := ac.Message
 
-	r.prepareAdmissionCheckStatus(wl, ac, slices)
+	r.prepareAdmissionCheckStatus(ctx, wl, ac, slices, desiredSlicesCount)
 
 	// No changes.
 	if originalState == ac.State && ac.Message == originalMessage {
@@ -821,14 +807,6 @@ func (r *WorkloadReconciler) syncAdmissionCheckStatus(ctx context.Context, wl *k
 	return nil
 }
 
-func groupSlicesByState(slices []v1beta1.Slice, activationTimeout time.Duration) map[core.SliceState][]v1beta1.Slice {
-	slicesByState := make(map[core.SliceState][]v1beta1.Slice)
-	for _, slice := range slices {
-		slicesByState[core.GetSliceState(slice, activationTimeout)] = append(slicesByState[core.GetSliceState(slice, activationTimeout)], slice)
-	}
-	return slicesByState
-}
-
 func calculateEffectiveSliceCounts(slicesByState map[core.SliceState][]v1beta1.Slice, wl *kueue.Workload, podSetRequiresHealthy map[string]bool) (int, int) {
 	effectiveActiveCount := len(slicesByState[core.SliceStateActive])
 	effectiveFailedCount := len(slicesByState[core.SliceStateFailed])
@@ -848,6 +826,54 @@ func calculateEffectiveSliceCounts(slicesByState map[core.SliceState][]v1beta1.S
 		effectiveActiveCount += len(slicesByState[core.SliceStateActiveDegraded])
 	}
 	return effectiveActiveCount, effectiveFailedCount
+}
+
+func (r *WorkloadReconciler) prepareAdmissionCheckStatus(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, slices []v1beta1.Slice, desiredSlicesCount int) {
+	log := ctrl.LoggerFrom(ctx).V(2)
+	// wait for Kueue to reset check to Pending after eviction
+	if ac.State == kueue.CheckStateRetry {
+		return
+	}
+	slicesByState := core.GroupSlicesByState(slices, r.activationTimeout)
+	podSetRequiresHealthy := make(map[string]bool)
+	if features.Enabled(features.FailOnUntoleratedDegradedSlice) {
+		for _, ps := range wl.Spec.PodSets {
+			podSetRequiresHealthy[string(ps.Name)] = podSetRequestedOnlyHealthySlices(ps)
+		}
+	}
+	effectiveActiveCount, effectiveFailedCount := calculateEffectiveSliceCounts(slicesByState, wl, podSetRequiresHealthy)
+
+	switch {
+	case len(slices) == desiredSlicesCount && len(slices) == effectiveActiveCount:
+		ac.State = kueue.CheckStateReady
+		var podSetUpdates []kueue.PodSetUpdate
+		for _, ps := range wl.Spec.PodSets {
+			if topology := core.GetTPUTopology(ps.Template); topology != "" {
+				podSetUpdates = append(podSetUpdates, kueue.PodSetUpdate{
+					Name: ps.Name,
+					NodeSelector: map[string]string{
+						core.TPUTopologyAnnotation: topology,
+					},
+				})
+			}
+		}
+		ac.PodSetUpdates = podSetUpdates
+	case effectiveFailedCount > 0:
+		ac.State = kueue.CheckStateRetry
+		ac.RequeueAfterSeconds = ptr.To(int32(r.retryDelayOnSliceFailure.Round(time.Second).Seconds()))
+	case (features.Enabled(features.UseRetryMechanismForSliceCreation) && len(slicesByState[core.SliceStateStale]) > 0):
+		var staleSliceNames []string
+		for _, s := range slicesByState[core.SliceStateStale] {
+			staleSliceNames = append(staleSliceNames, s.Name)
+		}
+		log.V(2).Info("Setting AdmissionCheck to Retry due to Slices that failed to initialize despite retry mechanism",
+			"staleSlices", staleSliceNames)
+		ac.State = kueue.CheckStateRetry
+		ac.RequeueAfterSeconds = ptr.To(int32(r.retryDelayOnSliceFailure.Round(time.Second).Seconds()))
+	default:
+		ac.State = kueue.CheckStatePending
+	}
+	ac.Message = buildAdmissionCheckMessage(slicesByState, effectiveFailedCount, wl, podSetRequiresHealthy)
 }
 
 func buildPodSetUpdates(wl *kueue.Workload) []kueue.PodSetUpdate {
@@ -900,35 +926,6 @@ func buildAdmissionCheckMessage(slicesByState map[core.SliceState][]v1beta1.Slic
 		message += ". Errors: " + strings.Join(errMessages, "; ")
 	}
 	return api.TruncateConditionMessage(message)
-}
-
-func (r *WorkloadReconciler) prepareAdmissionCheckStatus(wl *kueue.Workload, ac *kueue.AdmissionCheckState, slices []v1beta1.Slice) {
-	// wait for Kueue to reset check to Pending after eviction
-	if ac.State == kueue.CheckStateRetry {
-		return
-	}
-	slicesByState := groupSlicesByState(slices, r.activationTimeout)
-
-	podSetRequiresHealthy := make(map[string]bool)
-	if features.Enabled(features.FailOnUntoleratedDegradedSlice) {
-		for _, ps := range wl.Spec.PodSets {
-			podSetRequiresHealthy[string(ps.Name)] = podSetRequestedOnlyHealthySlices(ps)
-		}
-	}
-
-	effectiveActiveCount, effectiveFailedCount := calculateEffectiveSliceCounts(slicesByState, wl, podSetRequiresHealthy)
-
-	switch {
-	case len(slices) == effectiveActiveCount:
-		ac.State = kueue.CheckStateReady
-		ac.PodSetUpdates = buildPodSetUpdates(wl)
-	case effectiveFailedCount > 0:
-		ac.State = kueue.CheckStateRetry
-		ac.RequeueAfterSeconds = ptr.To(int32(r.retryDelayOnSliceFailure.Round(time.Second).Seconds()))
-	case len(slicesByState[core.SliceStateCreated])+len(slicesByState[core.SliceStateActivating]) > 0:
-		ac.State = kueue.CheckStatePending
-	}
-	ac.Message = buildAdmissionCheckMessage(slicesByState, effectiveFailedCount, wl, podSetRequiresHealthy)
 }
 
 func workloadRequestedOnlyHealthySlices(wl *kueue.Workload) bool {

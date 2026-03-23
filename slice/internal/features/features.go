@@ -25,13 +25,23 @@ import (
 )
 
 const (
+	// UseRetryMechanismForSliceCreation enables the retry-on-failure mechanism for Slice creation.
+	// When enabled, each Slice is annotated and the Slice Controller (in KCP) automatically
+	// retries on creation failures (including upon partition ID conflicts).
+	// If a Slice fails to form within the timeout, we evict the Workload.
+	UseRetryMechanismForSliceCreation featuregate.Feature = "UseRetryMechanismForSliceCreation"
+
 	// FailOnUntoleratedDegradedSlice treats degraded slices as failed if the workload requested only healthy slices.
 	FailOnUntoleratedDegradedSlice featuregate.Feature = "FailOnUntoleratedDegradedSlice"
 )
 
 var defaultVersionedFeatureGates = map[featuregate.Feature]featuregate.VersionedSpecs{
+	UseRetryMechanismForSliceCreation: {
+		{Version: version.MustParse("0.1"), Default: false, PreRelease: featuregate.Alpha},
+	},
+
 	FailOnUntoleratedDegradedSlice: {
-		{Version: version.MustParse("0.1"), Default: true, PreRelease: featuregate.Alpha},
+		{Version: version.MustParse("0.1"), Default: true, PreRelease: featuregate.Beta},
 	},
 }
 

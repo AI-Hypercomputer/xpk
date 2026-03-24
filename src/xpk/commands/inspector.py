@@ -116,8 +116,8 @@ def inspector_run_slice_controller_helper(args, file: str):
   inspector_run_command_helper(args, command, command_description, file)
 
   command = (
-      'kubectl logs deployment slice-controller-controller-manager -n'
-      ' slice-controller-system --tail=100 --prefix=True'
+      'kubectl logs deployment/slice-controller-controller-manager -n'
+      ' slice-controller-system -c manager --tail=100 --prefix=True'
   )
   command_description = 'Slice Controller Logs'
   inspector_run_command_helper(args, command, command_description, file)

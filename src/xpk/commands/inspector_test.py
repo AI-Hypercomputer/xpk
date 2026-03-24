@@ -57,7 +57,7 @@ def test_inspector_run_slice_controller_helper_no_super_slicing(
 
   inspector.inspector_run_slice_controller_helper(args, "test_file")
   commands_tester.assert_command_not_run(
-      "kubectl logs deployment slice-controller-controller-manager"
+      "kubectl logs deployment/slice-controller-controller-manager"
   )
   commands_tester.assert_command_not_run(
       "kubectl describe deployment slice-controller-controller-manager"
@@ -75,7 +75,7 @@ def test_inspector_run_slice_controller_helper_with_super_slicing_success(
       (0, "some logs"),
       "kubectl",
       "logs",
-      "deployment slice-controller-controller-manager",
+      "deployment/slice-controller-controller-manager",
   )
   commands_tester.set_result_for_command(
       (0, "some details"),
@@ -88,7 +88,7 @@ def test_inspector_run_slice_controller_helper_with_super_slicing_success(
   inspector.inspector_run_slice_controller_helper(args, "test_file")
 
   commands_tester.assert_command_run(
-      "kubectl logs deployment slice-controller-controller-manager"
+      "kubectl logs deployment/slice-controller-controller-manager"
   )
   commands_tester.assert_command_run(
       "kubectl describe deployment slice-controller-controller-manager"
@@ -123,7 +123,7 @@ def test_inspector_run_slice_controller_helper_with_slice_controller_not_found(
       "kubectl describe deployment slice-controller-controller-manager"
   )
   commands_tester.assert_command_run(
-      "kubectl logs deployment slice-controller-controller-manager"
+      "kubectl logs deployment/slice-controller-controller-manager"
   )
 
   mock_append_tmp_file.assert_called()

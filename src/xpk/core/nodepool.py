@@ -460,6 +460,12 @@ def display_nodepool_creation_error(maybe_failure: FailedCommand) -> None:
         or error.find('Requested resource is exhausted') != -1
     ):
       xpk_print('NOTE: this error might be caused by a stockout')
+    if error.find('is incorrect for the requested resources') != -1:
+      xpk_print(
+          'NOTE: this error might be caused by setting'
+          ' --host-maintenance-interval=PERIODIC on a reservation that does'
+          ' not have PERIODIC set. Check your reservation configuration.'
+      )
   except (FileNotFoundError, IOError, ValueError):
     # silently ignore any log parsing errors
     pass

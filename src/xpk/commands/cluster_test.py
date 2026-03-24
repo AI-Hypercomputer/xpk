@@ -844,6 +844,9 @@ def test_validate_cluster_create_args_forbids_num_cubes_different_from_num_slice
         (3, None, 3),
         (None, 3, 3),
         (3, 3, 3),
+        (0, None, 0),
+        (None, 0, 0),
+        (0, 0, 0),
     ],
 )
 def test_validate_cluster_create_args_sets_correct_num_slices(

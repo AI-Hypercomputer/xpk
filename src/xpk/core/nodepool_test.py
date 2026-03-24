@@ -374,14 +374,14 @@ def test_placement_policy_not_created_for_non7x_tpu(
 
 
 @pytest.mark.parametrize(
-    argnames="error_message,is_stockout",
+    argnames="error_message,expected_note",
     argvalues=[
         (
             (
                 "Requested resource is exhausted: Zone 'us-central1-c' is not"
                 " available. Please try another zone."
             ),
-            True,
+            "NOTE: this error might be caused by a stockout",
         ),
         (
             (
@@ -391,15 +391,27 @@ def test_placement_policy_not_created_for_non7x_tpu(
                 " wait for the nodes to be up, or delete the node pool and try"
                 " re-creating it again later"
             ),
-            True,
+            "NOTE: this error might be caused by a stockout",
         ),
-        ("Generic error message", False),
+        (
+            (
+                "Reservation 'tpu-1231238192369812371238798798798' is incorrect"
+                " for the requested resources."
+            ),
+            (
+                "NOTE: this error might be caused by setting"
+                " --host-maintenance-interval=PERIODIC on a reservation that"
+                " does not have PERIODIC set. Check your reservation"
+                " configuration."
+            ),
+        ),
+        ("Generic error message", None),
     ],
 )
 def test_display_nodepool_creation_error_handles_error_messages(
-    mocker, mock_xpk_print, error_message, is_stockout
+    mocker, mock_xpk_print, error_message, expected_note
 ):
-  """Tests that display_nodepool_creation_error surfaces errors and detects stockouts."""
+  """Tests that display_nodepool_creation_error surfaces errors and detects specific failures."""
 
   log_contents = """Operation [
   ...
@@ -407,7 +419,7 @@ def test_display_nodepool_creation_error_handles_error_messages(
   mocker.patch("builtins.open", mocker.mock_open(read_data=log_contents))
   display_nodepool_creation_error(maybe_failure[0])
 
-  assert mock_xpk_print.call_count == 3 if is_stockout else 2
+  assert mock_xpk_print.call_count == 3 if expected_note else 2
   assert (
       mock_xpk_print.call_args_list[0].args[0]
       == "Create Nodepools returned ERROR 1"
@@ -417,9 +429,8 @@ def test_display_nodepool_creation_error_handles_error_messages(
       == "Nodepool creation error: " + error_message
   )
   assert (
-      not is_stockout
-      or mock_xpk_print.call_args_list[2].args[0]
-      == "NOTE: this error might be caused by a stockout"
+      not expected_note
+      or mock_xpk_print.call_args_list[2].args[0] == expected_note
   )
 
 

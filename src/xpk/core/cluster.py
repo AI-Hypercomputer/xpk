@@ -37,7 +37,7 @@ from .nodepool import recreate_nodes_in_existing_node_pools
 from .resources import get_cluster_system_characteristics
 from .system_characteristics import INSTALLER_NCCL_TCPXO, SystemCharacteristics
 
-JOBSET_VERSION = 'v0.8.0'
+JOBSET_VERSION = 'v0.8.1'
 NRI_DEVICE_INJECTOR = 'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/nri_device_injector/nri-device-injector.yaml'
 
 DEFAULT_NAMESPACE = 'default'

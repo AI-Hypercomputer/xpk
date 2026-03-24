@@ -58,7 +58,7 @@ spec:
         - --zap-log-level=2
         command:
         - /manager
-        image: registry.k8s.io/jobset/jobset:v0.8.0
+        image: registry.k8s.io/jobset/jobset:v0.8.1
         livenessProbe:
           httpGet:
             path: /healthz

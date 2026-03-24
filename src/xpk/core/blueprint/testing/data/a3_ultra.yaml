@@ -106,6 +106,7 @@ deployment_groups:
       enable_filestore_csi: true
       enable_private_nodes: false
       enable_private_endpoint: false
+      master_ipv4_cidr_block: null
       master_authorized_networks:
       - cidr_block: 10.0.0.0/32 # Allows your machine to run the kubectl command. Required for multi network setup.
         display_name: "authorized-network-0"

@@ -60,6 +60,7 @@ deployment_groups:
       name_suffix: bar
       enable_private_nodes: false
       enable_private_endpoint: false
+      master_ipv4_cidr_block: null
       enable_gcsfuse_csi: true
       enable_filestore_csi: true
       master_authorized_networks:

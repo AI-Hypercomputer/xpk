@@ -169,6 +169,7 @@ class BlueprintGenerator:
             "name_suffix": cluster_name,
             "enable_private_nodes": enable_private_nodes,
             "enable_private_endpoint": enable_private_endpoint,
+            "master_ipv4_cidr_block": None,
             "enable_gcsfuse_csi": True,
             "enable_filestore_csi": True,
             "master_authorized_networks": [
@@ -469,6 +470,7 @@ class BlueprintGenerator:
             "enable_filestore_csi": enable_filestore_csi_driver,
             "enable_private_nodes": enable_private_nodes,
             "enable_private_endpoint": enable_private_endpoint,
+            "master_ipv4_cidr_block": None,
             "master_authorized_networks": [
                 {"cidr_block": cidr, "display_name": f"authorized-network-{i}"}
                 for i, cidr in enumerate(auth_cidr)
@@ -766,6 +768,7 @@ class BlueprintGenerator:
             "enable_gcsfuse_csi": True,
             "enable_private_nodes": enable_private_nodes,
             "enable_private_endpoint": enable_private_endpoint,
+            "master_ipv4_cidr_block": None,
             "master_authorized_networks": [
                 {"cidr_block": cidr, "display_name": f"authorized-network-{i}"}
                 for i, cidr in enumerate(auth_cidr)

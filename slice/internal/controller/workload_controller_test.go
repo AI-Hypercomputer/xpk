@@ -179,16 +179,17 @@ func TestWorkloadReconciler(t *testing.T) {
 	worker4Node := utiltesting.MakeNode("worker4").Label(core.TPUSubBlockLabel, "subblock4")
 
 	testCases := map[string]struct {
-		interceptorFuncsCreate func(ctx context.Context, client client.WithWatch, obj client.Object, opts ...client.CreateOption) error
-		request                types.NamespacedName
-		objs                   []client.Object
-		wantWorkloads          []kueue.Workload
-		wantSlices             []slice.Slice
-		wantJobSets            []jobset.JobSet
-		wantErr                error
-		wantEvents             []utiltesting.EventRecord
-		wantResult             controllerruntime.Result
-		enableRetryMechanism   bool
+		interceptorFuncsCreate       func(ctx context.Context, client client.WithWatch, obj client.Object, opts ...client.CreateOption) error
+		request                      types.NamespacedName
+		objs                         []client.Object
+		wantWorkloads                []kueue.Workload
+		wantSlices                   []slice.Slice
+		wantJobSets                  []jobset.JobSet
+		wantErr                      error
+		wantEvents                   []utiltesting.EventRecord
+		wantResult                   controllerruntime.Result
+		enableRetryMechanism         bool
+		enableShorterSliceNameLength bool
 	}{
 		"should skip reconciliation because the Workload was not found": {
 			request:       types.NamespacedName{Name: "other-workload", Namespace: corev1.NamespaceDefault},
@@ -2232,11 +2233,64 @@ func TestWorkloadReconciler(t *testing.T) {
 					Obj(),
 			},
 		},
+		"should create Slices with shorter name when feature gate enabled": {
+			enableShorterSliceNameLength: true,
+			request:                      types.NamespacedName{Name: "very-long-workload-name-exceeding-limit-for-testing", Namespace: corev1.NamespaceDefault}, // 51 characters
+			objs: []client.Object{
+				worker1Node.DeepCopy(),
+				worker2Node.DeepCopy(),
+				baseAdmissionCheckWrapper.DeepCopy(),
+				utiltesting.MakeWorkload("very-long-workload-name-exceeding-limit-for-testing", corev1.NamespaceDefault).
+					UID("very-long-workload-name-exceeding-limit-for-testing").
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStatePending, "")).
+					Obj(),
+			},
+			wantWorkloads: []kueue.Workload{
+				*utiltesting.MakeWorkload("very-long-workload-name-exceeding-limit-for-testing", corev1.NamespaceDefault).
+					UID("very-long-workload-name-exceeding-limit-for-testing").
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStatePending, `Slices are in states: 2 CREATED`)).
+					Obj(),
+			},
+			wantSlices: []slice.Slice{
+				*utiltesting.MakeSliceWrapper("default-very-long-workload-name-exceeding-l-035c3").
+					Type(slice.TypeTpu7x).
+					Topology("4x4x4").
+					OwnerWorkloadAnnotations(corev1.NamespaceDefault, "very-long-workload-name-exceeding-limit-for-testing").
+					PartitionIDs("subblock2").
+					Obj(),
+				*utiltesting.MakeSliceWrapper("default-very-long-workload-name-exceeding-l-24890").
+					Type(slice.TypeTpu7x).
+					Topology("4x4x4").
+					OwnerWorkloadAnnotations(corev1.NamespaceDefault, "very-long-workload-name-exceeding-limit-for-testing").
+					PartitionIDs("subblock1").
+					Obj(),
+			},
+			wantEvents: []utiltesting.EventRecord{
+				{
+					Key:       client.ObjectKey{Namespace: corev1.NamespaceDefault, Name: "very-long-workload-name-exceeding-limit-for-testing"},
+					EventType: corev1.EventTypeNormal,
+					Reason:    SlicesCreatedEventType,
+					Message:   `The Slices "default-very-long-workload-name-exceeding-l-035c3", "default-very-long-workload-name-exceeding-l-24890" have been created`,
+				},
+			},
+			wantResult: reconcile.Result{RequeueAfter: initializationRetryAfter},
+		},
 	}
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			if tc.enableRetryMechanism {
 				features.SetFeatureGateDuringTest(t, features.UseRetryMechanismForSliceCreation, true)
+			}
+			if tc.enableShorterSliceNameLength {
+				features.SetFeatureGateDuringTest(t, features.ShorterSliceNameLength, true)
 			}
 			scheme := runtime.NewScheme()
 			utilruntime.Must(corev1.AddToScheme(scheme))

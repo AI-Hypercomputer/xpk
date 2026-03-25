@@ -104,19 +104,19 @@ class BinaryDependencies(enum.Enum):
       binary_name='gcluster',
       checksums={
           'darwin_amd64': (
-              'f1d5f71bd239743d6e29471993ed1fe52b889a71a19b7c6b6e7027e8a75fafbd'
+              '3836bfb0c495138ec51084df8dc6d4b29530667f70f2d331e648bd8fd89175d2'
           ),
           'darwin_arm64': (
-              'f1d5f71bd239743d6e29471993ed1fe52b889a71a19b7c6b6e7027e8a75fafbd'
+              '0196094c91c40f0062d62c9c377b973c4d6400ff7632a6b4da3509628e038559'
           ),
           'linux_amd64': (
-              'c224041a09259c47da924f542fc4e8c866fb6027581915bd7a3f48738f7c785b'
+              'd4c26c3b57dd59f6e62712ae8d1ee3a3d8f87deb77ed7eee523ffa359b74773e'
           ),
           'linux_arm64': (
-              'c224041a09259c47da924f542fc4e8c866fb6027581915bd7a3f48738f7c785b'
+              'e42a33ee9673007ceefb51689cde7f5f7fc542dd8e4635b7c6a30b7739635ee8'
           ),
       },
-      url_template='https://github.com/GoogleCloudPlatform/cluster-toolkit/releases/download/{version}/gcluster_bundle_{os}.zip',
-      version='v1.84.0',
+      url_template='https://github.com/GoogleCloudPlatform/cluster-toolkit/releases/download/{version}/gcluster_bundle_{os}_{arch}.zip',
+      version='v1.85.0',
       os_map={'darwin': 'mac'},
   )

@@ -77,14 +77,15 @@ XPK also supports the following [Google Cloud Storage solutions](./docs/usage/st
 
 # Dependencies
 
-| Dependency                                                                                                   | When used                   |
-| ------------------------------------------------------------------------------------------------------------ | --------------------------- |
-| [Google Cloud SDK (gcloud)](https://cloud.google.com/sdk/docs/install)                                       | _always_                    |
-| kubectl                                                                                                      | _always (Auto-installed)_   |
-| [ClusterToolkit](https://github.com/GoogleCloudPlatform/cluster-toolkit)                                     | Provisioning GPU clusters   |
-| [Kueue](https://github.com/kubernetes-sigs/kueue)                                                            | Scheduling workloads        |
-| [JobSet](https://github.com/kubernetes-sigs/jobset)                                                          | Workload creation           |
-| [CoreDNS](https://github.com/coredns/deployment/tree/master/kubernetes)                                      | Cluster set up              |
+| Dependency                                                                                                   | When used                                    |
+| ------------------------------------------------------------------------------------------------------------ | -------------------------------------------- |
+| [Google Cloud SDK (gcloud)](https://cloud.google.com/sdk/docs/install)                                       | _always_                                     |
+| kubectl                                                                                                      | _always (Auto-installed)_                    |
+| [ClusterToolkit](https://github.com/GoogleCloudPlatform/cluster-toolkit)                                     | Provisioning GPU clusters (Auto-installed)   |
+| [Kueue](https://github.com/kubernetes-sigs/kueue)                                                            | Scheduling workloads (Auto-installed)        |
+| [JobSet](https://github.com/kubernetes-sigs/jobset)                                                          | Workload creation (Auto-installed)           |
+| [Docker](https://docs.docker.com/engine/install/)                                                            | Building workload container (Auto-installed) |
+| [CoreDNS](https://github.com/coredns/deployment/tree/master/kubernetes)                                      | Cluster set up (Auto-installed)              |
 
 # Privacy notice
 

@@ -19,8 +19,10 @@ package core
 import (
 	"testing"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta2"
 
+	"tpu-slice-controller/api/v1beta1"
 	"tpu-slice-controller/internal/features"
 )
 
@@ -92,6 +94,66 @@ func TestSliceName(t *testing.T) {
 			}
 			if gotShorter != expectedShorter {
 				t.Errorf("SliceName() [ShorterSliceNameLength enabled] = %q, want %q", gotShorter, expectedShorter)
+			}
+		})
+	}
+}
+
+func TestFindExistingSlice(t *testing.T) {
+	ns := "ns"
+	wlName := "very-long-workload-name-exceeding-the-limit-for-testing"
+	podSet := kueue.PodSetReference("ps")
+	var index int32 = 0
+
+	longName := SliceNameWithMaxLen(ns, wlName, podSet, index, maxSliceNameLength)
+	shortName := SliceNameWithMaxLen(ns, wlName, podSet, index, maxShorterSliceNameLength)
+
+	testCases := map[string]struct {
+		gateEnabled bool
+		m           map[string]*v1beta1.Slice
+		wantFound   bool
+		wantSlice   string
+	}{
+		"gate disabled, found long name": {
+			gateEnabled: false,
+			m: map[string]*v1beta1.Slice{
+				longName: {ObjectMeta: metav1.ObjectMeta{Name: longName}},
+			},
+			wantFound: true,
+			wantSlice: longName,
+		},
+		"gate enabled, found short name": {
+			gateEnabled: true,
+			m: map[string]*v1beta1.Slice{
+				shortName: {ObjectMeta: metav1.ObjectMeta{Name: shortName}},
+			},
+			wantFound: true,
+			wantSlice: shortName,
+		},
+		"gate enabled, found long name (fallback)": {
+			gateEnabled: true,
+			m: map[string]*v1beta1.Slice{
+				longName: {ObjectMeta: metav1.ObjectMeta{Name: longName}},
+			},
+			wantFound: true,
+			wantSlice: longName,
+		},
+		"gate enabled, not found": {
+			gateEnabled: true,
+			m:           map[string]*v1beta1.Slice{},
+			wantFound:   false,
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			features.SetFeatureGateDuringTest(t, features.ShorterSliceNameLength, tc.gateEnabled)
+			got, found := FindExistingSlice(tc.m, ns, wlName, podSet, index)
+			if found != tc.wantFound {
+				t.Errorf("FindExistingSlice() found = %v, want %v", found, tc.wantFound)
+			}
+			if tc.wantFound && got.Name != tc.wantSlice {
+				t.Errorf("FindExistingSlice() got name = %q, want %q", got.Name, tc.wantSlice)
 			}
 		})
 	}

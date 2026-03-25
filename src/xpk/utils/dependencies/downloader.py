@@ -100,10 +100,10 @@ def _extract_archive(
 ) -> bool:
   """Extracts an archive to the specified directory."""
   try:
-    kwargs = {}
     if sys.version_info >= (3, 12) and tarfile.is_tarfile(archive_path):
-      kwargs["filter"] = "data"
-    shutil.unpack_archive(archive_path, extract_dir, **kwargs)
+      shutil.unpack_archive(archive_path, extract_dir, filter="data")
+    else:
+      shutil.unpack_archive(archive_path, extract_dir)
     return True
   except (shutil.ReadError, OSError, ValueError, tarfile.TarError) as e:
     xpk_print(f"Error extracting archive for {name}: {e}")

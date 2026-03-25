@@ -69,14 +69,19 @@ def run_gke_node_pool_create_command(
     0 if successful and 1 otherwise.
   """
   device_type = args.tpu_type if args.tpu_type else args.device_type
-  num_slices_str = (
-      args.num_slices
-      if getattr(args, 'num_slices', None) is not None
-      else 'determined dynamically'
-  )
+
+  def _get_arg_str(attr_name: str) -> str:
+    val = getattr(args, attr_name, None)
+    return str(val) if val is not None else 'dynamically determined'
+
+  if system.accelerator_type == AcceleratorType.GPU:
+    sizing_info = f'1 node pool with {_get_arg_str("num_nodes")} nodes'
+  else:
+    sizing_info = f'{_get_arg_str("num_slices")} node pool or pools'
+
   xpk_print(
-      f'Creating {num_slices_str} node pool or pools of {device_type}\n'
-      f'We assume that the underlying system is: {system}'
+      f'Creating {sizing_info} of {system.device_type}\n'
+      f'Underlyingly, we assume that means: {system}'
   )
   existing_node_pool_names, return_code = get_all_nodepools_programmatic(args)
   if return_code > 0:
@@ -105,37 +110,6 @@ def run_gke_node_pool_create_command(
   desired_node_pool_count = (
       1 if system.accelerator_type == AcceleratorType.GPU else args.num_slices
   )
-  if system.accelerator_type == AcceleratorType.GPU:
-    num_nodes_str = (
-        args.num_nodes
-        if getattr(args, 'num_nodes', None) is not None
-        else 'dynamically determined'
-    )
-    message = (
-        f'Creating 1 node pool with {num_nodes_str} nodes of'
-        f' {system.device_type}\nUnderlyingly, we assume that means: {system}'
-    )
-  else:
-    num_slices_str = (
-        args.num_slices
-        if getattr(args, 'num_slices', None) is not None
-        else 'determined dynamically'
-    )
-    message = (
-        f'Creating {num_slices_str} node pool or pools of'
-        f' {system.device_type}\nUnderlyingly, we assume that means: {system}'
-    )
-  cluster_node_pools = [
-      np
-      for np in existing_node_pool_names
-      if np.startswith(f'{args.cluster}-np-')
-  ]
-  if not cluster_node_pools:
-    return_code = _validate_sizing_flags(args, system)
-    if return_code != 0:
-      return return_code
-
-  xpk_print(message)
   desired_node_pool_names = get_desired_node_pool_names(
       existing_node_pool_names, args.cluster, desired_node_pool_count
   )
@@ -212,6 +186,15 @@ def run_gke_node_pool_create_command(
             update_WI_commands.append(command)
             update_WI_task_names.append(task)
             node_pools_to_update_WI.append(node_pool_name)
+
+  node_pools_to_create = [
+      np for np in desired_node_pool_names if np not in node_pools_to_remain
+  ]
+
+  if len(node_pools_to_create) > 0:
+    return_code = _validate_sizing_flags(args, system)
+    if return_code != 0:
+      return return_code
 
   # Deletion of nodepools should happen before attempting to create new nodepools for the case
   # when cluster is getting updated from 'x' device_type/gke_accelerator to 'y' device_type/gke_accelerator.
@@ -305,14 +288,6 @@ def run_gke_node_pool_create_command(
 
   create_commands = []
   create_task_names = []
-  node_pools_to_create = [
-      np for np in desired_node_pool_names if np not in node_pools_to_remain
-  ]
-
-  if len(node_pools_to_create) > 0:
-    return_code = _validate_sizing_flags(args, system)
-    if return_code != 0:
-      return return_code
 
   reservations_iter: Iterator[ReservationLink] | None = None
   if (
@@ -735,15 +710,24 @@ def get_desired_node_pool_names(
       for np in existing_node_pool_names
       if np.startswith(f'{cluster_name}-np-')
   ]
+
+  def sort_key(np_name: str) -> int:
+    try:
+      return int(np_name.split('-np-')[-1])
+    except ValueError:
+      return 0
+
+  cluster_node_pools.sort(key=sort_key)
+
   if desired_node_pool_count is None:
-    return list(sorted(cluster_node_pools))
+    return cluster_node_pools
 
   result = set(cluster_node_pools[:desired_node_pool_count])
   i = 0
   while len(result) < desired_node_pool_count:
     result.add(f'{cluster_name}-np-{i}')
     i += 1
-  return list(sorted(result))
+  return list(sorted(result, key=sort_key))
 
 
 def ensure_resource_policy_exists(

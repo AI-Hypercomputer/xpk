@@ -14,7 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from unittest.mock import patch
 from unittest.mock import MagicMock
 import pytest
 import re
@@ -396,6 +395,62 @@ def test_get_jobset_status_success(commands_tester: CommandsTester):
   assert status == 'Completed'
 
 
+def test_get_jobset_status_terminal_precedence_completed(
+    commands_tester: CommandsTester,
+):
+  """Verify Completed status takes precedence over others with same timestamp."""
+  mock_status = json.dumps({
+      'status': {
+          'conditions': [
+              {
+                  'type': 'StartupPolicyCompleted',
+                  'status': 'True',
+                  'lastTransitionTime': '2024-01-01T00:00:00Z',
+              },
+              {
+                  'type': 'Completed',
+                  'status': 'True',
+                  'lastTransitionTime': '2024-01-01T00:00:00Z',
+              },
+          ]
+      }
+  })
+  commands_tester.set_result_for_command(
+      (0, mock_status), 'kubectl', 'get', 'jobset', 'test-job', '-o', 'json'
+  )
+  return_code, status = _get_jobset_status('test-job')
+  assert return_code == 0
+  assert status == 'Completed'
+
+
+def test_get_jobset_status_terminal_precedence_failed(
+    commands_tester: CommandsTester,
+):
+  """Verify Failed status takes precedence over others with same timestamp."""
+  mock_status = json.dumps({
+      'status': {
+          'conditions': [
+              {
+                  'type': 'StartupPolicyCompleted',
+                  'status': 'True',
+                  'lastTransitionTime': '2024-01-01T00:00:00Z',
+              },
+              {
+                  'type': 'Failed',
+                  'status': 'True',
+                  'lastTransitionTime': '2024-01-01T00:00:00Z',
+              },
+          ]
+      }
+  })
+  commands_tester.set_result_for_command(
+      (0, mock_status), 'kubectl', 'get', 'jobset', 'test-job', '-o', 'json'
+  )
+  return_code, status = _get_jobset_status('test-job')
+  assert return_code == 0
+  assert status == 'Failed'
+
+
 def test_get_jobset_status_json_error(commands_tester: CommandsTester):
   commands_tester.set_result_for_command(
       (0, 'invalid json'), 'kubectl', 'get', 'jobset', 'test-job', '-o', 'json'
@@ -414,14 +469,21 @@ def test_get_jobset_status_cmd_error(commands_tester: CommandsTester):
   assert status == 'Unknown'
 
 
-@patch('xpk.core.workload.check_if_workload_exists', return_value=True)
-def test_wait_for_job_completion(mock_exists, commands_tester: CommandsTester):
+def test_wait_for_job_completion_success(commands_tester: CommandsTester):
   args = MagicMock()
   args.wait_for_job_completion = 'test-job'
   args.timeout = 100
   args.project = 'test-project'
   args.cluster = 'test-cluster'
   args.zone = 'test-zone'
+
+  commands_tester.set_result_for_command(
+      (0, 'Jobset\ntest-job\nother-job'),
+      'kubectl',
+      'get',
+      'workloads',
+      'custom-columns',
+  )
 
   commands_tester.set_result_for_command(
       (0, 'jobset-test-job-12345    other stuff'),
@@ -463,6 +525,115 @@ def test_wait_for_job_completion(mock_exists, commands_tester: CommandsTester):
   commands_tester.assert_command_run(
       'kubectl', 'get', 'jobset', 'test-job', '-o', 'json'
   )
+
+
+def test_wait_for_job_completion_failed_status(commands_tester: CommandsTester):
+  args = MagicMock()
+  args.wait_for_job_completion = 'test-job'
+  args.timeout = 100
+  args.project = 'test-project'
+  args.cluster = 'test-cluster'
+  args.zone = 'test-zone'
+
+  commands_tester.set_result_for_command(
+      (0, 'Jobset\ntest-job\nother-job'),
+      'kubectl',
+      'get',
+      'workloads',
+      'custom-columns',
+  )
+
+  commands_tester.set_result_for_command(
+      (0, 'jobset-test-job-12345    other stuff'),
+      'kubectl',
+      'get',
+      'workloads',
+      'grep',
+      'jobset-test-job',
+  )
+
+  commands_tester.set_result_for_command(
+      (0, ''),
+      'kubectl',
+      'wait',
+      '--for=condition=Finished',
+      'workload',
+      'jobset-test-job-12345',
+      '--timeout=100s',
+  )
+
+  mock_status = json.dumps(
+      {'status': {'conditions': [{'type': 'Failed', 'status': 'True'}]}}
+  )
+  commands_tester.set_result_for_command(
+      (0, mock_status), 'kubectl', 'get', 'jobset', 'test-job', '-o', 'json'
+  )
+
+  return_code = wait_for_job_completion(args)
+  assert return_code == 125
+
+  commands_tester.assert_command_run(
+      'kubectl',
+      'wait',
+      '--for=condition=Finished',
+      'workload',
+      'jobset-test-job-12345',
+      '--timeout=100s',
+  )
+  commands_tester.assert_command_run(
+      'kubectl', 'get', 'jobset', 'test-job', '-o', 'json'
+  )
+
+
+def test_wait_for_job_completion_not_found(commands_tester: CommandsTester):
+  args = MagicMock()
+  args.wait_for_job_completion = 'test-job'
+
+  commands_tester.set_result_for_command(
+      (0, 'Jobset\nother-job'), 'kubectl', 'get', 'workloads', 'custom-columns'
+  )
+
+  return_code = wait_for_job_completion(args)
+  assert return_code == 1
+
+
+def test_wait_for_job_completion_timeout(commands_tester: CommandsTester):
+  args = MagicMock()
+  args.wait_for_job_completion = 'test-job'
+  args.timeout = 100
+  args.project = 'test-project'
+  args.cluster = 'test-cluster'
+  args.zone = 'test-zone'
+
+  commands_tester.set_result_for_command(
+      (0, 'Jobset\ntest-job\nother-job'),
+      'kubectl',
+      'get',
+      'workloads',
+      'custom-columns',
+  )
+
+  commands_tester.set_result_for_command(
+      (0, 'jobset-test-job-12345    other stuff'),
+      'kubectl',
+      'get',
+      'workloads',
+      'grep',
+      'jobset-test-job',
+  )
+
+  commands_tester.set_result_for_command(
+      (1, 'error: timed out waiting for the condition'),
+      'kubectl',
+      'wait',
+      '--for=condition=Finished',
+      'workload',
+      'jobset-test-job-12345',
+      '--timeout=100s',
+  )
+
+  return_code = wait_for_job_completion(args)
+  assert return_code == 124
 
 
 def test_parse_workload_item_excludes_pathways_head():

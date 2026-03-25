@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+import argparse
 import itertools
 import json
 from dataclasses import dataclass
@@ -99,6 +100,14 @@ _WORKLOAD_COLUMNS: list[_WorkloadListColumn] = [
 def _parse_workload_status(
     status_str: Optional[str],
 ) -> Optional[_WorkloadStatus]:
+  """Parses a status string into a _WorkloadStatus enum.
+
+  Args:
+    status_str: The status string to parse.
+
+  Returns:
+    The corresponding _WorkloadStatus enum or UNKNOWN if not found.
+  """
   if not status_str:
     return None
   try:
@@ -110,6 +119,14 @@ def _parse_workload_status(
 def _get_latest_condition(
     k8s_status: KubernetesStatus,
 ) -> KubernetesCondition | None:
+  """Retrieves the latest condition from a Kubernetes status object.
+
+  Args:
+    k8s_status: The Kubernetes status object containing the conditions.
+
+  Returns:
+    The latest Kubernetes condition based on lastTransitionTime, or None if no conditions exist.
+  """
   if not k8s_status.conditions:
     return None
   return max(k8s_status.conditions, key=lambda c: c.lastTransitionTime or '')
@@ -134,6 +151,14 @@ def _is_accelerator_pod_set(ps: dict[str, Any]) -> bool:
 
 
 def _parse_workload_item(item: dict[str, Any]) -> _WorkloadListRow:
+  """Parses a workload item into a _WorkloadListRow.
+
+  Args:
+    item: A dictionary representing a single workload item from Kubernetes API.
+
+  Returns:
+    A _WorkloadListRow object containing parsed information about the workload.
+  """
   owner_refs = item.get('metadata', {}).get('ownerReferences', [{}])
   jobset_name = owner_refs[0].get('name', '') or None
 
@@ -343,6 +368,14 @@ def _render_workloads(
 
 
 def _get_status_filter(filter_by_status: str) -> _StatusFilter:
+  """Parses a filter string into a _StatusFilter enum.
+
+  Args:
+    filter_by_status: The status string to filter by.
+
+  Returns:
+    The corresponding _StatusFilter enum, or EVERYTHING if unrecognized.
+  """
   try:
     return _StatusFilter(filter_by_status.upper())
   except ValueError:
@@ -353,7 +386,7 @@ def _get_status_filter(filter_by_status: str) -> _StatusFilter:
     return _StatusFilter.EVERYTHING
 
 
-def get_workload_list(args) -> tuple[int, str]:
+def get_workload_list(args: argparse.Namespace) -> tuple[int, str]:
   """Function to get the list of the workloads in the cluster.
 
   Args:
@@ -377,7 +410,7 @@ def get_workload_list(args) -> tuple[int, str]:
   return 0, formatted_output
 
 
-def check_if_workload_exists(args) -> bool:
+def check_if_workload_exists(args: argparse.Namespace) -> bool:
   """Check if workload exists.
 
   Args:
@@ -410,6 +443,14 @@ def check_if_workload_exists(args) -> bool:
 
 
 def _get_jobset_status(workload_name: str) -> tuple[int, str]:
+  """Retrieves the current status of a given jobset workload.
+
+  Args:
+    workload_name: The name of the workload to retrieve the status for.
+
+  Returns:
+    A tuple containing the return code of the command (0 for success) and the status string.
+  """
   status_cmd = f'kubectl get jobset {workload_name} -o json'
   return_code, return_value = run_command_for_value(
       status_cmd, 'Get jobset status'
@@ -421,6 +462,14 @@ def _get_jobset_status(workload_name: str) -> tuple[int, str]:
   try:
     jobset_json = json.loads(return_value)
     k8s_status = parse_kubernetes_status(jobset_json.get('status'))
+
+    for condition in k8s_status.conditions:
+      if (
+          condition.type in ('Completed', 'Failed')
+          and condition.status == 'True'
+      ):
+        return 0, condition.type
+
     latest_condition = _get_latest_condition(k8s_status)
     final_status = (
         latest_condition.type if latest_condition else None
@@ -431,7 +480,7 @@ def _get_jobset_status(workload_name: str) -> tuple[int, str]:
     return 125, 'Unknown'
 
 
-def wait_for_job_completion(args) -> int:
+def wait_for_job_completion(args: argparse.Namespace) -> int:
   """Function to wait for job completion.
 
   Args:

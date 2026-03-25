@@ -45,7 +45,7 @@ class _FeatureFlags:
       "DEPENDENCY_AUTO_DOWNLOAD", default=True
   )
   NATIVE_CLUSTER_TOOLKIT_ENABLED = _get_boolean_flag(
-      "NATIVE_CLUSTER_TOOLKIT_ENABLED", default=False
+      "NATIVE_CLUSTER_TOOLKIT_ENABLED", default=True
   )
 
 

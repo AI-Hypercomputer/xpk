@@ -20,7 +20,6 @@ import json
 from dataclasses import dataclass
 from enum import Enum
 import re
-import shlex
 from typing import Any, Optional, Callable, Union
 
 from ..utils.console import xpk_exit, xpk_print
@@ -452,7 +451,7 @@ def _get_jobset_status(workload_name: str) -> tuple[int, str]:
   Returns:
     A tuple containing the return code of the command (0 for success) and the status string.
   """
-  status_cmd = f'kubectl get jobset {shlex.quote(workload_name)} -o json'
+  status_cmd = f'kubectl get jobset {workload_name} -o json'
   return_code, return_value = run_command_for_value(
       status_cmd, 'Get jobset status'
   )
@@ -498,9 +497,7 @@ def wait_for_job_completion(args: argparse.Namespace) -> int:
     return 1
 
   # Get the full workload name
-  get_workload_name_cmd = (
-      f'kubectl get workloads | grep jobset-{shlex.quote(args.workload)}'
-  )
+  get_workload_name_cmd = f'kubectl get workloads | grep jobset-{args.workload}'
   return_code, return_value = run_command_for_value(
       get_workload_name_cmd, 'Get full workload name'
   )
@@ -516,7 +513,7 @@ def wait_for_job_completion(args: argparse.Namespace) -> int:
   )
   wait_cmd = (
       'kubectl wait --for=condition=Finished'
-      f' workload {shlex.quote(full_workload_name)} --timeout={timeout_val}s'
+      f' workload {full_workload_name} --timeout={timeout_val}s'
   )
   return_code, return_value = run_command_for_value(
       wait_cmd,

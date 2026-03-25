@@ -32,7 +32,9 @@ import (
 )
 
 const (
-	maxSliceNameLength = 54
+	maxSliceNameLength        = 54
+	maxShorterSliceNameLength = 49
+	hashLength                = 5
 )
 
 func SliceKeyFromWorkload(wl *kueue.Workload, podSetName kueue.PodSetReference, sliceIndex int32) client.ObjectKey {
@@ -54,11 +56,16 @@ func SliceWithMetadata(wl *kueue.Workload, podSetName kueue.PodSetReference, sli
 
 func SliceName(ns string, workloadName string, podSetName kueue.PodSetReference, sliceIndex int32) string {
 	name := fmt.Sprintf("%s-%s-%s-%d", ns, workloadName, podSetName, sliceIndex)
-	if len(name) <= maxSliceNameLength {
+	maxLen := maxSliceNameLength
+	if features.Enabled(features.ShorterSliceNameLength) {
+		maxLen = maxShorterSliceNameLength
+	}
+
+	if len(name) <= maxLen {
 		return name
 	}
 	hash := sha256.Sum256([]byte(name))
-	return fmt.Sprintf("%s-%s", name[:48], hex.EncodeToString(hash[:])[:5])
+	return fmt.Sprintf("%s-%s", name[:maxLen-(hashLength+1)], hex.EncodeToString(hash[:])[:hashLength])
 }
 
 func isStale(slice *v1beta1.Slice, timeout time.Duration) bool {

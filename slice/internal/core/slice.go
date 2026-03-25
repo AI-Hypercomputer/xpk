@@ -54,18 +54,37 @@ func SliceWithMetadata(wl *kueue.Workload, podSetName kueue.PodSetReference, sli
 	}
 }
 
-func SliceName(ns string, workloadName string, podSetName kueue.PodSetReference, sliceIndex int32) string {
+func SliceNameWithMaxLen(ns string, workloadName string, podSetName kueue.PodSetReference, sliceIndex int32, maxLen int) string {
 	name := fmt.Sprintf("%s-%s-%s-%d", ns, workloadName, podSetName, sliceIndex)
-	maxLen := maxSliceNameLength
-	if features.Enabled(features.ShorterSliceNameLength) {
-		maxLen = maxShorterSliceNameLength
-	}
-
 	if len(name) <= maxLen {
 		return name
 	}
 	hash := sha256.Sum256([]byte(name))
 	return fmt.Sprintf("%s-%s", name[:maxLen-(hashLength+1)], hex.EncodeToString(hash[:])[:hashLength])
+}
+
+func SliceName(ns string, workloadName string, podSetName kueue.PodSetReference, sliceIndex int32) string {
+	maxLen := maxSliceNameLength
+	if features.Enabled(features.ShorterSliceNameLength) {
+		maxLen = maxShorterSliceNameLength
+	}
+	return SliceNameWithMaxLen(ns, workloadName, podSetName, sliceIndex, maxLen)
+}
+
+func FindExistingSlice(existingSlicesByName map[string]*v1beta1.Slice, ns string, wlName string, podSetName kueue.PodSetReference, index int32) (*v1beta1.Slice, bool) {
+	currentName := SliceName(ns, wlName, podSetName, index)
+	if slice, exist := existingSlicesByName[currentName]; exist {
+		return slice, true
+	}
+	if features.Enabled(features.ShorterSliceNameLength) {
+		// Check the long name format to support upgrades
+		// if long-named Slices already exist in the cluster.
+		longName := SliceNameWithMaxLen(ns, wlName, podSetName, index, maxSliceNameLength)
+		if slice, exist := existingSlicesByName[longName]; exist {
+			return slice, true
+		}
+	}
+	return nil, false
 }
 
 func isStale(slice *v1beta1.Slice, timeout time.Duration) bool {

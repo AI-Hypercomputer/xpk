@@ -27,7 +27,7 @@ from itertools import product
 _KUBECTL_VERSION: str = "v1.35.2"
 _KUEUE_VERSION: str = "v0.15.2"
 _CRANE_VERSION: str = "v0.21.2"
-_GCLUSTER_VERSION: str = "v1.84.0"
+_GCLUSTER_VERSION: str = "v1.85.0"
 
 _COPYRIGHT_STRING = """
 Copyright 2026 Google LLC
@@ -88,7 +88,7 @@ _DEPENDENCIES: list[_DependencyInfo] = [
     _DependencyInfo(
         name="gcluster",
         version=_GCLUSTER_VERSION,
-        url_template="https://github.com/GoogleCloudPlatform/cluster-toolkit/releases/download/{version}/gcluster_bundle_{os}.zip",
+        url_template="https://github.com/GoogleCloudPlatform/cluster-toolkit/releases/download/{version}/gcluster_bundle_{os}_{arch}.zip",
         archive_type="zip",
         binary_name="gcluster",
         os_map={"darwin": "mac"},

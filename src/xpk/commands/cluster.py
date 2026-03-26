@@ -65,6 +65,7 @@ from ..core.network import (
     set_up_cluster_network_for_a3,
 )
 from ..core.nodepool import (
+    get_all_nodepools_programmatic,
     get_gke_node_pool_version,
     run_gke_node_pool_create_command,
 )
@@ -123,8 +124,9 @@ def cluster_adapt(args) -> None:
   )
   add_zone_and_project(args)
 
-  if system.accelerator_type == AcceleratorType.GPU and not getattr(
-      args, 'num_nodes'
+  if (
+      system.accelerator_type == AcceleratorType.GPU
+      and getattr(args, 'num_nodes', None) is None
   ):
     xpk_print(
         'Argument --num-nodes was not provided, trying to determine number of'
@@ -138,6 +140,33 @@ def cluster_adapt(args) -> None:
       xpk_exit(1)
     else:
       xpk_print(f'Using {args.num_nodes} nodes.')
+
+  if getattr(args, 'num_slices', None) is None:
+    if system.accelerator_type == AcceleratorType.GPU:
+      args.num_slices = 1
+    else:
+      xpk_print(
+          'Argument --num-slices was not provided, trying to determine number'
+          ' of slices based on the available nodepools in the cluster...'
+      )
+      nodepools, return_code = get_all_nodepools_programmatic(args)
+      if return_code != 0 or not nodepools:
+        xpk_print(
+            'Failed to fetch nodepools. Ensure the cluster exists and you have'
+            ' correct permissions.'
+        )
+        xpk_exit(1)
+      workload_nodepools = [
+          np for np in nodepools if np.startswith(f'{args.cluster}-np-')
+      ]
+      args.num_slices = len(workload_nodepools)
+      if args.num_slices == 0:
+        xpk_print(
+            'Found unexpected number of slices (0). Ensure the cluster exists'
+            ' and was created by XPK.'
+        )
+        xpk_exit(1)
+      xpk_print(f'Using {args.num_slices} slices.')
 
   # ToDo(roshanin@) - Re-enable CloudDNS on Pathways clusters conditionally.
   # Enable WorkloadIdentity if not enabled already.

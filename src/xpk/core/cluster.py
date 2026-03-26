@@ -21,7 +21,6 @@ from kubernetes.client.exceptions import ApiException
 
 from .kubectl_common import PatchResources, patch_controller_manager_resources
 from ..utils.console import xpk_exit, xpk_print
-from .capacity import H200_DEVICE_TYPE
 from .commands import (
     run_command_for_value,
     run_command_with_updates,
@@ -168,12 +167,6 @@ def count_nodes_on_cluster(system: SystemCharacteristics) -> int:
       for node in nodes_info
       if 'cloud.google.com/gke-accelerator' in node['metadata']['labels']
   ]
-  if system.device_type != H200_DEVICE_TYPE:
-    xpk_print(
-        'Automatic node detection is not supported for device type:'
-        f' {system.device_type}'
-    )
-    xpk_exit(1)
   num_nodes: int = sum(acc == system.gke_accelerator for acc in accelerators)
   return num_nodes
 

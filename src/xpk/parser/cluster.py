@@ -496,8 +496,11 @@ def set_cluster_adapt_parser(cluster_adapt_parser: ArgumentParser):
   cluster_adapt_optional_arguments.add_argument(
       '--num-slices',
       type=int,
-      default=1,
-      help='The number of slices to run the job on, defaults to 1.',
+      default=None,
+      help=(
+          'The number of slices of a cluster. If not provided, it will be'
+          ' determined based on the available nodepools.'
+      ),
       required=False,
   )
   add_ignore_nodepool_creation_errors_argument(cluster_adapt_optional_arguments)

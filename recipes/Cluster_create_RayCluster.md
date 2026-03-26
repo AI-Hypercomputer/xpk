@@ -3,17 +3,16 @@ Creates a GKE cluster optimized for Ray workloads, installing KubeRay component.
 
 # Running the command
 ```shell #golden
-xpk cluster create-ray --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=tpu7x-8 --ray-version=2.39.0  --reservation=golden-reservation
+xpk cluster create-ray --num-slices=1 --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=tpu7x-8 --ray-version=2.39.0  --reservation=golden-reservation
 ```
 <!--
-$ xpk cluster create-ray --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=tpu7x-8 --ray-version=2.39.0  --reservation=golden-reservation
+$ xpk cluster create-ray --num-slices=1 --project=golden-project --zone=us-central1-a --cluster=golden-cluster --tpu-type=tpu7x-8 --ray-version=2.39.0  --reservation=golden-reservation
 [XPK] Starting xpk v0.0.0
 [XPK] Starting cluster create for cluster golden-cluster:
 [XPK] Working on golden-project and us-central1-a
 [XPK] Task: `Get reservation golden-reservation` is implemented by the following command not running since it is a dry run. 
 gcloud beta compute reservations describe golden-reservation --project=golden-project --zone=us-central1-a --format="json(specificReservation,aggregateReservation,status,deploymentType,resourcePolicies)"
 [XPK] Assessing reservation capacity...
-[XPK] Automatically setting --num-slices to 1
 [XPK] Task: `Determine server supported GKE versions for default gke version` is implemented by the following command not running since it is a dry run. 
 gcloud container get-server-config --project=golden-project --region=us-central1 --flatten="channels" --filter="channels.channel=RAPID" --format="value(channels.defaultVersion)"
 [XPK] Task: `Determine server supported GKE versions for valid versions` is implemented by the following command not running since it is a dry run. 

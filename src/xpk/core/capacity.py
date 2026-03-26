@@ -233,11 +233,10 @@ def assess_available_slices(
       return [], return_code
     if not capacities and validate_reservations:
       xpk_print(
-          'ERROR: Reservation'
+          'Warning: Reservation'
           f' {to_reservation_path(reservation, reservation.project)} has no'
           ' available capacity.'
       )
-      return [], 1
     reservation_capacities.extend(capacities)
 
   # Deduplicate reservation_capacities, preserving order:
@@ -400,7 +399,7 @@ def _verify_reservation_configuration(
           != system.gce_machine_type
       ):
         xpk_print(
-            f"ERROR: Reservation '{reservation.link.name}' has machine type"
+            f"Warning: Reservation '{reservation.link.name}' has machine type"
             f" '{reservation.specific_reservation.machine_type}', but requested"
             f" system requires '{system.gce_machine_type}'."
         )
@@ -413,7 +412,7 @@ def _verify_reservation_configuration(
       )
       if not has_matching_accelerator:
         xpk_print(
-            f"ERROR: Reservation '{reservation.link.name}' does not have a"
+            f"Warning: Reservation '{reservation.link.name}' does not have a"
             f" matching guest accelerator for '{target_accel}'."
         )
         return False

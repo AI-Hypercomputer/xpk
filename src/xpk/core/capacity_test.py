@@ -150,7 +150,7 @@ def test_assess_available_slices_sub_block_unhealthy(
   )
 
   assert not slices
-  assert return_code == 1
+  assert return_code == 0
 
 
 def test_assess_available_slices_block_healthy(
@@ -236,7 +236,7 @@ def test_assess_available_slices_block_unhealthy(
   )
 
   assert not slices
-  assert return_code == 1
+  assert return_code == 0
 
 
 def test_assess_available_slices_reservation_with_sub_block_targeting(
@@ -328,7 +328,7 @@ def test_assess_available_slices_reservation_without_blocks_sub_block_targeting(
       vms_per_slice=test_system.vms_per_slice,
   )
 
-  assert return_code == 1
+  assert return_code == 0
   assert not slices
 
 
@@ -383,7 +383,7 @@ def test_assess_available_slices_insufficient_hosts(
   )
 
   assert not slices
-  assert return_code == 1
+  assert return_code == 0
 
 
 @patch('xpk.core.capacity.project_id_to_project_number', return_value='12345')

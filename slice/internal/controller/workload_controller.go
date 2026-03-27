@@ -611,7 +611,6 @@ func (r *WorkloadReconciler) syncSlicesForAssignment(ctx context.Context, wl *ku
 	var deletedSlices []string
 
 	for i := range desiredNumberOfSlices {
-		sliceName := core.SliceName(wl.Namespace, wl.Name, psa.Name, i)
 		start := i * chunkSize
 		end := start + chunkSize
 		var expectedPartitionIDs []string
@@ -619,7 +618,7 @@ func (r *WorkloadReconciler) syncSlicesForAssignment(ctx context.Context, wl *ku
 			expectedPartitionIDs = parsedAssignment.PartitionIDs[start:end]
 		}
 
-		if existingSlice, exist := existingSlicesByName[sliceName]; exist {
+		if existingSlice, exist := core.FindExistingSlice(existingSlicesByName, wl.Namespace, wl.Name, psa.Name, i); exist {
 			if !slices.Equal(existingSlice.Spec.PartitionIds, expectedPartitionIDs) {
 				if existingSlice.DeletionTimestamp.IsZero() {
 					log := ctrl.LoggerFrom(ctx).WithValues("slice", klog.KObj(existingSlice))

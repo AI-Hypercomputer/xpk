@@ -33,14 +33,19 @@ const (
 
 	// FailOnUntoleratedDegradedSlice treats degraded slices as failed if the workload requested only healthy slices.
 	FailOnUntoleratedDegradedSlice featuregate.Feature = "FailOnUntoleratedDegradedSlice"
+
+	// ShorterSliceNameLength enables support for shorter Slice names (max 49 characters).
+	ShorterSliceNameLength featuregate.Feature = "ShorterSliceNameLength"
 )
 
 var defaultVersionedFeatureGates = map[featuregate.Feature]featuregate.VersionedSpecs{
 	UseRetryMechanismForSliceCreation: {
 		{Version: version.MustParse("0.1"), Default: false, PreRelease: featuregate.Alpha},
 	},
-
 	FailOnUntoleratedDegradedSlice: {
+		{Version: version.MustParse("0.1"), Default: false, PreRelease: featuregate.Alpha},
+	},
+	ShorterSliceNameLength: {
 		{Version: version.MustParse("0.1"), Default: false, PreRelease: featuregate.Alpha},
 	},
 }

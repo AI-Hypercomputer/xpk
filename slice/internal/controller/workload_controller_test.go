@@ -197,6 +197,7 @@ func TestWorkloadReconciler(t *testing.T) {
 		wantEvents                           []utiltesting.EventRecord
 		wantResult                           controllerruntime.Result
 		enableRetryMechanism                 bool
+		enableShorterSliceNameLength         bool
 		enableFailOnUntoleratedDegradedSlice bool
 	}{
 		"should skip reconciliation because the Workload was not found": {
@@ -2367,6 +2368,137 @@ func TestWorkloadReconciler(t *testing.T) {
 					fmt.Sprintf(`Admission check %q updated state from "Pending" to "Ready"`, baseACName)),
 			},
 		},
+		"should create Slices with shorter name when feature gate enabled": {
+			enableShorterSliceNameLength: true,
+			request:                      types.NamespacedName{Name: "very-long-workload-name-exceeding-limit-for-testing", Namespace: corev1.NamespaceDefault}, // 51 characters
+			objs: []client.Object{
+				worker1Node.DeepCopy(),
+				worker2Node.DeepCopy(),
+				baseAdmissionCheckWrapper.DeepCopy(),
+				utiltesting.MakeWorkload("very-long-workload-name-exceeding-limit-for-testing", corev1.NamespaceDefault).
+					UID("very-long-workload-name-exceeding-limit-for-testing").
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStatePending, "")).
+					Obj(),
+			},
+			wantWorkloads: []kueue.Workload{
+				*utiltesting.MakeWorkload("very-long-workload-name-exceeding-limit-for-testing", corev1.NamespaceDefault).
+					UID("very-long-workload-name-exceeding-limit-for-testing").
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStatePending, `Slices are in states: 2 CREATED`)).
+					Obj(),
+			},
+			wantSlices: []slice.Slice{
+				*utiltesting.MakeSliceWrapper("default-very-long-workload-name-exceeding-l-035c3").
+					Type(slice.TypeTpu7x).
+					Topology("4x4x4").
+					Annotation(core.OwnerPodSetNameAnnotation, "ps2").
+					OwnerWorkloadAnnotations(corev1.NamespaceDefault, "very-long-workload-name-exceeding-limit-for-testing").
+					PartitionIDs("subblock2").
+					Obj(),
+				*utiltesting.MakeSliceWrapper("default-very-long-workload-name-exceeding-l-24890").
+					Type(slice.TypeTpu7x).
+					Topology("4x4x4").
+					Annotation(core.OwnerPodSetNameAnnotation, "ps1").
+					OwnerWorkloadAnnotations(corev1.NamespaceDefault, "very-long-workload-name-exceeding-limit-for-testing").
+					PartitionIDs("subblock1").
+					Obj(),
+			},
+			wantEvents: []utiltesting.EventRecord{
+				{
+					Key:       client.ObjectKey{Namespace: corev1.NamespaceDefault, Name: "very-long-workload-name-exceeding-limit-for-testing"},
+					EventType: corev1.EventTypeNormal,
+					Reason:    SlicesCreatedEventType,
+					Message:   `The Slices "default-very-long-workload-name-exceeding-l-035c3", "default-very-long-workload-name-exceeding-l-24890" have been created`,
+				},
+			},
+			wantResult: reconcile.Result{RequeueAfter: initializationRetryAfter},
+		},
+		"should adopt existing long-named slice when ShorterSliceNameLength feature gate enabled": {
+			enableShorterSliceNameLength: true,
+			request:                      types.NamespacedName{Name: "very-long-workload-name-exceeding-limit-for-testing", Namespace: corev1.NamespaceDefault},
+			objs: []client.Object{
+				worker1Node.DeepCopy(),
+				worker2Node.DeepCopy(),
+				baseAdmissionCheckWrapper.DeepCopy(),
+				utiltesting.MakeWorkload("very-long-workload-name-exceeding-limit-for-testing", corev1.NamespaceDefault).
+					UID("very-long-workload-name-exceeding-limit-for-testing").
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStatePending, "")).
+					Obj(),
+				baseJobSetWrapper.Clone().Obj(),
+				// Existing Slices with LONG names
+				utiltesting.MakeSliceWrapper(core.SliceNameWithMaxLen("default", "very-long-workload-name-exceeding-limit-for-testing", "ps1", 0, 54)).
+					Type(slice.TypeTpu7x).
+					Topology("4x4x4").
+					OwnerWorkloadAnnotations("default", "very-long-workload-name-exceeding-limit-for-testing").
+					PartitionIDs("subblock1").
+					Active().
+					Obj(),
+				utiltesting.MakeSliceWrapper(core.SliceNameWithMaxLen("default", "very-long-workload-name-exceeding-limit-for-testing", "ps2", 0, 54)).
+					Type(slice.TypeTpu7x).
+					Topology("4x4x4").
+					OwnerWorkloadAnnotations("default", "very-long-workload-name-exceeding-limit-for-testing").
+					PartitionIDs("subblock2").
+					Active().
+					Obj(),
+			},
+			wantWorkloads: []kueue.Workload{
+				*utiltesting.MakeWorkload("very-long-workload-name-exceeding-limit-for-testing", corev1.NamespaceDefault).
+					UID("very-long-workload-name-exceeding-limit-for-testing").
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					AdmissionCheck(buildAdmissionCheckStateWithPodSetUpdates(kueue.CheckStateReady,
+						`Slices are in states: 2 ACTIVE`,
+						[]kueue.PodSetUpdate{
+							{
+								Name:         "ps1",
+								NodeSelector: map[string]string{"cloud.google.com/gke-tpu-topology": "4x4x4"},
+							},
+							{
+								Name:         "ps2",
+								NodeSelector: map[string]string{"cloud.google.com/gke-tpu-topology": "4x4x4"},
+							},
+						})).
+					Obj(),
+			},
+			wantSlices: []slice.Slice{
+				*utiltesting.MakeSliceWrapper(core.SliceNameWithMaxLen("default", "very-long-workload-name-exceeding-limit-for-testing", "ps2", 0, 54)).
+					Type(slice.TypeTpu7x).
+					Topology("4x4x4").
+					OwnerWorkloadAnnotations("default", "very-long-workload-name-exceeding-limit-for-testing").
+					PartitionIDs("subblock2").
+					Active().
+					Obj(),
+				*utiltesting.MakeSliceWrapper(core.SliceNameWithMaxLen("default", "very-long-workload-name-exceeding-limit-for-testing", "ps1", 0, 54)).
+					Type(slice.TypeTpu7x).
+					Topology("4x4x4").
+					OwnerWorkloadAnnotations("default", "very-long-workload-name-exceeding-limit-for-testing").
+					PartitionIDs("subblock1").
+					Active().
+					Obj(),
+			},
+			wantJobSets: []jobset.JobSet{*baseJobSetWrapper.Clone().Obj()},
+			wantEvents: []utiltesting.EventRecord{
+				{
+					Key:       client.ObjectKey{Namespace: corev1.NamespaceDefault, Name: "very-long-workload-name-exceeding-limit-for-testing"},
+					EventType: corev1.EventTypeNormal,
+					Reason:    AdmissionCheckUpdatedEventType,
+					Message:   fmt.Sprintf(`Admission check %q updated state from "Pending" to "Ready"`, baseACName),
+				},
+			},
+		},
 	}
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
@@ -2375,6 +2507,9 @@ func TestWorkloadReconciler(t *testing.T) {
 			}
 			if tc.enableFailOnUntoleratedDegradedSlice {
 				features.SetFeatureGateDuringTest(t, features.FailOnUntoleratedDegradedSlice, true)
+			}
+			if tc.enableShorterSliceNameLength {
+				features.SetFeatureGateDuringTest(t, features.ShorterSliceNameLength, true)
 			}
 			scheme := runtime.NewScheme()
 			utilruntime.Must(corev1.AddToScheme(scheme))

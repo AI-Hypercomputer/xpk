@@ -166,11 +166,13 @@ func TestWorkloadReconciler(t *testing.T) {
 		Type(slice.TypeTpu7x).
 		Topology("4x4x4").
 		OwnerWorkloadAnnotations(corev1.NamespaceDefault, baseWorkloadName).
+		Annotation(core.OwnerPodSetNameAnnotation, "ps1").
 		PartitionIDs("subblock1")
 	baseSlice2Wrapper := baseSlice1Wrapper.Clone().Name(core.SliceName(corev1.NamespaceDefault, baseWorkloadName, "ps2", 0)).
 		Type(slice.TypeTpu7x).
 		Topology("4x4x4").
 		OwnerWorkloadAnnotations(corev1.NamespaceDefault, baseWorkloadName).
+		Annotation(core.OwnerPodSetNameAnnotation, "ps2").
 		PartitionIDs("subblock2")
 
 	worker1Node := utiltesting.MakeNode("worker1").Label(core.TPUSubBlockLabel, "subblock1")
@@ -178,18 +180,25 @@ func TestWorkloadReconciler(t *testing.T) {
 	worker3Node := utiltesting.MakeNode("worker3").Label(core.TPUSubBlockLabel, "subblock3")
 	worker4Node := utiltesting.MakeNode("worker4").Label(core.TPUSubBlockLabel, "subblock4")
 
+	podSetRequiringHealthy := basePodSet1Wrapper.DeepCopy()
+	if podSetRequiringHealthy.Template.Spec.NodeSelector == nil {
+		podSetRequiringHealthy.Template.Spec.NodeSelector = make(map[string]string)
+	}
+	podSetRequiringHealthy.Template.Spec.NodeSelector[core.TPUSliceHealthNodeSelectorKey] = core.TPUSliceHealthNodeSelectorHealthy
+
 	testCases := map[string]struct {
-		interceptorFuncsCreate       func(ctx context.Context, client client.WithWatch, obj client.Object, opts ...client.CreateOption) error
-		request                      types.NamespacedName
-		objs                         []client.Object
-		wantWorkloads                []kueue.Workload
-		wantSlices                   []slice.Slice
-		wantJobSets                  []jobset.JobSet
-		wantErr                      error
-		wantEvents                   []utiltesting.EventRecord
-		wantResult                   controllerruntime.Result
-		enableRetryMechanism         bool
-		enableShorterSliceNameLength bool
+		interceptorFuncsCreate               func(ctx context.Context, client client.WithWatch, obj client.Object, opts ...client.CreateOption) error
+		request                              types.NamespacedName
+		objs                                 []client.Object
+		wantWorkloads                        []kueue.Workload
+		wantSlices                           []slice.Slice
+		wantJobSets                          []jobset.JobSet
+		wantErr                              error
+		wantEvents                           []utiltesting.EventRecord
+		wantResult                           controllerruntime.Result
+		enableRetryMechanism                 bool
+		enableShorterSliceNameLength         bool
+		enableFailOnUntoleratedDegradedSlice bool
 	}{
 		"should skip reconciliation because the Workload was not found": {
 			request:       types.NamespacedName{Name: "other-workload", Namespace: corev1.NamespaceDefault},
@@ -1252,9 +1261,9 @@ func TestWorkloadReconciler(t *testing.T) {
 					Obj(),
 			},
 			wantSlices: []slice.Slice{
-				*utiltesting.MakeSliceWrapper(core.SliceName(corev1.NamespaceDefault, baseWorkloadName, "rj1", 0)).Type(slice.TypeTpu7x).Topology("4x4x4").OwnerWorkloadAnnotations(corev1.NamespaceDefault, baseWorkloadName).PartitionIDs("subblock2").Obj(),
-				*utiltesting.MakeSliceWrapper(core.SliceName(corev1.NamespaceDefault, baseWorkloadName, "rj1", 1)).Type(slice.TypeTpu7x).Topology("4x4x4").OwnerWorkloadAnnotations(corev1.NamespaceDefault, baseWorkloadName).PartitionIDs("subblock3").Obj(),
-				*utiltesting.MakeSliceWrapper(core.SliceName(corev1.NamespaceDefault, baseWorkloadName, "rj2", 0)).Type(slice.TypeTpu7x).Topology("4x4x4").OwnerWorkloadAnnotations(corev1.NamespaceDefault, baseWorkloadName).PartitionIDs("subblock1").Obj(),
+				*utiltesting.MakeSliceWrapper(core.SliceName(corev1.NamespaceDefault, baseWorkloadName, "rj1", 0)).Type(slice.TypeTpu7x).Topology("4x4x4").OwnerWorkloadAnnotations(corev1.NamespaceDefault, baseWorkloadName).Annotation(core.OwnerPodSetNameAnnotation, "rj1").PartitionIDs("subblock2").Obj(),
+				*utiltesting.MakeSliceWrapper(core.SliceName(corev1.NamespaceDefault, baseWorkloadName, "rj1", 1)).Type(slice.TypeTpu7x).Topology("4x4x4").OwnerWorkloadAnnotations(corev1.NamespaceDefault, baseWorkloadName).Annotation(core.OwnerPodSetNameAnnotation, "rj1").PartitionIDs("subblock3").Obj(),
+				*utiltesting.MakeSliceWrapper(core.SliceName(corev1.NamespaceDefault, baseWorkloadName, "rj2", 0)).Type(slice.TypeTpu7x).Topology("4x4x4").OwnerWorkloadAnnotations(corev1.NamespaceDefault, baseWorkloadName).Annotation(core.OwnerPodSetNameAnnotation, "rj2").PartitionIDs("subblock1").Obj(),
 			},
 			wantEvents: []utiltesting.EventRecord{buildEventRecord(corev1.NamespaceDefault, corev1.EventTypeNormal, SlicesCreatedEventType, `The Slices "default-workload-rj1-0", "default-workload-rj1-1", "default-workload-rj2-0" have been created`)},
 			wantResult: reconcile.Result{RequeueAfter: initializationRetryAfter},
@@ -1332,10 +1341,10 @@ func TestWorkloadReconciler(t *testing.T) {
 					Obj(),
 			},
 			wantSlices: []slice.Slice{
-				*utiltesting.MakeSliceWrapper(core.SliceName(corev1.NamespaceDefault, baseWorkloadName, "rj1", 0)).Type(slice.TypeTpu7x).Topology("4x4x4").OwnerWorkloadAnnotations(corev1.NamespaceDefault, baseWorkloadName).PartitionIDs("subblock1").Obj(),
-				*utiltesting.MakeSliceWrapper(core.SliceName(corev1.NamespaceDefault, baseWorkloadName, "rj1", 1)).Type(slice.TypeTpu7x).Topology("4x4x4").OwnerWorkloadAnnotations(corev1.NamespaceDefault, baseWorkloadName).PartitionIDs("subblock2").Obj(),
-				*utiltesting.MakeSliceWrapper(core.SliceName(corev1.NamespaceDefault, baseWorkloadName, "rj2", 0)).Type(slice.TypeTpu7x).Topology("4x4x4").OwnerWorkloadAnnotations(corev1.NamespaceDefault, baseWorkloadName).PartitionIDs("subblock3").Obj(),
-				*utiltesting.MakeSliceWrapper(core.SliceName(corev1.NamespaceDefault, baseWorkloadName, "rj2", 1)).Type(slice.TypeTpu7x).Topology("4x4x4").OwnerWorkloadAnnotations(corev1.NamespaceDefault, baseWorkloadName).PartitionIDs("subblock4").Obj(),
+				*utiltesting.MakeSliceWrapper(core.SliceName(corev1.NamespaceDefault, baseWorkloadName, "rj1", 0)).Type(slice.TypeTpu7x).Topology("4x4x4").OwnerWorkloadAnnotations(corev1.NamespaceDefault, baseWorkloadName).Annotation(core.OwnerPodSetNameAnnotation, "rj1").PartitionIDs("subblock1").Obj(),
+				*utiltesting.MakeSliceWrapper(core.SliceName(corev1.NamespaceDefault, baseWorkloadName, "rj1", 1)).Type(slice.TypeTpu7x).Topology("4x4x4").OwnerWorkloadAnnotations(corev1.NamespaceDefault, baseWorkloadName).Annotation(core.OwnerPodSetNameAnnotation, "rj1").PartitionIDs("subblock2").Obj(),
+				*utiltesting.MakeSliceWrapper(core.SliceName(corev1.NamespaceDefault, baseWorkloadName, "rj2", 0)).Type(slice.TypeTpu7x).Topology("4x4x4").OwnerWorkloadAnnotations(corev1.NamespaceDefault, baseWorkloadName).Annotation(core.OwnerPodSetNameAnnotation, "rj2").PartitionIDs("subblock3").Obj(),
+				*utiltesting.MakeSliceWrapper(core.SliceName(corev1.NamespaceDefault, baseWorkloadName, "rj2", 1)).Type(slice.TypeTpu7x).Topology("4x4x4").OwnerWorkloadAnnotations(corev1.NamespaceDefault, baseWorkloadName).Annotation(core.OwnerPodSetNameAnnotation, "rj2").PartitionIDs("subblock4").Obj(),
 			},
 			wantEvents: []utiltesting.EventRecord{buildEventRecord(corev1.NamespaceDefault, corev1.EventTypeNormal, SlicesCreatedEventType, `The Slices "default-workload-rj1-0", "default-workload-rj1-1", "default-workload-rj2-0", "default-workload-rj2-1" have been created`)},
 			wantResult: reconcile.Result{RequeueAfter: initializationRetryAfter},
@@ -1394,6 +1403,7 @@ func TestWorkloadReconciler(t *testing.T) {
 					Type(slice.TypeTpu7x).
 					Topology("2x2x1").
 					OwnerWorkloadAnnotations(corev1.NamespaceDefault, baseWorkloadName).
+					Annotation(core.OwnerPodSetNameAnnotation, "ps1").
 					PartitionIDs("partition1").
 					Obj(),
 			},
@@ -2133,6 +2143,7 @@ func TestWorkloadReconciler(t *testing.T) {
 					Type(slice.TypeTpu7x).
 					Topology("4x4x4").
 					OwnerWorkloadAnnotations("namespace1", baseWorkloadName).
+					Annotation(core.OwnerPodSetNameAnnotation, "ps1").
 					PartitionIDs("subblock1").
 					Active().
 					Obj(),
@@ -2168,6 +2179,7 @@ func TestWorkloadReconciler(t *testing.T) {
 					Type(slice.TypeTpu7x).
 					Topology("4x4x4").
 					OwnerWorkloadAnnotations("namespace1", baseWorkloadName).
+					Annotation(core.OwnerPodSetNameAnnotation, "ps1").
 					PartitionIDs("subblock1").
 					Active().
 					Obj(),
@@ -2175,6 +2187,7 @@ func TestWorkloadReconciler(t *testing.T) {
 					Type(slice.TypeTpu7x).
 					Topology("4x4x4").
 					OwnerWorkloadAnnotations("namespace2", baseWorkloadName).
+					Annotation(core.OwnerPodSetNameAnnotation, "ps2").
 					PartitionIDs("subblock2").
 					Obj(),
 			},
@@ -2233,6 +2246,128 @@ func TestWorkloadReconciler(t *testing.T) {
 					Obj(),
 			},
 		},
+		"should retry if a PodSet requiring healthy slices gets a degraded slice": {
+			enableFailOnUntoleratedDegradedSlice: true,
+			request:                              baseRequest,
+			objs: []client.Object{
+				worker1Node.DeepCopy(),
+				worker2Node.DeepCopy(),
+				baseAdmissionCheckWrapper.DeepCopy(),
+				baseWorkloadWrapper.Clone().
+					PodSets(
+						*podSetRequiringHealthy,
+						*basePodSet2Wrapper.DeepCopy(),
+					).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					Obj(),
+				baseJobSetWrapper.Clone().Obj(),
+				baseSlice1Wrapper.Clone().
+					Annotation(core.OwnerPodSetNameAnnotation, "ps1").
+					Condition(metav1.Condition{
+						Type:    slice.SliceStateConditionType,
+						Status:  metav1.ConditionTrue,
+						Reason:  string(core.MMIGHealthStatusActiveDegraded),
+						Message: "Hardware failure",
+					}).Obj(),
+				baseSlice2Wrapper.Clone().
+					Active().
+					Annotation(core.OwnerPodSetNameAnnotation, "ps2").
+					Obj(),
+			},
+			wantWorkloads: []kueue.Workload{
+				*baseWorkloadWrapper.Clone().
+					PodSets(
+						*podSetRequiringHealthy,
+						*basePodSet2Wrapper.DeepCopy(),
+					).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					AdmissionCheck(buildAdmissionCheckStateWithRequeue(kueue.CheckStateRetry,
+						`Slices are in states: 1 ACTIVE, 1 ACTIVE_DEGRADED. Errors: Hardware failure (degraded)`, ptr.To(int32(10)))).
+					Obj(),
+			},
+			wantJobSets: []jobset.JobSet{*baseJobSetWrapper.Clone().Obj()},
+			wantEvents: []utiltesting.EventRecord{
+				buildEventRecord(corev1.NamespaceDefault, corev1.EventTypeNormal, AdmissionCheckUpdatedEventType,
+					fmt.Sprintf(`Admission check %q updated state from "Pending" to "Retry"`, baseACName)),
+			},
+		},
+		"should be ready if a PodSet tolerating degraded slices gets a degraded slice": {
+			enableFailOnUntoleratedDegradedSlice: true,
+			request:                              baseRequest,
+			objs: []client.Object{
+				worker1Node.DeepCopy(),
+				worker2Node.DeepCopy(),
+				baseAdmissionCheckWrapper.DeepCopy(),
+				baseWorkloadWrapper.Clone().
+					PodSets(
+						*podSetRequiringHealthy,
+						*basePodSet2Wrapper.DeepCopy(),
+					).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					Obj(),
+				baseJobSetWrapper.Clone().Obj(),
+				baseSlice1Wrapper.Clone().
+					Active().
+					Annotation(core.OwnerPodSetNameAnnotation, "ps1").
+					Obj(),
+				baseSlice2Wrapper.Clone().
+					Annotation(core.OwnerPodSetNameAnnotation, "ps2").
+					Condition(metav1.Condition{
+						Type:    slice.SliceStateConditionType,
+						Status:  metav1.ConditionTrue,
+						Reason:  string(core.MMIGHealthStatusActiveDegraded),
+						Message: "Hardware failure",
+					}).Obj(),
+			},
+			wantWorkloads: []kueue.Workload{
+				*baseWorkloadWrapper.Clone().
+					PodSets(
+						*podSetRequiringHealthy,
+						*basePodSet2Wrapper.DeepCopy(),
+					).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					AdmissionCheck(buildAdmissionCheckStateWithPodSetUpdates(kueue.CheckStateReady,
+						`Slices are in states: 1 ACTIVE, 1 ACTIVE_DEGRADED`,
+						[]kueue.PodSetUpdate{
+							{
+								Name:         "ps1",
+								NodeSelector: map[string]string{"cloud.google.com/gke-tpu-topology": "4x4x4"},
+							},
+							{
+								Name:         "ps2",
+								NodeSelector: map[string]string{"cloud.google.com/gke-tpu-topology": "4x4x4"},
+							},
+						})).
+					Obj(),
+			},
+			wantSlices: []slice.Slice{
+				*baseSlice1Wrapper.Clone().
+					Active().
+					Annotation(core.OwnerPodSetNameAnnotation, "ps1").
+					Obj(),
+				*baseSlice2Wrapper.Clone().
+					Annotation(core.OwnerPodSetNameAnnotation, "ps2").
+					Condition(metav1.Condition{
+						Type:    slice.SliceStateConditionType,
+						Status:  metav1.ConditionTrue,
+						Reason:  string(core.MMIGHealthStatusActiveDegraded),
+						Message: "Hardware failure",
+					}).Obj(),
+			},
+			wantJobSets: []jobset.JobSet{*baseJobSetWrapper.Clone().Obj()},
+			wantEvents: []utiltesting.EventRecord{
+				buildEventRecord(corev1.NamespaceDefault, corev1.EventTypeNormal, AdmissionCheckUpdatedEventType,
+					fmt.Sprintf(`Admission check %q updated state from "Pending" to "Ready"`, baseACName)),
+			},
+		},
 		"should create Slices with shorter name when feature gate enabled": {
 			enableShorterSliceNameLength: true,
 			request:                      types.NamespacedName{Name: "very-long-workload-name-exceeding-limit-for-testing", Namespace: corev1.NamespaceDefault}, // 51 characters
@@ -2263,12 +2398,14 @@ func TestWorkloadReconciler(t *testing.T) {
 				*utiltesting.MakeSliceWrapper("default-very-long-workload-name-exceeding-l-035c3").
 					Type(slice.TypeTpu7x).
 					Topology("4x4x4").
+					Annotation(core.OwnerPodSetNameAnnotation, "ps2").
 					OwnerWorkloadAnnotations(corev1.NamespaceDefault, "very-long-workload-name-exceeding-limit-for-testing").
 					PartitionIDs("subblock2").
 					Obj(),
 				*utiltesting.MakeSliceWrapper("default-very-long-workload-name-exceeding-l-24890").
 					Type(slice.TypeTpu7x).
 					Topology("4x4x4").
+					Annotation(core.OwnerPodSetNameAnnotation, "ps1").
 					OwnerWorkloadAnnotations(corev1.NamespaceDefault, "very-long-workload-name-exceeding-limit-for-testing").
 					PartitionIDs("subblock1").
 					Obj(),
@@ -2367,6 +2504,9 @@ func TestWorkloadReconciler(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			if tc.enableRetryMechanism {
 				features.SetFeatureGateDuringTest(t, features.UseRetryMechanismForSliceCreation, true)
+			}
+			if tc.enableFailOnUntoleratedDegradedSlice {
+				features.SetFeatureGateDuringTest(t, features.FailOnUntoleratedDegradedSlice, true)
 			}
 			if tc.enableShorterSliceNameLength {
 				features.SetFeatureGateDuringTest(t, features.ShorterSliceNameLength, true)
@@ -2570,4 +2710,59 @@ func treatSSAAsStrategicMergePatch(ctx context.Context, c client.WithWatch, obj 
 		}
 	}
 	return treatSSAAsStrategicMerge(ctx, c, "", obj, patch, subOpts...)
+}
+
+func TestBuildAdmissionCheckMessage(t *testing.T) {
+	wl := utiltesting.MakeWorkload("workload", corev1.NamespaceDefault).Obj()
+
+	testCases := map[string]struct {
+		slicesByState         map[core.SliceState][]slice.Slice
+		effectiveFailedCount  int
+		wl                    *kueue.Workload
+		podSetRequiresHealthy map[string]bool
+		want                  string
+	}{
+		"no slices": {
+			slicesByState:         map[core.SliceState][]slice.Slice{},
+			effectiveFailedCount:  0,
+			wl:                    wl,
+			podSetRequiresHealthy: map[string]bool{},
+			want:                  "Waiting for Slices to be created",
+		},
+		"active slices": {
+			slicesByState: map[core.SliceState][]slice.Slice{
+				core.SliceStateActive: {{}, {}},
+			},
+			effectiveFailedCount:  0,
+			wl:                    wl,
+			podSetRequiresHealthy: map[string]bool{},
+			want:                  "Slices are in states: 2 ACTIVE",
+		},
+		"failed slices": {
+			slicesByState: map[core.SliceState][]slice.Slice{
+				core.SliceStateFailed: {
+					*utiltesting.MakeSliceWrapper("slice1").
+						Condition(metav1.Condition{
+							Type:    slice.SliceStateConditionType,
+							Status:  metav1.ConditionFalse,
+							Reason:  string(core.MMIGHealthStatusFailed),
+							Message: "Hardware failure",
+						}).Obj(),
+				},
+			},
+			effectiveFailedCount:  1,
+			wl:                    wl,
+			podSetRequiresHealthy: map[string]bool{},
+			want:                  "Slices are in states: 1 FAILED. Errors: Hardware failure",
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			got := buildAdmissionCheckMessage(tc.slicesByState, tc.effectiveFailedCount, tc.wl, tc.podSetRequiresHealthy)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("Unexpected message (-want,+got):\n%s", diff)
+			}
+		})
+	}
 }

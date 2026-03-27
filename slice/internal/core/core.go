@@ -100,3 +100,80 @@ func GetSliceState(slice v1beta1.Slice, timeout time.Duration) SliceState {
 	}
 	return SliceStateActivating
 }
+
+func HasAnyNodeAffinityRequirement(spec *corev1.PodSpec) bool {
+	if spec.Affinity == nil ||
+		spec.Affinity.NodeAffinity == nil ||
+		spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution == nil ||
+		len(spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms) == 0 {
+		return false
+	}
+	for _, term := range spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
+		if len(term.MatchExpressions) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// FindNodeAffinityRequirement finds a node affinity requirement with the given key.
+func FindNodeAffinityRequirement(template *corev1.PodTemplateSpec, key string) *corev1.NodeSelectorRequirement {
+	if !HasAnyNodeAffinityRequirement(&template.Spec) {
+		return nil
+	}
+	for _, term := range template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
+		for i, req := range term.MatchExpressions {
+			if req.Key == key {
+				return &term.MatchExpressions[i]
+			}
+		}
+	}
+	return nil
+}
+
+// NodeAffinityAllowsValue checks if a given node affinity allows a certain key-value pair.
+func NodeAffinityAllowsValue(affinity *corev1.Affinity, key, value string) bool {
+	if affinity == nil || affinity.NodeAffinity == nil || affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution == nil {
+		return true
+	}
+
+	for _, term := range affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
+		termAllowsValue := true
+		for _, expr := range term.MatchExpressions {
+			if !termAllowsValue {
+				break
+			}
+			if expr.Key == key {
+				switch expr.Operator {
+				case corev1.NodeSelectorOpIn:
+					valueAllowedInExpr := false
+					for _, val := range expr.Values {
+						if val == value {
+							valueAllowedInExpr = true
+							break
+						}
+					}
+					if !valueAllowedInExpr {
+						termAllowsValue = false
+					}
+				case corev1.NodeSelectorOpNotIn:
+					for _, val := range expr.Values {
+						if val == value {
+							termAllowsValue = false
+							break
+						}
+					}
+				case corev1.NodeSelectorOpExists:
+					// Always allows any value as long as the key exists.
+				case corev1.NodeSelectorOpDoesNotExist:
+					// Never allows any value since the key exists.
+					termAllowsValue = false
+				}
+			}
+		}
+		if termAllowsValue {
+			return true
+		}
+	}
+	return false
+}

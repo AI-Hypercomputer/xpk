@@ -64,6 +64,7 @@ var _ = ginkgo.BeforeSuite(func() {
 	waitForAvailableStart := time.Now()
 
 	utils.WaitForSliceAvailability(ctx, k8sClient)
+
 	utils.WaitForKueueAvailability(ctx, k8sClient)
 	utils.WaitForJobSetAvailability(ctx, k8sClient)
 	ginkgo.GinkgoLogr.Info(

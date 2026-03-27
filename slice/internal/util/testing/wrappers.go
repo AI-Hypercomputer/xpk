@@ -402,6 +402,11 @@ func (s *SliceWrapper) Activating() *SliceWrapper {
 	return s
 }
 
+func (s *SliceWrapper) Condition(cond metav1.Condition) *SliceWrapper {
+	apimeta.SetStatusCondition(&s.Status.Conditions, cond)
+	return s
+}
+
 func (s *SliceWrapper) Degraded() *SliceWrapper {
 	cond := metav1.Condition{
 		Type:               v1beta1.SliceStateConditionType,

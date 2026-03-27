@@ -97,6 +97,61 @@ from .managed_ml_diagnostics import install_mldiagnostics_prerequisites
 CLUSTER_PREHEAT_JINJA_FILE = 'cluster_preheat.yaml.j2'
 
 
+def _infer_topology_for_cluster_adapt(
+    args, system: SystemCharacteristics
+) -> None:
+  """Infers cluster topology arguments like num_nodes and num_slices if not provided."""
+  if is_dry_run():
+    if getattr(args, 'num_nodes', None) is None:
+      args.num_nodes = 1
+    if getattr(args, 'num_slices', None) is None:
+      args.num_slices = 1
+    return
+
+  if (
+      system.accelerator_type == AcceleratorType.GPU
+      and getattr(args, 'num_nodes', None) is None
+  ):
+    xpk_print(
+        'Argument --num-nodes was not provided, trying to determine number of'
+        ' nodes based on the available nodes in the cluster...'
+    )
+    args.num_nodes = count_nodes_on_cluster(system)
+    if args.num_nodes == 0:
+      xpk_print(
+          'Found unexpected number of nodes. Is the --device-type correct?'
+      )
+      xpk_exit(1)
+    xpk_print(f'Using {args.num_nodes} nodes.')
+
+  if getattr(args, 'num_slices', None) is None:
+    if system.accelerator_type == AcceleratorType.GPU:
+      args.num_slices = 1
+    else:
+      xpk_print(
+          'Argument --num-slices was not provided, trying to determine number'
+          ' of slices based on the available nodepools in the cluster...'
+      )
+      nodepools, return_code = get_all_nodepools_programmatic(args)
+      if return_code != 0:
+        xpk_print(
+            'Failed to fetch nodepools. Ensure the cluster exists and you have'
+            ' correct permissions.'
+        )
+        xpk_exit(1)
+      workload_nodepools = [
+          np for np in nodepools if np.startswith(f'{args.cluster}-np-')
+      ]
+      args.num_slices = len(workload_nodepools)
+      if args.num_slices == 0:
+        xpk_print(
+            'Found unexpected number of slices (0). Ensure the cluster exists'
+            ' and was created by XPK.'
+        )
+        xpk_exit(1)
+      xpk_print(f'Using {args.num_slices} slices.')
+
+
 def cluster_adapt(args) -> None:
   """Function that performs cluster adaptation.
 
@@ -124,49 +179,7 @@ def cluster_adapt(args) -> None:
   )
   add_zone_and_project(args)
 
-  if (
-      system.accelerator_type == AcceleratorType.GPU
-      and getattr(args, 'num_nodes', None) is None
-  ):
-    xpk_print(
-        'Argument --num-nodes was not provided, trying to determine number of'
-        ' nodes based on the available nodes in the cluster...'
-    )
-    args.num_nodes = count_nodes_on_cluster(system)
-    if args.num_nodes == 0:
-      xpk_print(
-          'Found unexpected number of nodes. Is the --device-type correct?'
-      )
-      xpk_exit(1)
-    else:
-      xpk_print(f'Using {args.num_nodes} nodes.')
-
-  if getattr(args, 'num_slices', None) is None:
-    if system.accelerator_type == AcceleratorType.GPU:
-      args.num_slices = 1
-    else:
-      xpk_print(
-          'Argument --num-slices was not provided, trying to determine number'
-          ' of slices based on the available nodepools in the cluster...'
-      )
-      nodepools, return_code = get_all_nodepools_programmatic(args)
-      if return_code != 0 or not nodepools:
-        xpk_print(
-            'Failed to fetch nodepools. Ensure the cluster exists and you have'
-            ' correct permissions.'
-        )
-        xpk_exit(1)
-      workload_nodepools = [
-          np for np in nodepools if np.startswith(f'{args.cluster}-np-')
-      ]
-      args.num_slices = len(workload_nodepools)
-      if args.num_slices == 0:
-        xpk_print(
-            'Found unexpected number of slices (0). Ensure the cluster exists'
-            ' and was created by XPK.'
-        )
-        xpk_exit(1)
-      xpk_print(f'Using {args.num_slices} slices.')
+  _infer_topology_for_cluster_adapt(args, system)
 
   # ToDo(roshanin@) - Re-enable CloudDNS on Pathways clusters conditionally.
   # Enable WorkloadIdentity if not enabled already.

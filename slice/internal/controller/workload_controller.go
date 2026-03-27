@@ -813,9 +813,7 @@ func calculateEffectiveSliceCounts(slicesByState map[core.SliceState][]v1beta1.S
 	if features.Enabled(features.FailOnUntoleratedDegradedSlice) {
 		for _, slice := range slicesByState[core.SliceStateActiveDegraded] {
 			psName := slice.Annotations[core.OwnerPodSetNameAnnotation]
-			// The second part of the condition `(psName == "" && anyPodSetRequestedOnlyHealthySlices(wl))` is for backward compatibility
-			// for slices created before the OwnerPodSetNameAnnotation was introduced.
-			if (psName != "" && podSetRequiresHealthy[psName]) || (psName == "" && anyPodSetRequestedOnlyHealthySlices(wl)) {
+			if healthySliceRequired(psName, podSetRequiresHealthy, wl) {
 				effectiveFailedCount++
 			} else {
 				effectiveActiveCount++
@@ -905,7 +903,7 @@ func buildAdmissionCheckMessage(slicesByState map[core.SliceState][]v1beta1.Slic
 		if features.Enabled(features.FailOnUntoleratedDegradedSlice) {
 			for _, slice := range slicesByState[core.SliceStateActiveDegraded] {
 				psName := slice.Annotations[core.OwnerPodSetNameAnnotation]
-				if (psName != "" && !podSetRequiresHealthy[psName]) || (psName == "" && !anyPodSetRequestedOnlyHealthySlices(wl)) {
+				if !healthySliceRequired(psName, podSetRequiresHealthy, wl) {
 					continue
 				}
 				if cond := meta.FindStatusCondition(slice.Status.Conditions, v1beta1.SliceStateConditionType); cond != nil {
@@ -916,6 +914,16 @@ func buildAdmissionCheckMessage(slicesByState map[core.SliceState][]v1beta1.Slic
 		message += ". Errors: " + strings.Join(errMessages, "; ")
 	}
 	return api.TruncateConditionMessage(message)
+}
+
+// healthySliceRequired returns true if the given podset requires healthy slice
+// The second part of the condition (psName == "") is for backward
+// compatibility for slices created before the OwnerPodSetNameAnnotation was introduced.
+func healthySliceRequired(psName string, podSetRequiresHealthy map[string]bool, wl *kueue.Workload) bool {
+	if psName != "" {
+		return podSetRequiresHealthy[psName]
+	}
+	return anyPodSetRequestedOnlyHealthySlices(wl)
 }
 
 func anyPodSetRequestedOnlyHealthySlices(wl *kueue.Workload) bool {

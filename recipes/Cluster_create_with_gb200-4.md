@@ -3,16 +3,13 @@ Creates a GKE cluster with Nvidia GB200 GPU resources.
 
 # Running the command
 ```shell #golden
-xpk cluster create --num-nodes=2 --num-slices=1 --project=golden-project --zone=us-central1-a --cluster=golden-cluster --device-type=gb200-4 --reservation=golden-reservation
+xpk cluster create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --device-type=gb200-4 --spot
 ```
 <!--
-$ xpk cluster create --num-nodes=2 --num-slices=1 --project=golden-project --zone=us-central1-a --cluster=golden-cluster --device-type=gb200-4 --reservation=golden-reservation
+$ xpk cluster create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --device-type=gb200-4 --spot
 [XPK] Starting xpk v0.0.0
 [XPK] Starting cluster create for cluster golden-cluster:
 [XPK] Working on golden-project and us-central1-a
-[XPK] Task: `Get reservation golden-reservation` is implemented by the following command not running since it is a dry run. 
-gcloud beta compute reservations describe golden-reservation --project=golden-project --zone=us-central1-a --format="json(specificReservation,aggregateReservation,status,deploymentType,resourcePolicies)"
-[XPK] Assessing reservation capacity...
 [XPK] Task: `Determine server supported GKE versions for default gke version` is implemented by the following command not running since it is a dry run. 
 gcloud container get-server-config --project=golden-project --region=us-central1 --flatten="channels" --filter="channels.channel=RAPID" --format="value(channels.defaultVersion)"
 [XPK] Task: `Determine server supported GKE versions for valid versions` is implemented by the following command not running since it is a dry run. 
@@ -58,7 +55,7 @@ kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="Conf
 [XPK] Existing node pool names  ['0']
 [XPK] Task: `Retrieve resource policy` is implemented by the following command not running since it is a dry run. 
 gcloud beta compute resource-policies describe gb200-4-1x72-placement-policy --project=golden-project --region=us-central1
-[XPK] To complete NodepoolCreate-golden-cluster-np-0 we are executing gcloud beta container node-pools create golden-cluster-np-0 --location=us-central1 --cluster=golden-cluster --project=golden-project --node-locations=us-central1-a --machine-type=a4x-highgpu-4g --host-maintenance-interval=AS_NEEDED --reservation-affinity=specific --reservation=golden-reservation --placement-policy=gb200-4-1x72-placement-policy --enable-gvnic --accelerator-network-profile=auto --node-labels=cloud.google.com/gke-networking-dra-driver=true --num-nodes=2 --accelerator type=nvidia-gb200,count=4,gpu-driver-version=latest --scopes="https://www.googleapis.com/auth/cloud-platform" 
+[XPK] To complete NodepoolCreate-golden-cluster-np-0 we are executing gcloud beta container node-pools create golden-cluster-np-0 --location=us-central1 --cluster=golden-cluster --project=golden-project --node-locations=us-central1-a --machine-type=a4x-highgpu-4g --host-maintenance-interval=AS_NEEDED --spot --placement-policy=gb200-4-1x72-placement-policy --enable-gvnic --accelerator-network-profile=auto --node-labels=cloud.google.com/gke-networking-dra-driver=true --num-nodes=2 --accelerator type=nvidia-gb200,count=4,gpu-driver-version=latest --scopes="https://www.googleapis.com/auth/cloud-platform" 
 [XPK] Breaking up a total of 1 commands into 1 batches
 [XPK] Pretending all the jobs succeeded
 [XPK] Create or delete node pool request complete.
@@ -71,15 +68,14 @@ metadata:
 data:
   gb200-4: "2"
 
-[XPK] Temp file (a3dd06b296e1eb6792c99ad309e6eb714888c53e8b8fb8adc3beb8f250ef163c) content: 
+[XPK] Temp file (c7780918e7a1e57b41944f4873efa5e4114a0b59cec19aecd76950f42c98c442) content: 
 kind: ConfigMap
 apiVersion: v1
 metadata:
   name: golden-cluster-metadata-configmap
 data:
   xpk_version: v0.0.0
-  capacity_type: RESERVATION
-  reservation_id: golden-reservation
+  capacity_type: SPOT
 
 [XPK] Breaking up a total of 2 commands into 1 batches
 [XPK] Pretending all the jobs succeeded

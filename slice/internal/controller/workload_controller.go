@@ -814,9 +814,9 @@ func calculateEffectiveSliceCounts(slicesByState map[core.SliceState][]v1beta1.S
 	if features.Enabled(features.FailOnUntoleratedDegradedSlice) {
 		for _, slice := range slicesByState[core.SliceStateActiveDegraded] {
 			psName := slice.Annotations[core.OwnerPodSetNameAnnotation]
-			// The second part of the condition `(psName == "" && workloadRequestedOnlyHealthySlices(wl))` is for backward compatibility
+			// The second part of the condition `(psName == "" && anyPodSetRequestedOnlyHealthySlices(wl))` is for backward compatibility
 			// for slices created before the OwnerPodSetNameAnnotation was introduced.
-			if (psName != "" && podSetRequiresHealthy[psName]) || (psName == "" && workloadRequestedOnlyHealthySlices(wl)) {
+			if (psName != "" && podSetRequiresHealthy[psName]) || (psName == "" && anyPodSetRequestedOnlyHealthySlices(wl)) {
 				effectiveFailedCount++
 			} else {
 				effectiveActiveCount++
@@ -888,7 +888,12 @@ func buildAdmissionCheckMessage(slicesByState map[core.SliceState][]v1beta1.Slic
 		}
 	}
 
-	message := fmt.Sprintf("Slices are in states: %s", strings.Join(stateMessages, ", "))
+	var message string
+	if len(stateMessages) == 0 {
+		message = "Waiting for Slices to be created"
+	} else {
+		message = fmt.Sprintf("Slices are in states: %s", strings.Join(stateMessages, ", "))
+	}
 
 	if effectiveFailedCount > 0 {
 		var errMessages []string
@@ -901,14 +906,11 @@ func buildAdmissionCheckMessage(slicesByState map[core.SliceState][]v1beta1.Slic
 		if features.Enabled(features.FailOnUntoleratedDegradedSlice) {
 			for _, slice := range slicesByState[core.SliceStateActiveDegraded] {
 				psName := slice.Annotations[core.OwnerPodSetNameAnnotation]
-				if (psName != "" && !podSetRequiresHealthy[psName]) || (psName == "" && !workloadRequestedOnlyHealthySlices(wl)) {
+				if (psName != "" && !podSetRequiresHealthy[psName]) || (psName == "" && !anyPodSetRequestedOnlyHealthySlices(wl)) {
 					continue
 				}
-				cond := meta.FindStatusCondition(slice.Status.Conditions, v1beta1.SliceStateConditionType)
-				if cond != nil {
+				if cond := meta.FindStatusCondition(slice.Status.Conditions, v1beta1.SliceStateConditionType); cond != nil {
 					errMessages = append(errMessages, fmt.Sprintf("%s (degraded)", cond.Message))
-				} else {
-					errMessages = append(errMessages, fmt.Sprintf("Slice %s is degraded", slice.Name))
 				}
 			}
 		}
@@ -917,7 +919,7 @@ func buildAdmissionCheckMessage(slicesByState map[core.SliceState][]v1beta1.Slic
 	return api.TruncateConditionMessage(message)
 }
 
-func workloadRequestedOnlyHealthySlices(wl *kueue.Workload) bool {
+func anyPodSetRequestedOnlyHealthySlices(wl *kueue.Workload) bool {
 	for _, ps := range wl.Spec.PodSets {
 		// if a least one podset requested only healthy
 		if podSetRequestedOnlyHealthySlices(ps) {

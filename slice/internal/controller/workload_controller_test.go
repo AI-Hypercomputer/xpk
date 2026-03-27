@@ -2576,3 +2576,58 @@ func treatSSAAsStrategicMergePatch(ctx context.Context, c client.WithWatch, obj 
 	}
 	return treatSSAAsStrategicMerge(ctx, c, "", obj, patch, subOpts...)
 }
+
+func TestBuildAdmissionCheckMessage(t *testing.T) {
+	wl := utiltesting.MakeWorkload("workload", corev1.NamespaceDefault).Obj()
+
+	testCases := map[string]struct {
+		slicesByState         map[core.SliceState][]slice.Slice
+		effectiveFailedCount  int
+		wl                    *kueue.Workload
+		podSetRequiresHealthy map[string]bool
+		want                  string
+	}{
+		"no slices": {
+			slicesByState:         map[core.SliceState][]slice.Slice{},
+			effectiveFailedCount:  0,
+			wl:                    wl,
+			podSetRequiresHealthy: map[string]bool{},
+			want:                  "Waiting for Slices to be created",
+		},
+		"active slices": {
+			slicesByState: map[core.SliceState][]slice.Slice{
+				core.SliceStateActive: {{}, {}},
+			},
+			effectiveFailedCount:  0,
+			wl:                    wl,
+			podSetRequiresHealthy: map[string]bool{},
+			want:                  "Slices are in states: 2 ACTIVE",
+		},
+		"failed slices": {
+			slicesByState: map[core.SliceState][]slice.Slice{
+				core.SliceStateFailed: {
+					*utiltesting.MakeSliceWrapper("slice1").
+						Condition(metav1.Condition{
+							Type:    slice.SliceStateConditionType,
+							Status:  metav1.ConditionFalse,
+							Reason:  string(core.MMIGHealthStatusFailed),
+							Message: "Hardware failure",
+						}).Obj(),
+				},
+			},
+			effectiveFailedCount:  1,
+			wl:                    wl,
+			podSetRequiresHealthy: map[string]bool{},
+			want:                  "Slices are in states: 1 FAILED. Errors: Hardware failure",
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			got := buildAdmissionCheckMessage(tc.slicesByState, tc.effectiveFailedCount, tc.wl, tc.podSetRequiresHealthy)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("Unexpected message (-want,+got):\n%s", diff)
+			}
+		})
+	}
+}

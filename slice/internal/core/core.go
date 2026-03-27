@@ -140,8 +140,12 @@ func NodeAffinityAllowsValue(affinity *corev1.Affinity, key, value string) bool 
 	for _, term := range affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
 		termAllowsValue := true
 		for _, expr := range term.MatchExpressions {
+			if !termAllowsValue {
+				break
+			}
 			if expr.Key == key {
-				if expr.Operator == corev1.NodeSelectorOpIn {
+				switch expr.Operator {
+				case corev1.NodeSelectorOpIn:
 					valueAllowedInExpr := false
 					for _, val := range expr.Values {
 						if val == value {
@@ -152,6 +156,18 @@ func NodeAffinityAllowsValue(affinity *corev1.Affinity, key, value string) bool 
 					if !valueAllowedInExpr {
 						termAllowsValue = false
 					}
+				case corev1.NodeSelectorOpNotIn:
+					for _, val := range expr.Values {
+						if val == value {
+							termAllowsValue = false
+							break
+						}
+					}
+				case corev1.NodeSelectorOpExists:
+					// Always allows any value as long as the key exists.
+				case corev1.NodeSelectorOpDoesNotExist:
+					// Never allows any value since the key exists.
+					termAllowsValue = false
 				}
 			}
 		}

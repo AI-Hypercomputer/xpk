@@ -26,8 +26,8 @@ import urllib.parse
 import urllib.request
 import pathlib
 
-from xpk.utils.console import xpk_print
-from xpk.utils.dependencies.binary_dependencies import BinaryDependency
+from ..console import xpk_print
+from .binary_dependencies import BinaryDependency
 
 
 _OS_MAP: dict[str, str] = {"Linux": "linux", "Darwin": "darwin"}

@@ -1477,5 +1477,192 @@ var _ = ginkgo.Describe("JobSet", func() {
 				utils.ExpectObjectToBeDeleted(ctx, k8sClient, createdWorkload, false)
 			})
 		})
+
+		ginkgo.It("should handle mixed tolerance for degraded slices across multiple PodSets", func() {
+			jobSet := testingjobsjobset.MakeJobSet("jobset", ns.Name).
+				Queue(lq.Name).
+				ReplicatedJobs(
+					testingjobsjobset.ReplicatedJobRequirements{
+						Name:        "rj-healthy",
+						Image:       utils.E2eTestAgnHostImage,
+						Args:        utils.BehaviorWaitForDeletion,
+						Replicas:    1,
+						Parallelism: 16,
+						Completions: 16,
+						PodAnnotations: map[string]string{
+							core.TPUSliceTopologyAnnotation: "4x4x4",
+						},
+						NodeSelector: map[string]string{
+							core.TPUAcceleratorLabel:           string(slice.TypeTpu7x),
+							core.TPUSliceHealthNodeSelectorKey: core.TPUSliceHealthNodeSelectorHealthy,
+						},
+					},
+					testingjobsjobset.ReplicatedJobRequirements{
+						Name:        "rj-tolerant",
+						Image:       utils.E2eTestAgnHostImage,
+						Args:        utils.BehaviorWaitForDeletion,
+						Replicas:    1,
+						Parallelism: 16,
+						Completions: 16,
+						PodAnnotations: map[string]string{
+							core.TPUSliceTopologyAnnotation: "4x4x4",
+						},
+						Affinity: &corev1.Affinity{
+							NodeAffinity: &corev1.NodeAffinity{
+								RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+									NodeSelectorTerms: []corev1.NodeSelectorTerm{
+										{
+											MatchExpressions: []corev1.NodeSelectorRequirement{
+												{
+													Key:      core.TPUAcceleratorLabel,
+													Operator: corev1.NodeSelectorOpIn,
+													Values:   []string{string(slice.TypeTpu7x)},
+												},
+												{
+													Key:      core.TPUSliceHealthNodeSelectorKey,
+													Operator: corev1.NodeSelectorOpIn,
+													Values:   []string{core.TPUSliceHealthNodeSelectorHealthy, core.TPUSliceHealthNodeSelectorDegraded},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				).
+				RequestAndLimit("rj-healthy", core.TPUResourceName, "4").
+				RequestAndLimit("rj-tolerant", core.TPUResourceName, "4").
+				Obj()
+
+			ginkgo.By("Creating a JobSet", func() {
+				utils.MustCreate(ctx, k8sClient, jobSet)
+			})
+
+			createdWorkload := &kueue.Workload{}
+			wlKey := types.NamespacedName{
+				Name:      jobsetcontroller.GetWorkloadNameForJobSet(jobSet.Name, jobSet.UID),
+				Namespace: ns.Name,
+			}
+
+			ginkgo.By("Waiting for Admission of the Workload", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
+					g.Expect(createdWorkload.Status.Admission).ShouldNot(gomega.BeNil())
+				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+			})
+
+			sliceHealthyKey := core.SliceKeyFromWorkload(createdWorkload, "rj-healthy", 0)
+			sliceTolerantKey := core.SliceKeyFromWorkload(createdWorkload, "rj-tolerant", 0)
+			sliceHealthy := &slice.Slice{}
+			sliceTolerant := &slice.Slice{}
+
+			ginkgo.By("Checking that Slices are created", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, sliceHealthyKey, sliceHealthy)).To(gomega.Succeed())
+					g.Expect(k8sClient.Get(ctx, sliceTolerantKey, sliceTolerant)).To(gomega.Succeed())
+				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+			})
+
+			sliceHealthyUID := sliceHealthy.UID
+			sliceTolerantUID := sliceTolerant.UID
+
+			ginkgo.By("Setting both Slices to ACTIVE", func() {
+				for _, s := range []*slice.Slice{sliceHealthy, sliceTolerant} {
+					gomega.Eventually(func(g gomega.Gomega) {
+						g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(s), s)).To(gomega.Succeed())
+						meta.SetStatusCondition(&s.Status.Conditions, metav1.Condition{
+							Type:    slice.SliceStateConditionType,
+							Status:  metav1.ConditionTrue,
+							Reason:  string(core.MMIGHealthStatusActive),
+							Message: "Active by test",
+						})
+						g.Expect(k8sClient.Status().Update(ctx, s)).To(gomega.Succeed())
+					}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+				}
+			})
+
+			ginkgo.By("Checking that the Workload Admission Check state is Ready", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
+					g.Expect(createdWorkload.Status.AdmissionChecks).Should(gomega.BeComparableTo([]kueue.AdmissionCheckState{{
+						Name:    kueue.AdmissionCheckReference(ac.Name),
+						State:   kueue.CheckStateReady,
+						Message: `Slices are in states: 2 ACTIVE`,
+					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates", "RequeueAfterSeconds")))
+				}, utils.LongTimeout, utils.Interval).Should(gomega.Succeed())
+			})
+
+			ginkgo.By("Setting both Slices to DEGRADED", func() {
+				for _, s := range []*slice.Slice{sliceHealthy, sliceTolerant} {
+					gomega.Eventually(func(g gomega.Gomega) {
+						g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(s), s)).To(gomega.Succeed())
+						meta.SetStatusCondition(&s.Status.Conditions, metav1.Condition{
+							Type:    slice.SliceStateConditionType,
+							Status:  metav1.ConditionTrue,
+							Reason:  string(core.MMIGHealthStatusActiveDegraded),
+							Message: "Degraded by test",
+						})
+						g.Expect(k8sClient.Status().Update(ctx, s)).To(gomega.Succeed())
+					}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+				}
+			})
+
+			ginkgo.By("Waiting for Slices to be recreated", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, sliceHealthyKey, sliceHealthy)).To(gomega.Succeed())
+					g.Expect(sliceHealthy.UID).NotTo(gomega.Equal(sliceHealthyUID))
+					g.Expect(k8sClient.Get(ctx, sliceTolerantKey, sliceTolerant)).To(gomega.Succeed())
+					g.Expect(sliceTolerant.UID).NotTo(gomega.Equal(sliceTolerantUID))
+				}, utils.LongTimeout, utils.Interval).Should(gomega.Succeed())
+			})
+
+			ginkgo.By("Setting rj-healthy Slice to ACTIVE (Healthy) and rj-tolerant to DEGRADED", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, sliceHealthyKey, sliceHealthy)).To(gomega.Succeed())
+					meta.SetStatusCondition(&sliceHealthy.Status.Conditions, metav1.Condition{
+						Type:    slice.SliceStateConditionType,
+						Status:  metav1.ConditionTrue,
+						Reason:  string(core.MMIGHealthStatusActive),
+						Message: "Active by test",
+					})
+					g.Expect(k8sClient.Status().Update(ctx, sliceHealthy)).To(gomega.Succeed())
+
+					g.Expect(k8sClient.Get(ctx, sliceTolerantKey, sliceTolerant)).To(gomega.Succeed())
+					meta.SetStatusCondition(&sliceTolerant.Status.Conditions, metav1.Condition{
+						Type:    slice.SliceStateConditionType,
+						Status:  metav1.ConditionTrue,
+						Reason:  string(core.MMIGHealthStatusActiveDegraded),
+						Message: "Degraded by test",
+					})
+					g.Expect(k8sClient.Status().Update(ctx, sliceTolerant)).To(gomega.Succeed())
+				}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+			})
+
+			ginkgo.By("Checking that the Workload Admission Check state is Ready", func() {
+				gomega.Eventually(func(g gomega.Gomega) {
+					g.Expect(k8sClient.Get(ctx, wlKey, createdWorkload)).Should(gomega.Succeed())
+					g.Expect(createdWorkload.Status.AdmissionChecks).Should(gomega.BeComparableTo([]kueue.AdmissionCheckState{{
+						Name:       kueue.AdmissionCheckReference(ac.Name),
+						State:      kueue.CheckStateReady,
+						RetryCount: ptr.To(int32(1)), // this indicates that the eviction happened
+						Message:    `Slices are in states: 1 ACTIVE, 1 ACTIVE_DEGRADED`,
+					}}, cmpopts.IgnoreFields(kueue.AdmissionCheckState{}, "LastTransitionTime", "PodSetUpdates", "RequeueAfterSeconds")))
+				}, utils.LongTimeout, utils.Interval).Should(gomega.Succeed())
+			})
+
+			ginkgo.By("Deleting JobSet", func() {
+				utils.ExpectObjectToBeDeleted(ctx, k8sClient, jobSet, true)
+			})
+
+			ginkgo.By("Checking that Slices are deleted", func() {
+				utils.ExpectObjectToBeDeleted(ctx, k8sClient, sliceHealthy, false)
+				utils.ExpectObjectToBeDeleted(ctx, k8sClient, sliceTolerant, false)
+			})
+
+			ginkgo.By("Checking that Workload is deleted", func() {
+				utils.ExpectObjectToBeDeleted(ctx, k8sClient, createdWorkload, false)
+			})
+		})
 	})
 })

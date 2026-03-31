@@ -49,6 +49,7 @@ func SliceWithMetadata(wl *kueue.Workload, podSetName kueue.PodSetReference, sli
 			Annotations: map[string]string{
 				OwnerWorkloadNamespaceAnnotation: wl.Namespace,
 				OwnerWorkloadNameAnnotation:      wl.Name,
+				OwnerPodSetNameAnnotation:        string(podSetName),
 			},
 		},
 	}

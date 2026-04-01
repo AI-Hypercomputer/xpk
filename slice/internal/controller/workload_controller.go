@@ -275,7 +275,7 @@ func (r *WorkloadReconciler) cleanupSlices(ctx context.Context, wl *kueue.Worklo
 	// after pods are terminated we should cleanup all the slices (including active and initializing ones)
 	toDelete := append(grouped.toDelete, grouped.active...)
 	toDelete = append(toDelete, grouped.initializing...)
-	log.V(3).Info("Deleting Slices", "slices", klog.KObjSlice(toDelete))
+	log.V(2).Info("Deleting Slices", "slices", klog.KObjSlice(toDelete))
 	err = r.deleteSlices(ctx, toDelete)
 	if err != nil {
 		return false, err
@@ -345,11 +345,11 @@ func (r *WorkloadReconciler) groupSlices(slices []v1beta1.Slice) groupedSlices {
 func (r *WorkloadReconciler) deleteSlices(ctx context.Context, slices []*v1beta1.Slice) error {
 	log := ctrl.LoggerFrom(ctx)
 	for _, slice := range slices {
-		log = log.WithValues("slice", klog.KObj(slice))
-		log.V(3).Info("Deleting the Slice")
+		sliceLog := log.WithValues("slice", klog.KObj(slice))
+		sliceLog.V(2).Info("Deleting Slice")
 		err := r.client.Delete(ctx, slice)
 		if client.IgnoreNotFound(err) != nil {
-			log.Error(err, "Failed to delete the Slice")
+			sliceLog.Error(err, "Failed to delete Slice")
 			return err
 		}
 	}
@@ -366,7 +366,7 @@ func (r *WorkloadReconciler) deleteSlicesForEvictedWorkload(ctx context.Context,
 	toDelete = append(toDelete, grouped.active...)
 	toDelete = append(toDelete, grouped.initializing...)
 	toDelete = append(toDelete, grouped.toDelete...)
-	log.V(3).Info("AdmissionCheck is Retry, deleting all Slices")
+	log.V(2).Info("AdmissionCheck is Retry, deleting all Slices")
 	return r.deleteSlices(ctx, toDelete)
 }
 
@@ -667,7 +667,7 @@ func (r *WorkloadReconciler) syncSlicesForAssignment(ctx context.Context, wl *ku
 
 		if err := r.client.Create(ctx, slice); err != nil {
 			msg := fmt.Sprintf("Error creating Slice %q: %v", slice.Name, err)
-			log.Error(err, msg)
+			log.Error(err, "Failed to create Slice")
 			r.record.Event(wl, corev1.EventTypeWarning, FailedCreateSliceEventType, api.TruncateEventMessage(msg))
 			log.V(2).Info(fmt.Sprintf("Admission check %q updated state from %q to %q", ac.Name, ac.State, kueue.CheckStatePending), "reason", msg)
 			ac.State = kueue.CheckStatePending
@@ -791,12 +791,13 @@ func (r *WorkloadReconciler) syncAdmissionCheckStatus(ctx context.Context, wl *k
 
 	if ac.Message != originalMessage {
 		// Logging error messages if exists
-		for _, slice := range slices {
+		for i := range slices {
+			slice := &slices[i]
 			cond := meta.FindStatusCondition(slice.Status.Conditions, v1beta1.SliceStateConditionType)
 			if cond != nil && cond.Status == metav1.ConditionFalse && cond.Reason == string(core.MMIGHealthStatusFailed) {
 				log.V(2).Info(
-					"WARNING: The Slice is not operational due to an error",
-					"slice", klog.KObj(&slice),
+					"WARNING: Slice is not operational due to an error",
+					"slice", klog.KObj(slice),
 					"error", cond.Message,
 				)
 			}
@@ -826,7 +827,7 @@ func calculateEffectiveSliceCounts(slicesByState map[core.SliceState][]v1beta1.S
 }
 
 func (r *WorkloadReconciler) prepareAdmissionCheckStatus(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, slices []v1beta1.Slice, desiredSlicesCount int) {
-	log := ctrl.LoggerFrom(ctx).V(2)
+	log := ctrl.LoggerFrom(ctx)
 	// wait for Kueue to reset check to Pending after eviction
 	if ac.State == kueue.CheckStateRetry {
 		return
@@ -968,7 +969,7 @@ func (h *sliceHandler) Create(context.Context, event.CreateEvent, workqueue.Type
 
 func (h *sliceHandler) Delete(ctx context.Context, e event.DeleteEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	if slice, ok := e.Object.(*v1beta1.Slice); ok {
-		ctrl.LoggerFrom(ctx).V(2).Info("Slice deleted", "slice", slice.Name)
+		ctrl.LoggerFrom(ctx).V(2).Info("Slice deleted", "slice", klog.KObj(slice))
 	}
 	h.handleEvent(ctx, e.Object, q)
 }
@@ -1003,7 +1004,7 @@ func (h *sliceHandler) handleEvent(ctx context.Context, obj client.Object, q wor
 		return
 	}
 
-	log.V(3).Info("Handle Slice event", "workload", klog.KRef(workloadNamespace, workloadName))
+	log.V(2).Info("Handle Slice event", "workload", klog.KRef(workloadNamespace, workloadName))
 
 	req := reconcile.Request{
 		NamespacedName: types.NamespacedName{

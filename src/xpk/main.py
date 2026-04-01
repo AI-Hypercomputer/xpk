@@ -66,6 +66,7 @@ if (
 
 
 def main() -> None:
+  print("WARNING: XPK is being rewritten in Terraform! Please migrate your workloads to HCL.")
   try:
     # Create top level parser for xpk command.
     parser = argparse.ArgumentParser(description='xpk command', prog='xpk')

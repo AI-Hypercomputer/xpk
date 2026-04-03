@@ -91,8 +91,6 @@ func TestLeaderWorkerSetDefault(t *testing.T) {
 				Queue("queue-name").
 				Size(4).
 				WorkerAnnotation(core.TPUSliceTopologyAnnotation, "2x2x4").
-				WorkerAnnotation("kueue.x-k8s.io/tpu-slice-topology", "2x2x4").
-				WorkerAnnotation(podsetGroupName, podsetGroupValue).
 				WorkerAnnotation(kueue.PodSetRequiredTopologyAnnotation, "cloud.google.com/gke-tpu-partition-2x2x4-id").
 				WorkerNodeSelector("cloud.google.com/gke-tpu-accelerator", string(slice.TypeTpu7x)).
 				WorkerNodeAffinity("cloud.google.com/gke-tpu-partition-2x2x4-state", []string{core.TPUSliceHealthNodeSelectorHealthy}).
@@ -114,14 +112,12 @@ func TestLeaderWorkerSetDefault(t *testing.T) {
 				Queue("queue-name").
 				Size(4).
 				WorkerAnnotation(core.TPUSliceTopologyAnnotation, "2x2x4").
-				WorkerAnnotation("kueue.x-k8s.io/tpu-slice-topology", "2x2x4").
 				WorkerAnnotation(podsetGroupName, podsetGroupValue).
 				WorkerAnnotation(kueue.PodSetRequiredTopologyAnnotation, "cloud.google.com/gke-tpu-partition-2x2x4-id").
 				WorkerNodeSelector("cloud.google.com/gke-tpu-accelerator", string(slice.TypeTpu7x)).
 				WorkerNodeAffinity("cloud.google.com/gke-tpu-partition-2x2x4-state", []string{core.TPUSliceHealthNodeSelectorHealthy}).
 				WorkerLimit(core.TPUResourceName, "4").
 				LeaderAnnotation(core.TPUSliceTopologyAnnotation, "2x2x4").
-				LeaderAnnotation("kueue.x-k8s.io/tpu-slice-topology", "2x2x4").
 				LeaderAnnotation(podsetGroupName, podsetGroupValue).
 				LeaderAnnotation(kueue.PodSetRequiredTopologyAnnotation, "cloud.google.com/gke-tpu-partition-2x2x4-id").
 				LeaderNodeSelector("cloud.google.com/gke-tpu-accelerator", string(slice.TypeTpu7x)).
@@ -142,8 +138,6 @@ func TestLeaderWorkerSetDefault(t *testing.T) {
 				Queue("queue-name").
 				Size(4).
 				WorkerAnnotation(core.TPUSliceTopologyAnnotation, "2x2x4").
-				WorkerAnnotation("kueue.x-k8s.io/tpu-slice-topology", "2x2x4").
-				WorkerAnnotation(podsetGroupName, podsetGroupValue).
 				WorkerAnnotation(kueue.PodSetRequiredTopologyAnnotation, "cloud.google.com/gke-tpu-partition-2x2x4-id").
 				WorkerNodeSelector("cloud.google.com/gke-tpu-accelerator", string(slice.TypeTpu7x)).
 				WorkerNodeSelector("cloud.google.com/gke-tpu-partition-2x2x4-state", "HEALTHY").

@@ -118,9 +118,7 @@ var _ = ginkgo.Describe("LWS Subslicing", func() {
 		}
 
 		lws := wrapper.Obj()
-
 		lws.Spec.StartupPolicy = leaderworkersetv1.LeaderCreatedStartupPolicy
-
 		if tc.withLeader {
 			lws.Spec.LeaderWorkerTemplate.LeaderTemplate.Spec.Containers = []corev1.Container{{
 				Name:  "leader",

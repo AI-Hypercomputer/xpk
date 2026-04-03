@@ -5,8 +5,8 @@ go 1.25.0
 require (
 	github.com/go-logr/logr v1.4.3
 	github.com/google/go-cmp v0.7.0
-	github.com/onsi/ginkgo/v2 v2.27.5
-	github.com/onsi/gomega v1.39.0
+	github.com/onsi/ginkgo/v2 v2.27.2
+	github.com/onsi/gomega v1.38.2
 	github.com/open-policy-agent/cert-controller v0.15.0
 	go.uber.org/zap v1.27.1
 	k8s.io/api v0.34.3
@@ -16,7 +16,7 @@ require (
 	sigs.k8s.io/controller-runtime v0.22.4
 	sigs.k8s.io/jobset v0.10.1
 	sigs.k8s.io/kueue v0.15.2
-	sigs.k8s.io/lws v0.8.0
+	sigs.k8s.io/lws v0.7.0
 )
 
 require (

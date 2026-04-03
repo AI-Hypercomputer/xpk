@@ -43,7 +43,7 @@ func AllAssignmentsValid(wl *kueue.Workload, nodes map[string]corev1.Node) bool 
 			continue
 		}
 		// we assume that leader will be co-located with workers and will use the same slice
-		if utilworkload.IsLeaderWorkerSetOwner(wl) && psa.Name == "leader" {
+		if utilworkload.IsLeaderWorkerSetOwner(wl) && psa.Name == core.LWSLeaderPodSetName {
 			continue
 		}
 		ps := podset.FindPodSetByName(wl.Spec.PodSets, psa.Name)

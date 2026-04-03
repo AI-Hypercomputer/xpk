@@ -624,7 +624,7 @@ func (r *WorkloadReconciler) syncSlices(
 }
 
 func shouldCreateSlicesForPodSetAssignment(wl *kueue.Workload, psa kueue.PodSetAssignment, nodes map[string]corev1.Node) bool {
-	if utilworkload.IsLeaderWorkerSetOwner(wl) && psa.Name == "leader" {
+	if utilworkload.IsLeaderWorkerSetOwner(wl) && psa.Name == core.LWSLeaderPodSetName {
 		return false
 	}
 	if podSet := podset.FindPodSetByName(wl.Spec.PodSets, psa.Name); podSet != nil {

@@ -66,6 +66,7 @@ var _ = ginkgo.BeforeSuite(func() {
 	utils.WaitForSliceAvailability(ctx, k8sClient)
 	utils.WaitForKueueAvailability(ctx, k8sClient)
 	utils.WaitForJobSetAvailability(ctx, k8sClient)
+	utils.WaitForLWSAvailability(ctx, k8sClient)
 	ginkgo.GinkgoLogr.Info(
 		"Slice and all required operators are available in the cluster",
 		"waitingTime", time.Since(waitForAvailableStart),

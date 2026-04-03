@@ -25,6 +25,7 @@ export KIND_VERSION="${E2E_KIND_VERSION/"kindest/node:v"/}"
 
 export KUEUE_MANIFEST="${ROOT_DIR}/test/e2e/config/kueue"
 export JOBSET_MANIFEST="${ROOT_DIR}/${EXTERNAL_CRDS_DIR}/jobset-operator/config/default"
+export LWS_MANIFEST="${ROOT_DIR}/${EXTERNAL_CRDS_DIR}/lws-operator/config/default"
 
 # agnhost image to use for testing.
 export E2E_TEST_AGNHOST_IMAGE=registry.k8s.io/e2e-test-images/agnhost:2.56@sha256:352a050380078cb2a1c246357a0dfa2fcf243ee416b92ff28b44a01d1b4b0294
@@ -65,6 +66,7 @@ function prepare_docker_images {
     docker tag $E2E_TEST_AGNHOST_IMAGE "$E2E_TEST_AGNHOST_IMAGE_WITHOUT_SHA"
     docker pull "${KUEUE_IMAGE}"
     docker pull "${JOBSET_IMAGE}"
+    docker pull "${LWS_IMAGE}"
 }
 
 # $1 cluster
@@ -83,6 +85,7 @@ function kind_load {
     fi
 
     install_jobset "$1" "$2"
+    install_lws "$1" "$2"
     install_kueue "$1" "$2"
 }
 
@@ -131,6 +134,13 @@ function install_kueue {
 function install_jobset {
     cluster_kind_load_image "${1}" "${JOBSET_IMAGE}"
     kubectl apply --kubeconfig="$2" --server-side -k "${JOBSET_MANIFEST}"
+}
+
+# $1 cluster name
+# $2 kubeconfig option
+function install_lws {
+    cluster_kind_load_image "${1}" "${LWS_IMAGE}"
+    kubectl apply --kubeconfig="$2" --server-side -k "${LWS_MANIFEST}"
 }
 
 # $1 cluster name

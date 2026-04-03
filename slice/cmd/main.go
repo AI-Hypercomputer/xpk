@@ -39,6 +39,7 @@ import (
 	jobset "sigs.k8s.io/jobset/api/jobset/v1alpha2"
 	kueuealpha "sigs.k8s.io/kueue/apis/kueue/v1alpha1"
 	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta2"
+	leaderworkersetv1 "sigs.k8s.io/lws/api/leaderworkerset/v1"
 
 	"tpu-slice-controller/api/v1beta1"
 	"tpu-slice-controller/internal/controller"
@@ -62,6 +63,7 @@ func init() {
 	utilruntime.Must(kueue.AddToScheme(scheme))
 	utilruntime.Must(kueuealpha.AddToScheme(scheme))
 	utilruntime.Must(jobset.AddToScheme(scheme))
+	utilruntime.Must(leaderworkersetv1.AddToScheme(scheme))
 
 	// +kubebuilder:scaffold:scheme
 }
@@ -290,6 +292,10 @@ func setupControllers(mgr ctrl.Manager, certsReady chan struct{}, activationTime
 	}
 	if err := webhooks.SetupJobWebhookWithManager(mgr, sliceHealthValues); err != nil {
 		setupLog.Error(err, "Unable to create webhook", "webhook", "Job")
+		os.Exit(1)
+	}
+	if err := webhooks.SetupLeaderWorkerSetWebhookWithManager(mgr, sliceHealthValues); err != nil {
+		setupLog.Error(err, "Unable to create webhook", "webhook", "LeaderWorkerSet")
 		os.Exit(1)
 	}
 

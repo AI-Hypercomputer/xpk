@@ -21,6 +21,7 @@ import (
 	"sigs.k8s.io/kueue/pkg/util/tas"
 
 	"tpu-slice-controller/internal/core"
+	utilworkload "tpu-slice-controller/internal/util/workload"
 )
 
 // AnyAssignment returns true if there exists
@@ -39,6 +40,10 @@ func AnyAssignment(admission *kueue.Admission) bool {
 func AllAssignmentsValid(wl *kueue.Workload, nodes map[string]corev1.Node) bool {
 	for _, psa := range wl.Status.Admission.PodSetAssignments {
 		if psa.TopologyAssignment == nil {
+			continue
+		}
+		// we assume that leader will be co-located with workers and will use the same slice
+		if utilworkload.IsLeaderWorkerSetOwner(wl) && psa.Name == "leader" {
 			continue
 		}
 		ps := podset.FindPodSetByName(wl.Spec.PodSets, psa.Name)

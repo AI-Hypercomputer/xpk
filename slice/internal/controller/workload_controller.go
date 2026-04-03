@@ -47,6 +47,7 @@ import (
 	"sigs.k8s.io/kueue/pkg/util/admissioncheck"
 	"sigs.k8s.io/kueue/pkg/util/podset"
 	"sigs.k8s.io/kueue/pkg/workload"
+	leaderworkersetv1 "sigs.k8s.io/lws/api/leaderworkerset/v1"
 
 	"tpu-slice-controller/api/v1beta1"
 	"tpu-slice-controller/internal/core"
@@ -106,6 +107,7 @@ func NewWorkloadReconciler(cl client.Client, record record.EventRecorder, activa
 // +kubebuilder:rbac:groups="",resources=events,verbs=create;watch;update;patch
 // +kubebuilder:rbac:groups=jobset.x-k8s.io,resources=jobsets,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;update;patch
+// +kubebuilder:rbac:groups=leaderworkerset.x-k8s.io,resources=leaderworkersets,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch
 
 func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -139,17 +141,14 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		}
 		return ctrl.Result{}, nil
 	}
-
 	nodes, err := node.GetNodes(ctx, r.client)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-
 	if err = validateRelevantWorkload(wl, nodes); err != nil {
 		log.V(3).Info("Skipping workload", "reason", err.Error())
 		return ctrl.Result{}, nil
 	}
-
 	ac, err := r.sliceAC(ctx, wl)
 	if err != nil {
 		return reconcile.Result{}, err
@@ -161,7 +160,6 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	log = log.WithValues("admissionCheck", ac.Name)
 	ctrl.LoggerInto(ctx, log)
-
 	// Finalizer is needed because we need to cleanup Slice objects
 	// before the workload is deleted.
 	if controllerutil.AddFinalizer(wl, SliceControllerName) {
@@ -176,7 +174,6 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		log.V(3).Info("Added finalizer")
 		return ctrl.Result{}, nil
 	}
-
 	slices, err := r.findWorkloadSlices(ctx, wl)
 	if err != nil {
 		log.Error(err, "Failed to list Slices")
@@ -371,37 +368,53 @@ func (r *WorkloadReconciler) deleteSlicesForEvictedWorkload(ctx context.Context,
 }
 
 func (r *WorkloadReconciler) ownerPodsFinished(ctx context.Context, wl *kueue.Workload) (bool, error) {
+	owner := utilworkload.GetOwner(wl)
+	if owner == nil {
+		return true, nil
+	}
+
+	var obj client.Object
+	var labelKey string
+	var logKey string
+	var kindName string
+
 	if utilworkload.IsJobSetOwner(wl) {
-		return r.jobSetPodsFinished(ctx, wl)
+		obj = &jobset.JobSet{}
+		labelKey = jobset.JobSetNameKey
+		logKey = "jobSet"
+		kindName = "JobSet"
+	} else if utilworkload.IsJobOwner(wl) {
+		obj = &batchv1.Job{}
+		labelKey = "batch.kubernetes.io/job-name"
+		logKey = "job"
+		kindName = "Job"
+	} else if utilworkload.IsLeaderWorkerSetOwner(wl) {
+		obj = &leaderworkersetv1.LeaderWorkerSet{}
+		labelKey = "leaderworkerset.sigs.k8s.io/name"
+		logKey = "leaderWorkerSet"
+		kindName = "LeaderWorkerSet"
+	} else {
+		// Finalize Workloads that have unsupported owner types.
+		return true, nil
 	}
-	if utilworkload.IsJobOwner(wl) {
-		return r.jobPodsFinished(ctx, wl)
-	}
-	// Finalize Workloads that have no owner or have unsupported owner types.
-	return true, nil
-}
 
-func (r *WorkloadReconciler) jobSetPodsFinished(ctx context.Context, wl *kueue.Workload) (bool, error) {
-	owner := metav1.GetControllerOf(wl)
-	log := ctrl.LoggerFrom(ctx).WithValues("jobSet", klog.KRef(wl.Namespace, owner.Name))
-	jobSet := &jobset.JobSet{}
-	jobSetKey := types.NamespacedName{Name: owner.Name, Namespace: wl.Namespace}
-	if err := r.client.Get(ctx, jobSetKey, jobSet); err != nil {
+	log := ctrl.LoggerFrom(ctx).WithValues(logKey, klog.KRef(wl.Namespace, owner.Name))
+	key := types.NamespacedName{Name: owner.Name, Namespace: wl.Namespace}
+	if err := r.client.Get(ctx, key, obj); err != nil {
 		if apierrors.IsNotFound(err) {
-			log.V(3).Info("JobSet already deleted")
-			// That means the JobSet has already been deleted, along with all associated Jobs and Pods
+			log.V(3).Info(fmt.Sprintf("%s already deleted", kindName))
+			// That means the owner has already been deleted, along with all associated Pods
 			// we should delete Slice and cleanup Workload.
 			return true, nil
-		} else {
-			log.Error(err, "Failed to get JobSet")
-			return false, err
 		}
+		log.Error(err, fmt.Sprintf("Failed to get %s", kindName))
+		return false, err
 	}
 
 	pods := &corev1.PodList{}
 	opts := []client.ListOption{
 		client.InNamespace(wl.Namespace),
-		client.MatchingLabels{jobset.JobSetNameKey: owner.Name},
+		client.MatchingLabels{labelKey: owner.Name},
 	}
 	if err := r.client.List(ctx, pods, opts...); err != nil {
 		log.Error(err, "Failed to get Pods")
@@ -415,46 +428,7 @@ func (r *WorkloadReconciler) jobSetPodsFinished(ctx context.Context, wl *kueue.W
 		}
 	}
 
-	log.V(3).Info("All Pods in the JobSet have finished")
-
-	return true, nil
-}
-
-func (r *WorkloadReconciler) jobPodsFinished(ctx context.Context, wl *kueue.Workload) (bool, error) {
-	owner := metav1.GetControllerOf(wl)
-	log := ctrl.LoggerFrom(ctx).WithValues("job", klog.KRef(wl.Namespace, owner.Name))
-	job := &batchv1.Job{}
-	jobKey := types.NamespacedName{Name: owner.Name, Namespace: wl.Namespace}
-	if err := r.client.Get(ctx, jobKey, job); err != nil {
-		if apierrors.IsNotFound(err) {
-			log.V(3).Info("Job already deleted")
-			// That means the Job has already been deleted, along with all associated Pods
-			// we should delete Slice and cleanup Workload.
-			return true, nil
-		} else {
-			log.Error(err, "Failed to get Job")
-			return false, err
-		}
-	}
-
-	pods := &corev1.PodList{}
-	opts := []client.ListOption{
-		client.InNamespace(wl.Namespace),
-		client.MatchingLabels{"batch.kubernetes.io/job-name": owner.Name},
-	}
-	if err := r.client.List(ctx, pods, opts...); err != nil {
-		log.Error(err, "Failed to get Pods")
-		return false, err
-	}
-
-	for _, pod := range pods.Items {
-		if !utilpod.IsTerminated(&pod) {
-			log.V(3).Info("Pods are still running – skipping finalization for now")
-			return false, nil
-		}
-	}
-
-	log.V(3).Info("All Pods in the Job have finished")
+	log.V(3).Info(fmt.Sprintf("All Pods in the %s have finished", kindName))
 
 	return true, nil
 }
@@ -476,7 +450,7 @@ func validateRelevantWorkload(wl *kueue.Workload, nodes map[string]corev1.Node) 
 	if !utilworkload.HasSupportedOwner(wl) {
 		return errors.New("does not have a supported owner")
 	}
-	if !hasRelevantPodSet(wl.Spec.PodSets) {
+	if !hasRelevantPodSet(wl) {
 		return errors.New("does not have a relevant podset")
 	}
 	if !workload.HasQuotaReservation(wl) {
@@ -494,9 +468,9 @@ func validateRelevantWorkload(wl *kueue.Workload, nodes map[string]corev1.Node) 
 	return nil
 }
 
-func hasRelevantPodSet(podSets []kueue.PodSet) bool {
+func hasRelevantPodSet(wl *kueue.Workload) bool {
 	// At least one PodSet should be relevant.
-	for _, ps := range podSets {
+	for _, ps := range wl.Spec.PodSets {
 		if core.IsRelevantPodTemplateSpec(ps.Template) {
 			return true
 		}
@@ -577,6 +551,9 @@ func (r *WorkloadReconciler) syncSlices(
 }
 
 func shouldCreateSlicesForPodSetAssignment(wl *kueue.Workload, psa kueue.PodSetAssignment, nodes map[string]corev1.Node) bool {
+	if utilworkload.IsLeaderWorkerSetOwner(wl) && psa.Name == "leader" {
+		return false
+	}
 	if podSet := podset.FindPodSetByName(wl.Spec.PodSets, psa.Name); podSet != nil {
 		label := topology.GetPartitionIDLabel(podSet.Template)
 		return core.IsRelevantPodTemplateSpec(podSet.Template) &&

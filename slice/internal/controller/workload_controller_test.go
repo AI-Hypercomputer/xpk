@@ -42,6 +42,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	jobset "sigs.k8s.io/jobset/api/jobset/v1alpha2"
 	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta2"
+	leaderworkersetv1 "sigs.k8s.io/lws/api/leaderworkerset/v1"
 
 	slice "tpu-slice-controller/api/v1beta1"
 	"tpu-slice-controller/internal/core"
@@ -65,6 +66,7 @@ var (
 var (
 	jobSetGVK      = jobset.SchemeGroupVersion.WithKind("JobSet")
 	jobGVK         = batchv1.SchemeGroupVersion.WithKind("Job")
+	lwsGVK         = leaderworkersetv1.SchemeGroupVersion.WithKind("LeaderWorkerSet")
 	unsupportedGVK = batchv1.SchemeGroupVersion.WithKind("CronJob")
 )
 
@@ -73,6 +75,7 @@ func TestWorkloadReconciler(t *testing.T) {
 		baseACName       = "ac"
 		baseJobName      = "job"
 		baseJobSetName   = "jobset"
+		baseLWSName      = "lws"
 		basePod1Name     = "pod1"
 		basePod2Name     = "pod2"
 		baseWorkloadName = "workload"
@@ -123,6 +126,15 @@ func TestWorkloadReconciler(t *testing.T) {
 	basePod1Wrapper := utiltestingjobspod.MakePod(basePod1Name, corev1.NamespaceDefault).
 		OwnerReference(baseJobSetName, jobSetGVK).
 		Label(jobset.JobSetNameKey, baseJobSetName)
+	baseLWSPodWrapper := utiltestingjobspod.MakePod(basePod1Name, corev1.NamespaceDefault).
+		OwnerReference(baseLWSName, lwsGVK).
+		Label("leaderworkerset.sigs.k8s.io/name", baseLWSName)
+	baseLWSWrapper := &leaderworkersetv1.LeaderWorkerSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      baseLWSName,
+			Namespace: corev1.NamespaceDefault,
+		},
+	}
 	basePod2Wrapper := basePod1Wrapper.Clone().Name(basePod2Name)
 	baseAdmissionCheckWrapper := utiltesting.MakeAdmissionCheck(baseACName).ControllerName(SliceControllerName)
 	basePodSet1Wrapper := *utiltesting.MakePodSet("ps1", 2, ptr.To(int32(1))).
@@ -175,10 +187,18 @@ func TestWorkloadReconciler(t *testing.T) {
 		Annotation(core.OwnerPodSetNameAnnotation, "ps2").
 		PartitionIDs("subblock2")
 
-	worker1Node := utiltesting.MakeNode("worker1").Label(core.TPUSubBlockLabel, "subblock1")
-	worker2Node := utiltesting.MakeNode("worker2").Label(core.TPUSubBlockLabel, "subblock2")
-	worker3Node := utiltesting.MakeNode("worker3").Label(core.TPUSubBlockLabel, "subblock3")
-	worker4Node := utiltesting.MakeNode("worker4").Label(core.TPUSubBlockLabel, "subblock4")
+	worker1Node := utiltesting.MakeNode("worker1").
+		Label(core.TPUSubBlockLabel, "subblock1").
+		Label("cloud.google.com/gke-tpu-partition-2x2x4-id", "subslice1")
+	worker2Node := utiltesting.MakeNode("worker2").
+		Label(core.TPUSubBlockLabel, "subblock2").
+		Label("cloud.google.com/gke-tpu-partition-2x2x4-id", "subslice2")
+	worker3Node := utiltesting.MakeNode("worker3").
+		Label(core.TPUSubBlockLabel, "subblock3").
+		Label("cloud.google.com/gke-tpu-partition-2x2x4-id", "subslice3")
+	worker4Node := utiltesting.MakeNode("worker4").
+		Label(core.TPUSubBlockLabel, "subblock4").
+		Label("cloud.google.com/gke-tpu-partition-2x2x4-id", "subslice4")
 
 	podSetRequiringHealthy := basePodSet1Wrapper.DeepCopy()
 	if podSetRequiringHealthy.Template.Spec.NodeSelector == nil {
@@ -2246,6 +2266,136 @@ func TestWorkloadReconciler(t *testing.T) {
 					Obj(),
 			},
 		},
+		"should add finalizer for LWS owner": {
+			request: baseRequest,
+			objs: []client.Object{
+				worker1Node.DeepCopy(),
+				worker2Node.DeepCopy(),
+				baseAdmissionCheckWrapper.DeepCopy(),
+				baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(lwsGVK, baseLWSName, baseLWSName).
+					Obj(),
+			},
+			wantWorkloads: []kueue.Workload{
+				*baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(lwsGVK, baseLWSName, baseLWSName).
+					Finalizers(SliceControllerName).
+					Obj(),
+			},
+		},
+		"should delete the finalizer because the LWS Pod Status Succeeded": {
+			request: baseRequest,
+			objs: []client.Object{
+				baseLWSWrapper.DeepCopy(),
+				baseLWSPodWrapper.Clone().StatusPhase(corev1.PodSucceeded).Obj(),
+				baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(lwsGVK, baseLWSName, baseLWSName).
+					Active(false).
+					Finalizers(SliceControllerName).
+					Obj(),
+				baseSlice1Wrapper.DeepCopy(),
+				baseSlice2Wrapper.DeepCopy(),
+			},
+			wantWorkloads: []kueue.Workload{
+				*baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(lwsGVK, baseLWSName, baseLWSName).
+					Active(false).
+					Obj(),
+			},
+		},
+		"should create Slice for LWS": {
+			request: baseRequest,
+			objs: []client.Object{
+				worker1Node.DeepCopy(),
+				worker2Node.DeepCopy(),
+				baseAdmissionCheckWrapper.DeepCopy(),
+				baseWorkloadWrapper.Clone().
+					PodSets(
+						*utiltesting.MakePodSet("leader", 1, ptr.To(int32(1))).
+							Annotation(core.TPUSliceTopologyAnnotation, "2x2x4").
+							NodeSelector("cloud.google.com/gke-tpu-accelerator", string(slice.TypeTpu7x)).
+							Obj(),
+						*utiltesting.MakePodSet("worker", 3, ptr.To(int32(1))).
+							Annotation(core.TPUSliceTopologyAnnotation, "2x2x4").
+							NodeSelector("cloud.google.com/gke-tpu-accelerator", string(slice.TypeTpu7x)).
+							Obj(),
+					).
+					ReserveQuota(&kueue.Admission{
+						PodSetAssignments: []kueue.PodSetAssignment{
+							utiltesting.MakePodSetAssignment("leader").
+								TopologyAssignment(baseLevels, []kueue.TopologyAssignmentSlice{
+									utiltesting.MakeTopologyAssignmentSlice(1, []int32{1}).
+										Value("worker1").
+										Obj(),
+								}).Obj(),
+							utiltesting.MakePodSetAssignment("worker").
+								TopologyAssignment(baseLevels, []kueue.TopologyAssignmentSlice{
+									utiltesting.MakeTopologyAssignmentSlice(1, []int32{3}).
+										Value("worker1").
+										Obj(),
+								}).Obj(),
+						},
+					}, now).
+					ControllerReference(lwsGVK, baseLWSName, baseLWSName).
+					Finalizers(SliceControllerName).
+					Obj(),
+			},
+			wantWorkloads: []kueue.Workload{
+				*baseWorkloadWrapper.Clone().
+					PodSets(
+						*utiltesting.MakePodSet("leader", 1, ptr.To(int32(1))).
+							Annotation(core.TPUSliceTopologyAnnotation, "2x2x4").
+							NodeSelector("cloud.google.com/gke-tpu-accelerator", string(slice.TypeTpu7x)).
+							Obj(),
+						*utiltesting.MakePodSet("worker", 3, ptr.To(int32(1))).
+							Annotation(core.TPUSliceTopologyAnnotation, "2x2x4").
+							NodeSelector("cloud.google.com/gke-tpu-accelerator", string(slice.TypeTpu7x)).
+							Obj(),
+					).
+					ReserveQuota(&kueue.Admission{
+						PodSetAssignments: []kueue.PodSetAssignment{
+							utiltesting.MakePodSetAssignment("leader").
+								TopologyAssignment(baseLevels, []kueue.TopologyAssignmentSlice{
+									utiltesting.MakeTopologyAssignmentSlice(1, []int32{1}).
+										Value("worker1").
+										Obj(),
+								}).Obj(),
+							utiltesting.MakePodSetAssignment("worker").
+								TopologyAssignment(baseLevels, []kueue.TopologyAssignmentSlice{
+									utiltesting.MakeTopologyAssignmentSlice(1, []int32{3}).
+										Value("worker1").
+										Obj(),
+								}).Obj(),
+						},
+					}, now).
+					ControllerReference(lwsGVK, baseLWSName, baseLWSName).
+					Finalizers(SliceControllerName).
+					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStatePending, `Slices are in states: 1 CREATED`)).
+					Obj(),
+			},
+			wantSlices: []slice.Slice{
+				*utiltesting.MakeSliceWrapper(core.SliceName(corev1.NamespaceDefault, baseWorkloadName, "worker", 0)).
+					Type(slice.TypeTpu7x).
+					Topology("2x2x4").
+					OwnerWorkloadAnnotations(corev1.NamespaceDefault, baseWorkloadName).
+					Annotation(core.OwnerPodSetNameAnnotation, "worker").
+					PartitionIDs("subslice1").
+					Obj(),
+			},
+			wantEvents: []utiltesting.EventRecord{
+				buildEventRecord(corev1.NamespaceDefault, corev1.EventTypeNormal, SlicesCreatedEventType,
+					`The Slices "default-workload-worker-0" have been created`),
+			},
+			wantResult: reconcile.Result{RequeueAfter: initializationRetryAfter},
+		},
 		"should retry if a PodSet requiring healthy slices gets a degraded slice": {
 			enableFailOnUntoleratedDegradedSlice: true,
 			request:                              baseRequest,
@@ -2517,6 +2667,7 @@ func TestWorkloadReconciler(t *testing.T) {
 			utilruntime.Must(jobset.AddToScheme(scheme))
 			utilruntime.Must(kueue.AddToScheme(scheme))
 			utilruntime.Must(slice.AddToScheme(scheme))
+			utilruntime.Must(leaderworkersetv1.AddToScheme(scheme))
 
 			interceptorFuncs := interceptor.Funcs{
 				SubResourcePatch: treatSSAAsStrategicMerge,

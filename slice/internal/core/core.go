@@ -18,6 +18,7 @@ package core
 
 import (
 	"regexp"
+	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -25,6 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"tpu-slice-controller/api/v1beta1"
+	"tpu-slice-controller/internal/features"
 )
 
 type MMIGHealthStatus string
@@ -50,7 +52,50 @@ func IsRelevantPodTemplateSpec(spec corev1.PodTemplateSpec) bool {
 }
 
 func GetTPUTopology(spec corev1.PodTemplateSpec) string {
-	return spec.Annotations[TPUSliceTopologyAnnotation]
+	if val, ok := spec.Annotations[TPUSliceTopologyAnnotation]; ok && val != "" {
+		return val
+	}
+	if features.Enabled(features.TopologyFromNodeSelectorOrAffinity) {
+		if val := GetTPUTopologyFromSelectorOrAffinity(spec); val != "" {
+			return val
+		}
+	}
+	return ""
+}
+
+func GetTPUTopologyFromSelectorOrAffinity(spec corev1.PodTemplateSpec) string {
+	if spec.Spec.NodeSelector != nil {
+		for k := range spec.Spec.NodeSelector {
+			if topology := extractTopologyFromKey(k); topology != "" {
+				return topology
+			}
+		}
+	}
+
+	if spec.Spec.Affinity != nil && spec.Spec.Affinity.NodeAffinity != nil && spec.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution != nil {
+		for _, term := range spec.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
+			for _, matchExpression := range term.MatchExpressions {
+				if topology := extractTopologyFromKey(matchExpression.Key); topology != "" {
+					return topology
+				}
+			}
+		}
+	}
+
+	return ""
+}
+
+func extractTopologyFromKey(key string) string {
+	prefix := "cloud.google.com/gke-tpu-partition-"
+	if strings.HasPrefix(key, prefix) {
+		if strings.HasSuffix(key, "-state") {
+			return strings.TrimSuffix(strings.TrimPrefix(key, prefix), "-state")
+		}
+		if strings.HasSuffix(key, "-id") {
+			return strings.TrimSuffix(strings.TrimPrefix(key, prefix), "-id")
+		}
+	}
+	return ""
 }
 
 func GetTPUAccelerator(spec corev1.PodTemplateSpec) string {

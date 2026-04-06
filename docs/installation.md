@@ -92,7 +92,7 @@ export PATH=$PATH:$PWD/bin
 
 *Note: Installing from source is recommended only for contributors and advanced users. Most users should install via PIP for the best stability.*
 
-**Persisting the PATH configuration:**
+**Persisting the PATH configuration when installing from source:**
 To use `xpk` in future terminal sessions without re-running the export command, add the binary path to your shell configuration:
 
 * **For Bash (Linux default):**

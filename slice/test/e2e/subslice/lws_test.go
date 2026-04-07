@@ -22,14 +22,17 @@ import (
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta2"
+	"sigs.k8s.io/kueue/pkg/util/tas"
 	"sigs.k8s.io/kueue/pkg/workload"
 	leaderworkersetv1 "sigs.k8s.io/lws/api/leaderworkerset/v1"
 
 	slice "tpu-slice-controller/api/v1beta1"
 	"tpu-slice-controller/internal/controller"
 	"tpu-slice-controller/internal/core"
+	internalTopology "tpu-slice-controller/internal/topology"
 	"tpu-slice-controller/internal/util/testing"
 	testingjobslws "tpu-slice-controller/internal/util/testingjobs/leaderworkerset"
 	"tpu-slice-controller/test/utils"
@@ -91,10 +94,11 @@ var _ = ginkgo.Describe("LWS Subslicing", func() {
 	})
 
 	type testCase struct {
-		topology        string
-		size            int32
-		wantPartitionID string
-		withLeader      bool
+		topology           string
+		size               int32
+		wantPartitionID    string
+		withLeader         bool
+		leaderRequiresTPUs bool
 	}
 
 	ginkgo.DescribeTable("should create Slice for", func(tc testCase) {
@@ -120,11 +124,22 @@ var _ = ginkgo.Describe("LWS Subslicing", func() {
 		lws := wrapper.Obj()
 		lws.Spec.StartupPolicy = leaderworkersetv1.LeaderCreatedStartupPolicy
 		if tc.withLeader {
-			lws.Spec.LeaderWorkerTemplate.LeaderTemplate.Spec.Containers = []corev1.Container{{
+			container := corev1.Container{
 				Name:  "leader",
 				Image: utils.E2eTestAgnHostImage,
 				Args:  utils.BehaviorWaitForDeletion,
-			}}
+			}
+			if tc.leaderRequiresTPUs {
+				container.Resources = corev1.ResourceRequirements{
+					Limits: corev1.ResourceList{
+						core.TPUResourceName: resource.MustParse("4"),
+					},
+					Requests: corev1.ResourceList{
+						core.TPUResourceName: resource.MustParse("4"),
+					},
+				}
+			}
+			lws.Spec.LeaderWorkerTemplate.LeaderTemplate.Spec.Containers = []corev1.Container{container}
 		}
 
 		ginkgo.By("Creating a LeaderWorkerSet", func() {
@@ -178,6 +193,25 @@ var _ = ginkgo.Describe("LWS Subslicing", func() {
 				*createdWorkload = workloads.Items[0]
 				g.Expect(createdWorkload.Status.Admission).ShouldNot(gomega.BeNil())
 			}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+		})
+
+		ginkgo.By("Checking that the topology assignment is consistent across PodSets", func() {
+			assignments := createdWorkload.Status.Admission.PodSetAssignments
+
+			gomega.Expect(assignments).ShouldNot(gomega.BeEmpty())
+			for _, assignment := range assignments {
+				if assignment.TopologyAssignment == nil {
+					continue
+				}
+				hostnameLevelIndex := internalTopology.HostnameLevelIndex(assignment.TopologyAssignment)
+				for domain := range tas.InternalSeqFrom(assignment.TopologyAssignment) {
+					nodeId := domain.Values[hostnameLevelIndex]
+					node := &corev1.Node{}
+					gomega.Expect(k8sClient.Get(ctx, client.ObjectKey{Name: nodeId}, node)).To(gomega.Succeed())
+					labelKey := fmt.Sprintf("cloud.google.com/gke-tpu-partition-%s-id", tc.topology)
+					gomega.Expect(node.Labels).To(gomega.HaveKeyWithValue(labelKey, tc.wantPartitionID))
+				}
+			}
 		})
 
 		ginkgo.By("Checking that the Workload PodSets propagated the topology and accelerator configurations", func() {
@@ -240,6 +274,13 @@ var _ = ginkgo.Describe("LWS Subslicing", func() {
 			wantPartitionID: "e2",
 			withLeader:      true,
 		}),
+		ginkgo.Entry("2x2x2 topology with leader requesting TPUs", testCase{
+			topology:           "2x2x2",
+			size:               2, // 1 worker + 1 leader requesting TPUs
+			wantPartitionID:    "e2",
+			withLeader:         true,
+			leaderRequiresTPUs: true,
+		}),
 		ginkgo.Entry("2x2x4 topology without leader", testCase{
 			topology:        "2x2x4",
 			size:            4,
@@ -263,6 +304,20 @@ var _ = ginkgo.Describe("LWS Subslicing", func() {
 			size:            9, // 8 workers + 1 leader that does not require TPUs
 			wantPartitionID: "c2",
 			withLeader:      true,
+		}),
+		ginkgo.Entry("2x2x4 topology with leader requesting TPUs", testCase{
+			topology:           "2x2x4",
+			size:               4, // 3 workers + 1 leader requesting TPUs
+			wantPartitionID:    "d2",
+			withLeader:         true,
+			leaderRequiresTPUs: true,
+		}),
+		ginkgo.Entry("2x4x4 topology with leader requesting TPUs", testCase{
+			topology:           "2x4x4",
+			size:               8, // 7 workers + 1 leader requesting TPUs
+			wantPartitionID:    "c2",
+			withLeader:         true,
+			leaderRequiresTPUs: true,
 		}),
 	)
 })

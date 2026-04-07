@@ -63,11 +63,11 @@ func (r *LeaderWorkerSetWebhook) Default(ctx context.Context, obj runtime.Object
 	}
 
 	if !core.IsRelevantPodTemplateSpec(lws.Spec.LeaderWorkerTemplate.WorkerTemplate) {
-		log.V(5).Info("Skipping annotating WorkerTemplate due to TPU Annotation or Node Selector misconfigured at worker template")
+		log.V(5).Info("Skipping annotating LeaderWorkerTemplate due to TPU Annotation or Node Selector misconfigured at worker template")
 		return nil
 	}
 	if lws.Spec.LeaderWorkerTemplate.LeaderTemplate != nil && !core.IsRelevantPodTemplateSpec(*lws.Spec.LeaderWorkerTemplate.LeaderTemplate) {
-		log.V(5).Info("Skipping annotating LeaderTemplate due to TPU Annotation or Node Selector misconfigured at leader template")
+		log.V(5).Info("Skipping annotating LeaderWorkerTemplate due to TPU Annotation or Node Selector misconfigured at leader template")
 		return nil
 	}
 

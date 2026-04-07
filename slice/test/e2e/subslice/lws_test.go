@@ -205,9 +205,8 @@ var _ = ginkgo.Describe("LWS Subslicing", func() {
 				}
 				hostnameLevelIndex := internalTopology.HostnameLevelIndex(assignment.TopologyAssignment)
 				for domain := range tas.InternalSeqFrom(assignment.TopologyAssignment) {
-					nodeId := domain.Values[hostnameLevelIndex]
 					node := &corev1.Node{}
-					gomega.Expect(k8sClient.Get(ctx, client.ObjectKey{Name: nodeId}, node)).To(gomega.Succeed())
+					gomega.Expect(k8sClient.Get(ctx, client.ObjectKey{Name: domain.Values[hostnameLevelIndex]}, node)).To(gomega.Succeed())
 					labelKey := fmt.Sprintf("cloud.google.com/gke-tpu-partition-%s-id", tc.topology)
 					gomega.Expect(node.Labels).To(gomega.HaveKeyWithValue(labelKey, tc.wantPartitionID))
 				}

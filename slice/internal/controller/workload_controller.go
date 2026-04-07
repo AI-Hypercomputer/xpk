@@ -695,7 +695,9 @@ func (r *WorkloadReconciler) syncSlicesForAssignment(ctx context.Context, wl *ku
 			slice.Spec.PartitionIds = expectedPartitionIDs
 		}
 
-		slice.Spec.Topology = core.GetTPUTopology(ps.Template)
+		topologyValue := core.GetTPUTopology(ps.Template)
+		ctrl.LoggerFrom(ctx).V(3).Info("Extracted topology for slice", "topology", topologyValue, "podSetName", psa.Name, "sliceIndex", i)
+		slice.Spec.Topology = topologyValue
 		slicesToCreate = append(slicesToCreate, slice)
 	}
 

@@ -20,9 +20,8 @@ import (
 	"context"
 	"fmt"
 
-	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 	"sigs.k8s.io/jobset/api/jobset/v1alpha2"
 	kueueconstants "sigs.k8s.io/kueue/pkg/controller/constants"
 
@@ -36,8 +35,7 @@ type JobSetWebhook struct {
 }
 
 func SetupWebhookWithManager(mgr ctrl.Manager, defaultSliceHealthValues []string) error {
-	return ctrl.NewWebhookManagedBy(mgr).
-		For(&v1alpha2.JobSet{}).
+	return ctrl.NewWebhookManagedBy(mgr, &v1alpha2.JobSet{}).
 		WithDefaulter(&JobSetWebhook{
 			DefaultSliceHealthValues: defaultSliceHealthValues,
 		}).
@@ -46,11 +44,10 @@ func SetupWebhookWithManager(mgr ctrl.Manager, defaultSliceHealthValues []string
 
 // +kubebuilder:webhook:path=/mutate-jobset-x-k8s-io-v1alpha2-jobset,mutating=true,failurePolicy=fail,sideEffects=None,groups=jobset.x-k8s.io,resources=jobsets,verbs=create,versions=v1alpha2,name=mjobset.kb.io,admissionReviewVersions=v1
 
-var _ webhook.CustomDefaulter = &JobSetWebhook{}
+var _ admission.Defaulter[*v1alpha2.JobSet] = &JobSetWebhook{}
 
-// Default implements webhook.CustomDefaulter so a webhook will be registered for the type
-func (r *JobSetWebhook) Default(ctx context.Context, obj runtime.Object) error {
-	jobSet := obj.(*v1alpha2.JobSet)
+// Default implements admission.Defaulter so a webhook will be registered for the type
+func (r *JobSetWebhook) Default(ctx context.Context, jobSet *v1alpha2.JobSet) error {
 	log := ctrl.LoggerFrom(ctx).WithName("jobset-accelerator-gke-webhook")
 	log.V(5).Info("Defaulting JobSet")
 

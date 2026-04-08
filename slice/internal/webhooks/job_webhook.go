@@ -21,9 +21,8 @@ import (
 	"fmt"
 
 	batchv1 "k8s.io/api/batch/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 	kueueconstants "sigs.k8s.io/kueue/pkg/controller/constants"
 
 	"tpu-slice-controller/internal/core"
@@ -35,8 +34,7 @@ type JobWebhook struct {
 }
 
 func SetupJobWebhookWithManager(mgr ctrl.Manager, defaultSliceHealthValues []string) error {
-	return ctrl.NewWebhookManagedBy(mgr).
-		For(&batchv1.Job{}).
+	return ctrl.NewWebhookManagedBy(mgr, &batchv1.Job{}).
 		WithDefaulter(&JobWebhook{
 			DefaultSliceHealthValues: defaultSliceHealthValues,
 		}).
@@ -45,10 +43,9 @@ func SetupJobWebhookWithManager(mgr ctrl.Manager, defaultSliceHealthValues []str
 
 // +kubebuilder:webhook:path=/mutate-batch-v1-job,mutating=true,failurePolicy=fail,sideEffects=None,groups=batch,resources=jobs,verbs=create,versions=v1,name=mjob.kb.io,admissionReviewVersions=v1
 
-var _ webhook.CustomDefaulter = &JobWebhook{}
+var _ admission.Defaulter[*batchv1.Job] = &JobWebhook{}
 
-func (r *JobWebhook) Default(ctx context.Context, obj runtime.Object) error {
-	job := obj.(*batchv1.Job)
+func (r *JobWebhook) Default(ctx context.Context, job *batchv1.Job) error {
 	log := ctrl.LoggerFrom(ctx).WithName("job-accelerator-gke-webhook")
 	log.V(5).Info("Defaulting Job")
 

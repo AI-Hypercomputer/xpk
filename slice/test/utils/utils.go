@@ -46,6 +46,7 @@ import (
 	jobset "sigs.k8s.io/jobset/api/jobset/v1alpha2"
 	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta2"
 	podconstants "sigs.k8s.io/kueue/pkg/controller/jobs/pod/constants"
+	leaderworkersetv1 "sigs.k8s.io/lws/api/leaderworkerset/v1"
 
 	"tpu-slice-controller/internal/controller"
 	"tpu-slice-controller/internal/util/testing"
@@ -153,6 +154,10 @@ func DeleteAllJobSetsInNamespace(ctx context.Context, c client.Client, ns *corev
 	return deleteAllObjectsInNamespace(ctx, c, ns, &jobset.JobSet{})
 }
 
+func DeleteAllLeaderWorkerSetsInNamespace(ctx context.Context, c client.Client, ns *corev1.Namespace) error {
+	return deleteAllObjectsInNamespace(ctx, c, ns, &leaderworkersetv1.LeaderWorkerSet{})
+}
+
 func DeleteAllJobsInNamespace(ctx context.Context, c client.Client, ns *corev1.Namespace) error {
 	return deleteAllObjectsInNamespace(ctx, c, ns, &batchv1.Job{})
 }
@@ -244,6 +249,10 @@ func DeleteNamespace(ctx context.Context, c client.Client, ns *corev1.Namespace)
 	}
 
 	if err := DeleteAllJobSetsInNamespace(ctx, c, ns); err != nil {
+		return err
+	}
+
+	if err := DeleteAllLeaderWorkerSetsInNamespace(ctx, c, ns); err != nil {
 		return err
 	}
 

@@ -36,6 +36,9 @@ const (
 
 	// ShorterSliceNameLength enables support for shorter Slice names (max 49 characters).
 	ShorterSliceNameLength featuregate.Feature = "ShorterSliceNameLength"
+
+	// TopologyFromNodeSelectorOrAffinity enables extracting the TPU topology from the NodeSelector or NodeAffinity.
+	TopologyFromNodeSelectorOrAffinity featuregate.Feature = "TopologyFromNodeSelectorOrAffinity"
 )
 
 var defaultVersionedFeatureGates = map[featuregate.Feature]featuregate.VersionedSpecs{
@@ -47,6 +50,9 @@ var defaultVersionedFeatureGates = map[featuregate.Feature]featuregate.Versioned
 	},
 	ShorterSliceNameLength: {
 		{Version: version.MustParse("0.1"), Default: false, PreRelease: featuregate.Alpha},
+	},
+	TopologyFromNodeSelectorOrAffinity: {
+		{Version: version.MustParse("0.1"), Default: true, PreRelease: featuregate.Beta},
 	},
 }
 

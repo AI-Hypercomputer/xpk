@@ -72,6 +72,8 @@ const (
 	OwnerWorkloadNamespaceAnnotation = "accelerator.gke.io/owner-workload-namespace"
 	OwnerWorkloadNameAnnotation      = "accelerator.gke.io/owner-workload-name"
 	OwnerPodSetNameAnnotation        = "accelerator.gke.io/owner-podset-name"
+
+	LWSLeaderPodSetName = "leader"
 )
 
 var (

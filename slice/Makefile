@@ -121,7 +121,7 @@ run-test-e2e-%:
 	@echo Running e2e for k8s ${K8S_VERSION}
 	E2E_KIND_VERSION="kindest/node:v$(K8S_VERSION)" KIND_CLUSTER_NAME=$(KIND_CLUSTER_NAME) CREATE_KIND_CLUSTER=$(CREATE_KIND_CLUSTER) \
 		EXTERNAL_CRDS_DIR=$(EXTERNAL_CRDS_DIR) ARTIFACTS="$(ARTIFACTS)/$@" IMAGE_TAG=$(IMAGE_TAG) GINKGO_ARGS="$(GINKGO_ARGS)" \
-		KUEUE_IMAGE=$(KUEUE_IMAGE) JOBSET_IMAGE=$(JOBSET_IMAGE) \
+		KUEUE_IMAGE=$(KUEUE_IMAGE) JOBSET_IMAGE=$(JOBSET_IMAGE) LWS_IMAGE=$(LWS_IMAGE) \
 		TEST_LOG_LEVEL=$(TEST_LOG_LEVEL) E2E_RUN_ONLY_ENV=$(E2E_RUN_ONLY_ENV) \
 		KIND_CLUSTER_FILE="kind-cluster.yaml" \
 		E2E_TARGET_FOLDER="superslice" \
@@ -135,7 +135,7 @@ run-test-e2e-subslice-%:
 	@echo Running e2e for k8s ${K8S_VERSION}
 	E2E_KIND_VERSION="kindest/node:v$(K8S_VERSION)" KIND_CLUSTER_NAME=$(KIND_CLUSTER_NAME) CREATE_KIND_CLUSTER=$(CREATE_KIND_CLUSTER) \
 		EXTERNAL_CRDS_DIR=$(EXTERNAL_CRDS_DIR) ARTIFACTS="$(ARTIFACTS)/$@" IMAGE_TAG=$(IMAGE_TAG) GINKGO_ARGS="$(GINKGO_ARGS)" \
-		KUEUE_IMAGE=$(KUEUE_IMAGE) JOBSET_IMAGE=$(JOBSET_IMAGE) \
+		KUEUE_IMAGE=$(KUEUE_IMAGE) JOBSET_IMAGE=$(JOBSET_IMAGE) LWS_IMAGE=$(LWS_IMAGE) \
 		TEST_LOG_LEVEL=$(TEST_LOG_LEVEL) E2E_RUN_ONLY_ENV=$(E2E_RUN_ONLY_ENV) \
 		KIND_CLUSTER_FILE="kind-cluster-subslice.yaml" \
 		E2E_TARGET_FOLDER="subslice" \
@@ -243,11 +243,15 @@ KUEUE_IMAGE := $(K8S_REGISTRY)/kueue/kueue:$(KUEUE_VERSION)
 JOBSET_VERSION ?= $(shell $(GO_CMD) list -m -f "{{.Version}}" sigs.k8s.io/jobset)
 JOBSET_IMAGE := $(K8S_REGISTRY)/jobset/jobset:$(JOBSET_VERSION)
 
+LWS_VERSION ?= $(shell $(GO_CMD) list -m -f "{{.Version}}" sigs.k8s.io/lws)
+LWS_IMAGE := $(K8S_REGISTRY)/lws/lws:$(LWS_VERSION)
+
 # Versions for external controllers
 EXTERNAL_CRDS_DIR ?= dep-crds
 
 KUEUE_ROOT = $(shell $(GO_CMD) list -m -mod=readonly -f "{{.Dir}}" sigs.k8s.io/kueue)
 JOBSET_ROOT = $(shell $(GO_CMD) list -m -mod=readonly -f "{{.Dir}}" sigs.k8s.io/jobset)
+LWS_ROOT = $(shell $(GO_CMD) list -m -mod=readonly -f "{{.Dir}}" sigs.k8s.io/lws)
 
 .PHONY: gomod-download
 gomod-download:
@@ -316,6 +320,19 @@ jobset-operator-crd: ## Copy the CRDs from the jobset-operator to the dep-crds d
 		$(KUSTOMIZE) edit set image controller=$(JOBSET_IMAGE) && \
 		chmod u-w kustomization.yaml
 
+.PHONY: lws-operator-crd
+lws-operator-crd: ## Copy the CRDs from the lws-operator to the dep-crds directory.
+	if [ -d "$(EXTERNAL_CRDS_DIR)/lws-operator" ]; then \
+		chmod -R u+w "$(EXTERNAL_CRDS_DIR)/lws-operator" && \
+		rm -rf "$(EXTERNAL_CRDS_DIR)/lws-operator"; \
+	fi
+	mkdir -p $(EXTERNAL_CRDS_DIR)/lws-operator/
+	cp -R -f $(LWS_ROOT)/config $(EXTERNAL_CRDS_DIR)/lws-operator
+	cd "$(EXTERNAL_CRDS_DIR)/lws-operator/config/manager" && \
+		chmod u+w kustomization.yaml && \
+		$(KUSTOMIZE) edit set image controller=$(LWS_IMAGE) && \
+		chmod u-w kustomization.yaml
+
 .PHONY: dep-crds
-dep-crds: gomod-download kueue-operator-crd jobset-operator-crd
+dep-crds: gomod-download kueue-operator-crd jobset-operator-crd lws-operator-crd
 	@echo "Copying CRDs from external operators to dep-crds directory"

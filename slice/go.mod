@@ -9,13 +9,14 @@ require (
 	github.com/onsi/gomega v1.38.2
 	github.com/open-policy-agent/cert-controller v0.15.0
 	go.uber.org/zap v1.27.1
-	k8s.io/api v0.34.2
-	k8s.io/apimachinery v0.34.2
-	k8s.io/client-go v0.34.2
+	k8s.io/api v0.34.3
+	k8s.io/apimachinery v0.34.3
+	k8s.io/client-go v0.34.3
 	k8s.io/utils v0.0.0-20251002143259-bc988d571ff4
 	sigs.k8s.io/controller-runtime v0.22.4
 	sigs.k8s.io/jobset v0.10.1
 	sigs.k8s.io/kueue v0.15.2
+	sigs.k8s.io/lws v0.7.0
 )
 
 require (
@@ -43,7 +44,6 @@ require (
 	golang.org/x/mod v0.29.0 // indirect
 	sigs.k8s.io/cluster-inventory-api v0.0.0-20251028164203-2e3fabb46733 // indirect
 	sigs.k8s.io/gateway-api v1.4.0 // indirect
-	sigs.k8s.io/lws v0.7.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v6 v6.3.1 // indirect
 	volcano.sh/apis v1.13.1-0.20251028070205-46d20c0699e7 // indirect
 )
@@ -120,10 +120,10 @@ require (
 	google.golang.org/protobuf v1.36.10 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
-	k8s.io/apiextensions-apiserver v0.34.2 // indirect
-	k8s.io/apiserver v0.34.2 // indirect
-	k8s.io/component-base v0.34.2 // indirect
-	k8s.io/component-helpers v0.34.2 // indirect
+	k8s.io/apiextensions-apiserver v0.34.3 // indirect
+	k8s.io/apiserver v0.34.3
+	k8s.io/component-base v0.34.3
+	k8s.io/component-helpers v0.34.3 // indirect
 	k8s.io/klog/v2 v2.130.1
 	k8s.io/kube-openapi v0.0.0-20251125145642-4e65d59e963e // indirect
 	sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.33.0 // indirect

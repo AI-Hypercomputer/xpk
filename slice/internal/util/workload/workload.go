@@ -19,10 +19,10 @@ package workload
 import (
 	batchv1 "k8s.io/api/batch/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	jobset "sigs.k8s.io/jobset/api/jobset/v1alpha2"
 	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta2"
 	kueueworkload "sigs.k8s.io/kueue/pkg/workload"
+	leaderworkersetv1 "sigs.k8s.io/lws/api/leaderworkerset/v1"
 )
 
 func ShouldFinalize(wl *kueue.Workload) (bool, string) {
@@ -38,7 +38,7 @@ func ShouldFinalize(wl *kueue.Workload) (bool, string) {
 	if !kueueworkload.IsActive(wl) {
 		return true, "it is no longer active"
 	}
-	if !controllerutil.HasControllerReference(wl) {
+	if GetOwner(wl) == nil {
 		return true, "it doesn't have owner"
 	}
 	if !HasSupportedOwner(wl) {
@@ -48,7 +48,7 @@ func ShouldFinalize(wl *kueue.Workload) (bool, string) {
 }
 
 func HasSupportedOwner(wl *kueue.Workload) bool {
-	return IsJobSetOwner(wl) || IsJobOwner(wl)
+	return IsJobSetOwner(wl) || IsJobOwner(wl) || IsLeaderWorkerSetOwner(wl)
 }
 
 func IsJobSetOwner(wl *kueue.Workload) bool {
@@ -63,4 +63,24 @@ func IsJobOwner(wl *kueue.Workload) bool {
 		return owner.APIVersion == batchv1.SchemeGroupVersion.String() && owner.Kind == "Job"
 	}
 	return false
+}
+
+func IsLeaderWorkerSetOwner(wl *kueue.Workload) bool {
+	if owner := GetOwner(wl); owner != nil {
+		return owner.APIVersion == leaderworkersetv1.SchemeGroupVersion.String() && owner.Kind == "LeaderWorkerSet"
+	}
+	return false
+}
+
+func GetOwner(wl *kueue.Workload) *metav1.OwnerReference {
+	if owner := metav1.GetControllerOf(wl); owner != nil {
+		return owner
+	}
+	for i := range wl.OwnerReferences {
+		owner := &wl.OwnerReferences[i]
+		if owner.Kind == "JobSet" || owner.Kind == "Job" || owner.Kind == "LeaderWorkerSet" {
+			return owner
+		}
+	}
+	return nil
 }

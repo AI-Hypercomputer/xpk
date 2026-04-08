@@ -21,5 +21,6 @@ integrations:
   frameworks:
   - "batch/job"
   - "jobset.x-k8s.io/jobset"
+  - "leaderworkerset.x-k8s.io/leaderworkerset" 
 featureGates:
   TopologyAwareScheduling: true

@@ -47,6 +47,7 @@ import (
 	"sigs.k8s.io/kueue/pkg/util/admissioncheck"
 	"sigs.k8s.io/kueue/pkg/util/podset"
 	"sigs.k8s.io/kueue/pkg/workload"
+	leaderworkersetv1 "sigs.k8s.io/lws/api/leaderworkerset/v1"
 
 	"tpu-slice-controller/api/v1beta1"
 	"tpu-slice-controller/internal/core"
@@ -106,6 +107,7 @@ func NewWorkloadReconciler(cl client.Client, record record.EventRecorder, activa
 // +kubebuilder:rbac:groups="",resources=events,verbs=create;watch;update;patch
 // +kubebuilder:rbac:groups=jobset.x-k8s.io,resources=jobsets,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;update;patch
+// +kubebuilder:rbac:groups=leaderworkerset.x-k8s.io,resources=leaderworkersets,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch
 
 func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -377,6 +379,9 @@ func (r *WorkloadReconciler) ownerPodsFinished(ctx context.Context, wl *kueue.Wo
 	if utilworkload.IsJobOwner(wl) {
 		return r.jobPodsFinished(ctx, wl)
 	}
+	if utilworkload.IsLeaderWorkerSetOwner(wl) {
+		return r.lwsPodsFinished(ctx, wl)
+	}
 	// Finalize Workloads that have no owner or have unsupported owner types.
 	return true, nil
 }
@@ -459,6 +464,48 @@ func (r *WorkloadReconciler) jobPodsFinished(ctx context.Context, wl *kueue.Work
 	return true, nil
 }
 
+func (r *WorkloadReconciler) lwsPodsFinished(ctx context.Context, wl *kueue.Workload) (bool, error) {
+	owner := utilworkload.GetOwner(wl)
+	if owner == nil {
+		return true, nil
+	}
+	log := ctrl.LoggerFrom(ctx).WithValues("leaderWorkerSet", klog.KRef(wl.Namespace, owner.Name))
+	lws := &leaderworkersetv1.LeaderWorkerSet{}
+	lwsKey := types.NamespacedName{Name: owner.Name, Namespace: wl.Namespace}
+	if err := r.client.Get(ctx, lwsKey, lws); err != nil {
+		if apierrors.IsNotFound(err) {
+			log.V(3).Info("LeaderWorkerSet already deleted")
+			// That means the LeaderWorkerSet has already been deleted, along with all associated Pods
+			// we should delete Slice and cleanup Workload.
+			return true, nil
+		} else {
+			log.Error(err, "Failed to get LeaderWorkerSet")
+			return false, err
+		}
+	}
+
+	pods := &corev1.PodList{}
+	opts := []client.ListOption{
+		client.InNamespace(wl.Namespace),
+		client.MatchingLabels{leaderworkersetv1.SetNameLabelKey: owner.Name},
+	}
+	if err := r.client.List(ctx, pods, opts...); err != nil {
+		log.Error(err, "Failed to get Pods")
+		return false, err
+	}
+
+	for _, pod := range pods.Items {
+		if !utilpod.IsTerminated(&pod) {
+			log.V(3).Info("Pods are still running – skipping finalization for now")
+			return false, nil
+		}
+	}
+
+	log.V(3).Info("All Pods in the LeaderWorkerSet have finished")
+
+	return true, nil
+}
+
 func (r *WorkloadReconciler) finalizeWorkload(ctx context.Context, wl *kueue.Workload) error {
 	log := ctrl.LoggerFrom(ctx)
 
@@ -476,7 +523,7 @@ func validateRelevantWorkload(wl *kueue.Workload, nodes map[string]corev1.Node) 
 	if !utilworkload.HasSupportedOwner(wl) {
 		return errors.New("does not have a supported owner")
 	}
-	if !hasRelevantPodSet(wl.Spec.PodSets) {
+	if !hasRelevantPodSet(wl) {
 		return errors.New("does not have a relevant podset")
 	}
 	if !workload.HasQuotaReservation(wl) {
@@ -494,9 +541,9 @@ func validateRelevantWorkload(wl *kueue.Workload, nodes map[string]corev1.Node) 
 	return nil
 }
 
-func hasRelevantPodSet(podSets []kueue.PodSet) bool {
+func hasRelevantPodSet(wl *kueue.Workload) bool {
 	// At least one PodSet should be relevant.
-	for _, ps := range podSets {
+	for _, ps := range wl.Spec.PodSets {
 		if core.IsRelevantPodTemplateSpec(ps.Template) {
 			return true
 		}
@@ -577,6 +624,9 @@ func (r *WorkloadReconciler) syncSlices(
 }
 
 func shouldCreateSlicesForPodSetAssignment(wl *kueue.Workload, psa kueue.PodSetAssignment, nodes map[string]corev1.Node) bool {
+	if utilworkload.IsLeaderWorkerSetOwner(wl) && psa.Name == core.LWSLeaderPodSetName {
+		return false
+	}
 	if podSet := podset.FindPodSetByName(wl.Spec.PodSets, psa.Name); podSet != nil {
 		label := topology.GetPartitionIDLabel(podSet.Template)
 		return core.IsRelevantPodTemplateSpec(podSet.Template) &&
@@ -645,7 +695,9 @@ func (r *WorkloadReconciler) syncSlicesForAssignment(ctx context.Context, wl *ku
 			slice.Spec.PartitionIds = expectedPartitionIDs
 		}
 
-		slice.Spec.Topology = core.GetTPUTopology(ps.Template)
+		topologyValue := core.GetTPUTopology(ps.Template)
+		ctrl.LoggerFrom(ctx).V(3).Info("Extracted topology for slice", "topology", topologyValue, "podSetName", psa.Name, "sliceIndex", i)
+		slice.Spec.Topology = topologyValue
 		slicesToCreate = append(slicesToCreate, slice)
 	}
 

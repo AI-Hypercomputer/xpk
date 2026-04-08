@@ -373,121 +373,66 @@ func (r *WorkloadReconciler) deleteSlicesForEvictedWorkload(ctx context.Context,
 }
 
 func (r *WorkloadReconciler) ownerPodsFinished(ctx context.Context, wl *kueue.Workload) (bool, error) {
+	var ownerKind, logKey, podLabelKey string
+	var ownerObj client.Object
+	var owner *metav1.OwnerReference
+
 	if utilworkload.IsJobSetOwner(wl) {
-		return r.jobSetPodsFinished(ctx, wl)
-	}
-	if utilworkload.IsJobOwner(wl) {
-		return r.jobPodsFinished(ctx, wl)
-	}
-	if utilworkload.IsLeaderWorkerSetOwner(wl) {
-		return r.lwsPodsFinished(ctx, wl)
-	}
-	// Finalize Workloads that have no owner or have unsupported owner types.
-	return true, nil
-}
-
-func (r *WorkloadReconciler) jobSetPodsFinished(ctx context.Context, wl *kueue.Workload) (bool, error) {
-	owner := metav1.GetControllerOf(wl)
-	log := ctrl.LoggerFrom(ctx).WithValues("jobSet", klog.KRef(wl.Namespace, owner.Name))
-	jobSet := &jobset.JobSet{}
-	jobSetKey := types.NamespacedName{Name: owner.Name, Namespace: wl.Namespace}
-	if err := r.client.Get(ctx, jobSetKey, jobSet); err != nil {
-		if apierrors.IsNotFound(err) {
-			log.V(3).Info("JobSet already deleted")
-			// That means the JobSet has already been deleted, along with all associated Jobs and Pods
-			// we should delete Slice and cleanup Workload.
-			return true, nil
-		} else {
-			log.Error(err, "Failed to get JobSet")
-			return false, err
-		}
+		owner = metav1.GetControllerOf(wl)
+		ownerObj = &jobset.JobSet{}
+		podLabelKey = jobset.JobSetNameKey
+		logKey = "jobSet"
+		ownerKind = "JobSet"
+	} else if utilworkload.IsJobOwner(wl) {
+		owner = metav1.GetControllerOf(wl)
+		ownerObj = &batchv1.Job{}
+		podLabelKey = "batch.kubernetes.io/job-name"
+		logKey = "job"
+		ownerKind = "Job"
+	} else if utilworkload.IsLeaderWorkerSetOwner(wl) {
+		owner = utilworkload.GetOwner(wl)
+		ownerObj = &leaderworkersetv1.LeaderWorkerSet{}
+		podLabelKey = leaderworkersetv1.SetNameLabelKey
+		logKey = "leaderWorkerSet"
+		ownerKind = "LeaderWorkerSet"
+	} else {
+		// Finalize Workloads that have no owner or have unsupported owner types.
+		return true, nil
 	}
 
-	pods := &corev1.PodList{}
-	opts := []client.ListOption{
-		client.InNamespace(wl.Namespace),
-		client.MatchingLabels{jobset.JobSetNameKey: owner.Name},
-	}
-	if err := r.client.List(ctx, pods, opts...); err != nil {
-		log.Error(err, "Failed to get Pods")
-		return false, err
-	}
-
-	for _, pod := range pods.Items {
-		if !utilpod.IsTerminated(&pod) {
-			log.V(3).Info("Pods are still running – skipping finalization for now")
-			return false, nil
-		}
-	}
-
-	log.V(3).Info("All Pods in the JobSet have finished")
-
-	return true, nil
-}
-
-func (r *WorkloadReconciler) jobPodsFinished(ctx context.Context, wl *kueue.Workload) (bool, error) {
-	owner := metav1.GetControllerOf(wl)
-	log := ctrl.LoggerFrom(ctx).WithValues("job", klog.KRef(wl.Namespace, owner.Name))
-	job := &batchv1.Job{}
-	jobKey := types.NamespacedName{Name: owner.Name, Namespace: wl.Namespace}
-	if err := r.client.Get(ctx, jobKey, job); err != nil {
-		if apierrors.IsNotFound(err) {
-			log.V(3).Info("Job already deleted")
-			// That means the Job has already been deleted, along with all associated Pods
-			// we should delete Slice and cleanup Workload.
-			return true, nil
-		} else {
-			log.Error(err, "Failed to get Job")
-			return false, err
-		}
-	}
-
-	pods := &corev1.PodList{}
-	opts := []client.ListOption{
-		client.InNamespace(wl.Namespace),
-		client.MatchingLabels{"batch.kubernetes.io/job-name": owner.Name},
-	}
-	if err := r.client.List(ctx, pods, opts...); err != nil {
-		log.Error(err, "Failed to get Pods")
-		return false, err
-	}
-
-	for _, pod := range pods.Items {
-		if !utilpod.IsTerminated(&pod) {
-			log.V(3).Info("Pods are still running – skipping finalization for now")
-			return false, nil
-		}
-	}
-
-	log.V(3).Info("All Pods in the Job have finished")
-
-	return true, nil
-}
-
-func (r *WorkloadReconciler) lwsPodsFinished(ctx context.Context, wl *kueue.Workload) (bool, error) {
-	owner := utilworkload.GetOwner(wl)
 	if owner == nil {
 		return true, nil
 	}
-	log := ctrl.LoggerFrom(ctx).WithValues("leaderWorkerSet", klog.KRef(wl.Namespace, owner.Name))
-	lws := &leaderworkersetv1.LeaderWorkerSet{}
-	lwsKey := types.NamespacedName{Name: owner.Name, Namespace: wl.Namespace}
-	if err := r.client.Get(ctx, lwsKey, lws); err != nil {
+
+	return r.checkOwnerPodsFinished(ctx, wl, owner, ownerObj, podLabelKey, logKey, ownerKind)
+}
+
+func (r *WorkloadReconciler) checkOwnerPodsFinished(
+	ctx context.Context,
+	wl *kueue.Workload,
+	owner *metav1.OwnerReference,
+	ownerObj client.Object,
+	podLabelKey string,
+	logKey string,
+	ownerKind string,
+) (bool, error) {
+	log := ctrl.LoggerFrom(ctx).WithValues(logKey, klog.KRef(wl.Namespace, owner.Name))
+	ownerKey := types.NamespacedName{Name: owner.Name, Namespace: wl.Namespace}
+	if err := r.client.Get(ctx, ownerKey, ownerObj); err != nil {
 		if apierrors.IsNotFound(err) {
-			log.V(3).Info("LeaderWorkerSet already deleted")
-			// That means the LeaderWorkerSet has already been deleted, along with all associated Pods
+			log.V(3).Info(fmt.Sprintf("%s already deleted", ownerKind))
+			// That means the owner has already been deleted, along with all associated Pods
 			// we should delete Slice and cleanup Workload.
 			return true, nil
-		} else {
-			log.Error(err, "Failed to get LeaderWorkerSet")
-			return false, err
 		}
+		log.Error(err, fmt.Sprintf("Failed to get %s", ownerKind))
+		return false, err
 	}
 
 	pods := &corev1.PodList{}
 	opts := []client.ListOption{
 		client.InNamespace(wl.Namespace),
-		client.MatchingLabels{leaderworkersetv1.SetNameLabelKey: owner.Name},
+		client.MatchingLabels{podLabelKey: owner.Name},
 	}
 	if err := r.client.List(ctx, pods, opts...); err != nil {
 		log.Error(err, "Failed to get Pods")
@@ -501,7 +446,7 @@ func (r *WorkloadReconciler) lwsPodsFinished(ctx context.Context, wl *kueue.Work
 		}
 	}
 
-	log.V(3).Info("All Pods in the LeaderWorkerSet have finished")
+	log.V(3).Info(fmt.Sprintf("All Pods in the %s have finished", ownerKind))
 
 	return true, nil
 }

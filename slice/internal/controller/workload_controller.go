@@ -373,29 +373,24 @@ func (r *WorkloadReconciler) deleteSlicesForEvictedWorkload(ctx context.Context,
 }
 
 func (r *WorkloadReconciler) ownerPodsFinished(ctx context.Context, wl *kueue.Workload) (bool, error) {
-	var ownerKind, logKey, podLabelKey string
+	var podLabelKey string
 	var ownerObj client.Object
 	var owner *metav1.OwnerReference
 
-	if utilworkload.IsJobSetOwner(wl) {
+	switch {
+	case utilworkload.IsJobSetOwner(wl):
 		owner = metav1.GetControllerOf(wl)
 		ownerObj = &jobset.JobSet{}
 		podLabelKey = jobset.JobSetNameKey
-		logKey = "jobSet"
-		ownerKind = "JobSet"
-	} else if utilworkload.IsJobOwner(wl) {
+	case utilworkload.IsJobOwner(wl):
 		owner = metav1.GetControllerOf(wl)
 		ownerObj = &batchv1.Job{}
-		podLabelKey = "batch.kubernetes.io/job-name"
-		logKey = "job"
-		ownerKind = "Job"
-	} else if utilworkload.IsLeaderWorkerSetOwner(wl) {
+		podLabelKey = batchv1.JobNameLabel
+	case utilworkload.IsLeaderWorkerSetOwner(wl):
 		owner = utilworkload.GetOwner(wl)
 		ownerObj = &leaderworkersetv1.LeaderWorkerSet{}
 		podLabelKey = leaderworkersetv1.SetNameLabelKey
-		logKey = "leaderWorkerSet"
-		ownerKind = "LeaderWorkerSet"
-	} else {
+	default:
 		// Finalize Workloads that have no owner or have unsupported owner types.
 		return true, nil
 	}
@@ -404,7 +399,7 @@ func (r *WorkloadReconciler) ownerPodsFinished(ctx context.Context, wl *kueue.Wo
 		return true, nil
 	}
 
-	return r.checkOwnerPodsFinished(ctx, wl, owner, ownerObj, podLabelKey, logKey, ownerKind)
+	return r.checkOwnerPodsFinished(ctx, wl, owner, ownerObj, podLabelKey)
 }
 
 func (r *WorkloadReconciler) checkOwnerPodsFinished(
@@ -413,19 +408,17 @@ func (r *WorkloadReconciler) checkOwnerPodsFinished(
 	owner *metav1.OwnerReference,
 	ownerObj client.Object,
 	podLabelKey string,
-	logKey string,
-	ownerKind string,
 ) (bool, error) {
-	log := ctrl.LoggerFrom(ctx).WithValues(logKey, klog.KRef(wl.Namespace, owner.Name))
+	log := ctrl.LoggerFrom(ctx).WithValues(owner.Kind, klog.KRef(wl.Namespace, owner.Name))
 	ownerKey := types.NamespacedName{Name: owner.Name, Namespace: wl.Namespace}
 	if err := r.client.Get(ctx, ownerKey, ownerObj); err != nil {
 		if apierrors.IsNotFound(err) {
-			log.V(3).Info(fmt.Sprintf("%s already deleted", ownerKind))
+			log.V(3).Info(fmt.Sprintf("%s already deleted", owner.Kind))
 			// That means the owner has already been deleted, along with all associated Pods
 			// we should delete Slice and cleanup Workload.
 			return true, nil
 		}
-		log.Error(err, fmt.Sprintf("Failed to get %s", ownerKind))
+		log.Error(err, fmt.Sprintf("Failed to get %s", owner.Kind))
 		return false, err
 	}
 
@@ -446,7 +439,7 @@ func (r *WorkloadReconciler) checkOwnerPodsFinished(
 		}
 	}
 
-	log.V(3).Info(fmt.Sprintf("All Pods in the %s have finished", ownerKind))
+	log.V(3).Info(fmt.Sprintf("All Pods in the %s have finished", owner.Kind))
 
 	return true, nil
 }

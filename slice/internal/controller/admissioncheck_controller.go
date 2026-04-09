@@ -66,6 +66,7 @@ func (r *AdmissionCheckReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	if currentCondition.Status != newCondition.Status {
 		acPatch := core.BaseSSAAdmissionCheck(ac)
 		apimeta.SetStatusCondition(&acPatch.Status.Conditions, newCondition)
+		//nolint:staticcheck //SA1019: client.Apply is deprecated
 		return reconcile.Result{}, client.IgnoreNotFound(r.client.Status().Patch(ctx, acPatch, client.Apply, client.FieldOwner(SliceControllerName), client.ForceOwnership))
 	}
 

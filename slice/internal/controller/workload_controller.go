@@ -730,6 +730,7 @@ func (r *WorkloadReconciler) evictWorkload(ctx context.Context, wl *kueue.Worklo
 func (r *WorkloadReconciler) updateWorkloadAdmissionCheckStatus(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState) error {
 	wlPatch := workload.BaseSSAWorkload(wl, true)
 	workload.SetAdmissionCheckState(&wlPatch.Status.AdmissionChecks, *ac, r.clock)
+	//nolint:staticcheck //SA1019: client.Apply is deprecated
 	err := r.client.Status().Patch(ctx, wlPatch, client.Apply, client.FieldOwner(SliceControllerName), client.ForceOwnership)
 	if err != nil && !apierrors.IsNotFound(err) {
 		ctrl.LoggerFrom(ctx).Error(err, "Failed to patch the Workload's admission status")

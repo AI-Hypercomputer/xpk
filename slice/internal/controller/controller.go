@@ -32,6 +32,7 @@ type Options struct {
 }
 
 func SetupControllers(mgr ctrl.Manager, opts Options) (string, error) {
+	//nolint:staticcheck //SA1019 mgr.GetEventRecorderFor is deprecated: this uses the old events API and will be removed in a future release. Please use GetEventRecorder instead.
 	wlRec := NewWorkloadReconciler(mgr.GetClient(), mgr.GetEventRecorderFor(SliceWorkloadControllerName),
 		opts.ActivationTimeout, opts.RetryDelayOnSliceFailure)
 	if err := wlRec.SetupWithManager(mgr); err != nil {

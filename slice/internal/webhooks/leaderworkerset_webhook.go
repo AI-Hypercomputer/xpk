@@ -19,9 +19,8 @@ package webhooks
 import (
 	"context"
 
-	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta1"
 	kueueconstants "sigs.k8s.io/kueue/pkg/controller/constants"
 	leaderworkersetv1 "sigs.k8s.io/lws/api/leaderworkerset/v1"
@@ -40,8 +39,7 @@ type LeaderWorkerSetWebhook struct {
 }
 
 func SetupLeaderWorkerSetWebhookWithManager(mgr ctrl.Manager, defaultSliceHealthValues []string) error {
-	return ctrl.NewWebhookManagedBy(mgr).
-		For(&leaderworkersetv1.LeaderWorkerSet{}).
+	return ctrl.NewWebhookManagedBy(mgr, &leaderworkersetv1.LeaderWorkerSet{}).
 		WithDefaulter(&LeaderWorkerSetWebhook{
 			DefaultSliceHealthValues: defaultSliceHealthValues,
 		}).
@@ -50,10 +48,9 @@ func SetupLeaderWorkerSetWebhookWithManager(mgr ctrl.Manager, defaultSliceHealth
 
 // +kubebuilder:webhook:path=/mutate-leaderworkerset-x-k8s-io-v1-leaderworkerset,mutating=true,failurePolicy=fail,sideEffects=None,groups=leaderworkerset.x-k8s.io,resources=leaderworkersets,verbs=create,versions=v1,name=mleaderworkerset.kb.io,admissionReviewVersions=v1
 
-var _ webhook.CustomDefaulter = &LeaderWorkerSetWebhook{}
+var _ admission.Defaulter[*leaderworkersetv1.LeaderWorkerSet] = &LeaderWorkerSetWebhook{}
 
-func (r *LeaderWorkerSetWebhook) Default(ctx context.Context, obj runtime.Object) error {
-	lws := obj.(*leaderworkersetv1.LeaderWorkerSet)
+func (r *LeaderWorkerSetWebhook) Default(ctx context.Context, lws *leaderworkersetv1.LeaderWorkerSet) error {
 	log := ctrl.LoggerFrom(ctx).WithName("leaderworkerset-accelerator-gke-webhook")
 	log.V(5).Info("Defaulting LeaderWorkerSet")
 

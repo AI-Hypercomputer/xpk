@@ -372,43 +372,25 @@ func (r *WorkloadReconciler) deleteSlicesForEvictedWorkload(ctx context.Context,
 	return r.deleteSlices(ctx, toDelete)
 }
 
-func (r *WorkloadReconciler) ownerPodsFinished(ctx context.Context, wl *kueue.Workload) (bool, error) {
-	var podLabelKey string
-	var ownerObj client.Object
-	var owner *metav1.OwnerReference
-
+func getWorkloadOwnerDetails(wl *kueue.Workload) (*metav1.OwnerReference, client.Object, string) {
 	switch {
 	case utilworkload.IsJobSetOwner(wl):
-		owner = metav1.GetControllerOf(wl)
-		ownerObj = &jobset.JobSet{}
-		podLabelKey = jobset.JobSetNameKey
+		return metav1.GetControllerOf(wl), &jobset.JobSet{}, jobset.JobSetNameKey
 	case utilworkload.IsJobOwner(wl):
-		owner = metav1.GetControllerOf(wl)
-		ownerObj = &batchv1.Job{}
-		podLabelKey = batchv1.JobNameLabel
+		return metav1.GetControllerOf(wl), &batchv1.Job{}, batchv1.JobNameLabel
 	case utilworkload.IsLeaderWorkerSetOwner(wl):
-		owner = utilworkload.GetOwner(wl)
-		ownerObj = &leaderworkersetv1.LeaderWorkerSet{}
-		podLabelKey = leaderworkersetv1.SetNameLabelKey
-	default:
-		// Finalize Workloads that have no owner or have unsupported owner types.
-		return true, nil
+		return utilworkload.GetOwner(wl), &leaderworkersetv1.LeaderWorkerSet{}, leaderworkersetv1.SetNameLabelKey
 	}
-
-	if owner == nil {
-		return true, nil
-	}
-
-	return r.checkOwnerPodsFinished(ctx, wl, owner, ownerObj, podLabelKey)
+	return nil, nil, ""
 }
 
-func (r *WorkloadReconciler) checkOwnerPodsFinished(
-	ctx context.Context,
-	wl *kueue.Workload,
-	owner *metav1.OwnerReference,
-	ownerObj client.Object,
-	podLabelKey string,
-) (bool, error) {
+func (r *WorkloadReconciler) ownerPodsFinished(ctx context.Context, wl *kueue.Workload) (bool, error) {
+	owner, ownerObj, podLabelKey := getWorkloadOwnerDetails(wl)
+	// Finalize Workloads that have no owner or have unsupported owner types.
+	if owner == nil || ownerObj == nil {
+		return true, nil
+	}
+
 	log := ctrl.LoggerFrom(ctx).WithValues(owner.Kind, klog.KRef(wl.Namespace, owner.Name))
 	ownerKey := types.NamespacedName{Name: owner.Name, Namespace: wl.Namespace}
 	if err := r.client.Get(ctx, ownerKey, ownerObj); err != nil {

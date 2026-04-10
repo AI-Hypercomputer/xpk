@@ -19,6 +19,7 @@ package webhooks
 import (
 	"context"
 
+	corev1 "k8s.io/api/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta1"
@@ -68,28 +69,36 @@ func (r *LeaderWorkerSetWebhook) Default(ctx context.Context, lws *leaderworkers
 		return nil
 	}
 
-	log.V(5).Info("Annotating WorkerTemplate")
 	tpuTopology := lws.Spec.LeaderWorkerTemplate.WorkerTemplate.Annotations[core.TPUSliceTopologyAnnotation]
 	parsed, err := topology.ParseTopologyV7(tpuTopology)
 	if err != nil {
 		return err
 	}
-	annotatePodTemplateSpecWithSliceHealth(&lws.Spec.LeaderWorkerTemplate.WorkerTemplate, parsed, r.DefaultSliceHealthValues)
-	if lws.Spec.LeaderWorkerTemplate.WorkerTemplate.Annotations == nil {
-		lws.Spec.LeaderWorkerTemplate.WorkerTemplate.Annotations = make(map[string]string)
+
+	log.V(5).Info("Annotating LeaderWorkerTemplate")
+	annotatePodTemplateSpec(&lws.Spec.LeaderWorkerTemplate.WorkerTemplate, parsed, r.DefaultSliceHealthValues)
+	annotatePodTemplateSpec(lws.Spec.LeaderWorkerTemplate.LeaderTemplate, parsed, r.DefaultSliceHealthValues)
+	setPodSetGroupName(lws)
+
+	return nil
+}
+
+func annotatePodTemplateSpec(template *corev1.PodTemplateSpec, parsed topology.ParsedTopology, defaultSliceHealthValues []string) {
+	if template == nil {
+		return
 	}
+	annotatePodTemplateSpecWithSliceHealth(template, parsed, defaultSliceHealthValues)
+	if template.Annotations == nil {
+		template.Annotations = make(map[string]string)
+	}
+	template.Annotations[core.TPUSkipWardenAnnotation] = "true"
+	template.Annotations[kueue.PodSetRequiredTopologyAnnotation] = parsed.RequiredSliceLevel()
+}
+
+func setPodSetGroupName(lws *leaderworkersetv1.LeaderWorkerSet) {
 	if lws.Spec.LeaderWorkerTemplate.LeaderTemplate != nil {
 		// if the leader is defined, annotate both templates with the same group name
 		lws.Spec.LeaderWorkerTemplate.WorkerTemplate.Annotations[podsetGroupName] = podsetGroupValue
 		lws.Spec.LeaderWorkerTemplate.LeaderTemplate.Annotations[podsetGroupName] = podsetGroupValue
-
-		annotatePodTemplateSpecWithSliceHealth(lws.Spec.LeaderWorkerTemplate.LeaderTemplate, parsed, r.DefaultSliceHealthValues)
-		if lws.Spec.LeaderWorkerTemplate.LeaderTemplate.Annotations == nil {
-			lws.Spec.LeaderWorkerTemplate.LeaderTemplate.Annotations = make(map[string]string)
-		}
-		lws.Spec.LeaderWorkerTemplate.LeaderTemplate.Annotations[kueue.PodSetRequiredTopologyAnnotation] = parsed.RequiredSliceLevel()
 	}
-
-	lws.Spec.LeaderWorkerTemplate.WorkerTemplate.Annotations[kueue.PodSetRequiredTopologyAnnotation] = parsed.RequiredSliceLevel()
-	return nil
 }

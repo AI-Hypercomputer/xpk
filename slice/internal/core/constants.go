@@ -28,6 +28,7 @@ const (
 	TPUAcceleratorLabel        = "cloud.google.com/gke-tpu-accelerator"
 	TPUBlockLabel              = "cloud.google.com/gce-topology-block"
 	TPUSubBlockLabel           = "cloud.google.com/gke-tpu-partition-4x4x4-id"
+	TPUSkipWardenAnnotation    = "cloud.google.com/skip-tpu-webhook-check"
 	TPUResourceName            = "google.com/tpu"
 	RetryOnFailureAnnotation   = "slice.gke.io/retry-on-failure"
 	TPUsPerCube                = 64

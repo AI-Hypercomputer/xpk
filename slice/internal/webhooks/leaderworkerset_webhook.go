@@ -78,15 +78,17 @@ func (r *LeaderWorkerSetWebhook) Default(ctx context.Context, lws *leaderworkers
 	if lws.Spec.LeaderWorkerTemplate.WorkerTemplate.Annotations == nil {
 		lws.Spec.LeaderWorkerTemplate.WorkerTemplate.Annotations = make(map[string]string)
 	}
+	lws.Spec.LeaderWorkerTemplate.WorkerTemplate.Annotations[core.TPUSkipWardenAnnotation] = "true"
 	if lws.Spec.LeaderWorkerTemplate.LeaderTemplate != nil {
-		// if the leader is defined, annotate both templates with the same group name
-		lws.Spec.LeaderWorkerTemplate.WorkerTemplate.Annotations[podsetGroupName] = podsetGroupValue
-		lws.Spec.LeaderWorkerTemplate.LeaderTemplate.Annotations[podsetGroupName] = podsetGroupValue
-
-		annotatePodTemplateSpecWithSliceHealth(lws.Spec.LeaderWorkerTemplate.LeaderTemplate, parsed, r.DefaultSliceHealthValues)
 		if lws.Spec.LeaderWorkerTemplate.LeaderTemplate.Annotations == nil {
 			lws.Spec.LeaderWorkerTemplate.LeaderTemplate.Annotations = make(map[string]string)
 		}
+		// if the leader is defined, annotate both templates with the same group name
+		lws.Spec.LeaderWorkerTemplate.WorkerTemplate.Annotations[podsetGroupName] = podsetGroupValue
+		lws.Spec.LeaderWorkerTemplate.LeaderTemplate.Annotations[podsetGroupName] = podsetGroupValue
+		lws.Spec.LeaderWorkerTemplate.LeaderTemplate.Annotations[core.TPUSkipWardenAnnotation] = "true"
+
+		annotatePodTemplateSpecWithSliceHealth(lws.Spec.LeaderWorkerTemplate.LeaderTemplate, parsed, r.DefaultSliceHealthValues)
 		lws.Spec.LeaderWorkerTemplate.LeaderTemplate.Annotations[kueue.PodSetRequiredTopologyAnnotation] = parsed.RequiredSliceLevel()
 	}
 

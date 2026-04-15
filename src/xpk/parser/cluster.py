@@ -269,9 +269,13 @@ def set_cluster_create_ray_parser(cluster_create_ray_parser: ArgumentParser):
   add_shared_cluster_create_required_arguments(
       cluster_create_ray_required_arguments
   )
-  add_tpu_type_argument(cluster_create_ray_required_arguments, required=True)
+  cluster_device_group = (
+      cluster_create_ray_required_arguments.add_mutually_exclusive_group(
+          required=True
+      )
+  )
+  add_tpu_and_device_type_arguments(cluster_device_group)
 
-  # TODO(bzmarke): Add --device-type to support GPU/CPU
   cluster_create_ray_required_arguments.add_argument(
       '--ray-version',
       type=str,

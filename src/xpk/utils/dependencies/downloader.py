@@ -17,6 +17,7 @@ limitations under the License.
 import sys
 import shutil
 import hashlib
+import tarfile
 import os
 import tempfile
 import platform
@@ -25,8 +26,8 @@ import urllib.parse
 import urllib.request
 import pathlib
 
-from xpk.utils.console import xpk_print
-from xpk.utils.dependencies.binary_dependencies import BinaryDependency
+from ..console import xpk_print
+from .binary_dependencies import BinaryDependency
 
 
 _OS_MAP: dict[str, str] = {"Linux": "linux", "Darwin": "darwin"}
@@ -99,12 +100,12 @@ def _extract_archive(
 ) -> bool:
   """Extracts an archive to the specified directory."""
   try:
-    if sys.version_info >= (3, 12):
+    if sys.version_info >= (3, 12) and tarfile.is_tarfile(archive_path):
       shutil.unpack_archive(archive_path, extract_dir, filter="data")
     else:
       shutil.unpack_archive(archive_path, extract_dir)
     return True
-  except (shutil.ReadError, OSError, ValueError) as e:
+  except (shutil.ReadError, OSError, ValueError, tarfile.TarError) as e:
     xpk_print(f"Error extracting archive for {name}: {e}")
     return False
 

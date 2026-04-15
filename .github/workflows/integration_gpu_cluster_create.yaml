@@ -22,7 +22,7 @@ permissions:
 
 jobs:
     gpu-cluster-create-and-delete:
-        runs-on: [ubuntu-22.04]
+        runs-on: [ubuntu-24.04]
         concurrency:
             group: nightly-test-cluster-group-gpu
             cancel-in-progress: false

@@ -17,8 +17,8 @@ limitations under the License.
 import os
 from pathlib import Path
 
-from xpk.utils.dependencies.binary_dependencies import BinaryDependencies, BinaryDependency
-from xpk.utils.dependencies.downloader import fetch_dependency
+from .binary_dependencies import BinaryDependencies, BinaryDependency
+from .downloader import fetch_dependency
 
 
 def _get_cache_bin_dir() -> Path:

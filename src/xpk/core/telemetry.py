@@ -20,7 +20,7 @@ import json
 import os
 import time
 import sys
-import importlib
+import importlib.resources
 import subprocess
 import tempfile
 import requests

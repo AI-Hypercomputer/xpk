@@ -31,8 +31,6 @@ Ensure the following tools are installed and configured before proceeding.
     * Run `gcloud init`
     * [Authenticate](https://cloud.google.com/sdk/gcloud/reference/auth/application-default/login) to Google Cloud.
     * *Check:* `gcloud auth list`
-* **Docker**: [Install from here](https://docs.docker.com/engine/install/).
-    * *Linux users:* [Configure sudoless docker](https://docs.docker.com/engine/install/linux-postinstall/).
     * Run `gcloud auth configure-docker` to enable image uploads to the registry.
 
 
@@ -94,7 +92,7 @@ export PATH=$PATH:$PWD/bin
 
 *Note: Installing from source is recommended only for contributors and advanced users. Most users should install via PIP for the best stability.*
 
-**Persisting the PATH configuration:**
+**Persisting the PATH configuration when installing from source:**
 To use `xpk` in future terminal sessions without re-running the export command, add the binary path to your shell configuration:
 
 * **For Bash (Linux default):**
@@ -164,10 +162,6 @@ make install
 **Issue: `command not found: xpk`**
 * **Cause:** The installation directory is not in your system `$PATH`.
 * **Fix:** Ensure you have activated your virtual environment. If installing from source, ensure you added the `/bin` folder to your PATH as described in Section 3.
-
-**Issue: `permission denied` when running Docker**
-* **Cause:** Your user is not added to the `docker` group.
-* **Fix:** Follow the [Linux post-installation steps for Docker](https://docs.docker.com/engine/install/linux-postinstall/) to run Docker without sudo.
 
 **Issue: `error: externally-managed-environment`**
 * **Cause:** You are trying to install Python packages globally, which is restricted by newer OS versions.

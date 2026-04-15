@@ -175,7 +175,7 @@ var _ = ginkgo.Describe("LWS Subslicing", func() {
 							if matchExpression.Key == fmt.Sprintf("cloud.google.com/gke-tpu-partition-%s-state", tc.topology) {
 								found = true
 								g.Expect(matchExpression.Operator).Should(gomega.Equal(corev1.NodeSelectorOpIn))
-								g.Expect(matchExpression.Values).Should(gomega.ConsistOf(core.TPUSliceHealthNodeSelectorHealthy))
+								g.Expect(matchExpression.Values).Should(gomega.ConsistOf(core.TPUSliceHealthNodeSelectorHealthy, core.TPUSliceHealthNodeSelectorDegraded))
 							}
 						}
 					}

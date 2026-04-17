@@ -64,6 +64,7 @@ spec:
           - --leader-elect
           - --health-probe-bind-address=:8081
           - --zap-log-level=3
+          - --default-slice-health-node-affinity=HEALTHY_AND_DEGRADED
         image: controller:latest
         name: manager
         ports: []

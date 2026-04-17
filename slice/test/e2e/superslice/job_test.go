@@ -129,7 +129,7 @@ var _ = ginkgo.Describe("Job", func() {
 							if matchExpression.Key == core.TPUSliceHealthNodeSelectorKey {
 								found = true
 								g.Expect(matchExpression.Operator).Should(gomega.Equal(corev1.NodeSelectorOpIn))
-								g.Expect(matchExpression.Values).Should(gomega.ConsistOf(core.TPUSliceHealthNodeSelectorHealthy))
+								g.Expect(matchExpression.Values).Should(gomega.ConsistOf(core.TPUSliceHealthNodeSelectorHealthy, core.TPUSliceHealthNodeSelectorDegraded))
 							}
 						}
 					}

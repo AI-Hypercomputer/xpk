@@ -22,7 +22,6 @@ import (
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	kueue "sigs.k8s.io/kueue/apis/kueue/v1beta2"
 	"sigs.k8s.io/kueue/pkg/util/tas"
@@ -109,6 +108,8 @@ var _ = ginkgo.Describe("LWS Subslicing", func() {
 		wrapper := testingjobslws.MakeLeaderWorkerSet(name, ns.Name).
 			Queue(lq.Name).
 			Size(tc.size).
+			StartupPolicy(leaderworkersetv1.LeaderCreatedStartupPolicy).
+			WorkerName("worker").
 			WorkerImage(utils.E2eTestAgnHostImage).
 			WorkerArgs(utils.BehaviorWaitForDeletion...).
 			WorkerAnnotation(core.TPUSliceTopologyAnnotation, tc.topology).
@@ -117,30 +118,17 @@ var _ = ginkgo.Describe("LWS Subslicing", func() {
 
 		if tc.withLeader {
 			wrapper = wrapper.
+				LeaderName("leader").
+				LeaderImage(utils.E2eTestAgnHostImage).
+				LeaderArgs(utils.BehaviorWaitForDeletion...).
 				LeaderAnnotation(core.TPUSliceTopologyAnnotation, tc.topology).
 				LeaderNodeSelector("cloud.google.com/gke-tpu-accelerator", string(slice.TypeTpu7x))
+			if tc.leaderRequiresTPUs {
+				wrapper = wrapper.LeaderRequestAndLimit(core.TPUResourceName, "4")
+			}
 		}
 
 		lws := wrapper.Obj()
-		lws.Spec.StartupPolicy = leaderworkersetv1.LeaderCreatedStartupPolicy
-		if tc.withLeader {
-			container := corev1.Container{
-				Name:  "leader",
-				Image: utils.E2eTestAgnHostImage,
-				Args:  utils.BehaviorWaitForDeletion,
-			}
-			if tc.leaderRequiresTPUs {
-				container.Resources = corev1.ResourceRequirements{
-					Limits: corev1.ResourceList{
-						core.TPUResourceName: resource.MustParse("4"),
-					},
-					Requests: corev1.ResourceList{
-						core.TPUResourceName: resource.MustParse("4"),
-					},
-				}
-			}
-			lws.Spec.LeaderWorkerTemplate.LeaderTemplate.Spec.Containers = []corev1.Container{container}
-		}
 
 		ginkgo.By("Creating a LeaderWorkerSet", func() {
 			utils.MustCreate(ctx, k8sClient, lws)
@@ -182,6 +170,17 @@ var _ = ginkgo.Describe("LWS Subslicing", func() {
 					g.Expect(found).Should(gomega.BeTrue())
 				}
 			}, utils.Timeout, utils.Interval).Should(gomega.Succeed())
+		})
+
+		ginkgo.By("Checking that all pods are created with the topology node selector", func() {
+			pods := &corev1.PodList{}
+			gomega.Eventually(func(g gomega.Gomega) {
+				g.Expect(k8sClient.List(ctx, pods, client.InNamespace(ns.Name))).To(gomega.Succeed())
+				g.Expect(pods.Items).Should(gomega.HaveLen(int(tc.size)))
+				for _, pod := range pods.Items {
+					g.Expect(pod.Spec.NodeSelector).To(gomega.HaveKeyWithValue(core.TPUTopologyAnnotation, tc.topology))
+				}
+			}, utils.LongTimeout, utils.Interval).Should(gomega.Succeed())
 		})
 
 		createdWorkload := &kueue.Workload{}

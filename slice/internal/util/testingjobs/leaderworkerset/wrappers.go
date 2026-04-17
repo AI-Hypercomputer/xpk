@@ -182,3 +182,72 @@ func (w *Wrapper) LeaderNodeAffinity(key string, values []string) *Wrapper {
 	)
 	return w
 }
+
+func (w *Wrapper) StartupPolicy(policy leaderworkersetv1.StartupPolicyType) *Wrapper {
+	w.Spec.StartupPolicy = policy
+	return w
+}
+
+func (w *Wrapper) WorkerName(name string) *Wrapper {
+	if len(w.Spec.LeaderWorkerTemplate.WorkerTemplate.Spec.Containers) == 0 {
+		w.Spec.LeaderWorkerTemplate.WorkerTemplate.Spec.Containers = []corev1.Container{{}}
+	}
+	w.Spec.LeaderWorkerTemplate.WorkerTemplate.Spec.Containers[0].Name = name
+	return w
+}
+
+func (w *Wrapper) LeaderName(name string) *Wrapper {
+	if w.Spec.LeaderWorkerTemplate.LeaderTemplate == nil {
+		w.Spec.LeaderWorkerTemplate.LeaderTemplate = &corev1.PodTemplateSpec{}
+	}
+	if len(w.Spec.LeaderWorkerTemplate.LeaderTemplate.Spec.Containers) == 0 {
+		w.Spec.LeaderWorkerTemplate.LeaderTemplate.Spec.Containers = []corev1.Container{{}}
+	}
+	w.Spec.LeaderWorkerTemplate.LeaderTemplate.Spec.Containers[0].Name = name
+	return w
+}
+
+func (w *Wrapper) LeaderImage(img string) *Wrapper {
+	if w.Spec.LeaderWorkerTemplate.LeaderTemplate == nil {
+		w.Spec.LeaderWorkerTemplate.LeaderTemplate = &corev1.PodTemplateSpec{}
+	}
+	if len(w.Spec.LeaderWorkerTemplate.LeaderTemplate.Spec.Containers) == 0 {
+		w.Spec.LeaderWorkerTemplate.LeaderTemplate.Spec.Containers = []corev1.Container{{}}
+	}
+	w.Spec.LeaderWorkerTemplate.LeaderTemplate.Spec.Containers[0].Image = img
+	return w
+}
+
+func (w *Wrapper) LeaderArgs(args ...string) *Wrapper {
+	if w.Spec.LeaderWorkerTemplate.LeaderTemplate == nil {
+		w.Spec.LeaderWorkerTemplate.LeaderTemplate = &corev1.PodTemplateSpec{}
+	}
+	if len(w.Spec.LeaderWorkerTemplate.LeaderTemplate.Spec.Containers) == 0 {
+		w.Spec.LeaderWorkerTemplate.LeaderTemplate.Spec.Containers = []corev1.Container{{}}
+	}
+	w.Spec.LeaderWorkerTemplate.LeaderTemplate.Spec.Containers[0].Args = args
+	return w
+}
+
+func (w *Wrapper) LeaderLimit(resourceName corev1.ResourceName, quantity string) *Wrapper {
+	if w.Spec.LeaderWorkerTemplate.LeaderTemplate == nil {
+		w.Spec.LeaderWorkerTemplate.LeaderTemplate = &corev1.PodTemplateSpec{}
+	}
+	if len(w.Spec.LeaderWorkerTemplate.LeaderTemplate.Spec.Containers) == 0 {
+		w.Spec.LeaderWorkerTemplate.LeaderTemplate.Spec.Containers = []corev1.Container{{}}
+	}
+	if w.Spec.LeaderWorkerTemplate.LeaderTemplate.Spec.Containers[0].Resources.Limits == nil {
+		w.Spec.LeaderWorkerTemplate.LeaderTemplate.Spec.Containers[0].Resources.Limits = make(corev1.ResourceList)
+	}
+	w.Spec.LeaderWorkerTemplate.LeaderTemplate.Spec.Containers[0].Resources.Limits[resourceName] = resource.MustParse(quantity)
+	return w
+}
+
+func (w *Wrapper) LeaderRequestAndLimit(resourceName corev1.ResourceName, quantity string) *Wrapper {
+	w.LeaderLimit(resourceName, quantity)
+	if w.Spec.LeaderWorkerTemplate.LeaderTemplate.Spec.Containers[0].Resources.Requests == nil {
+		w.Spec.LeaderWorkerTemplate.LeaderTemplate.Spec.Containers[0].Resources.Requests = make(corev1.ResourceList)
+	}
+	w.Spec.LeaderWorkerTemplate.LeaderTemplate.Spec.Containers[0].Resources.Requests[resourceName] = resource.MustParse(quantity)
+	return w
+}

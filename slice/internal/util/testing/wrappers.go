@@ -155,6 +155,23 @@ func (w *WorkloadWrapper) Evicted() *WorkloadWrapper {
 	return w
 }
 
+func (w *WorkloadWrapper) SliceFailure(reason, message string) *WorkloadWrapper {
+	cond := metav1.Condition{
+		Type:               core.WorkloadSliceFailureConditionType,
+		Status:             metav1.ConditionTrue,
+		LastTransitionTime: metav1.Now(),
+		Reason:             reason,
+		Message:            message,
+	}
+	apimeta.SetStatusCondition(&w.Status.Conditions, cond)
+	return w
+}
+
+func (w *WorkloadWrapper) Condition(cond metav1.Condition) *WorkloadWrapper {
+	apimeta.SetStatusCondition(&w.Status.Conditions, cond)
+	return w
+}
+
 func (w *WorkloadWrapper) Active(a bool) *WorkloadWrapper {
 	w.Spec.Active = ptr.To(a)
 	return w

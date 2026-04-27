@@ -29,6 +29,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
+	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
@@ -190,7 +191,7 @@ func (r *WorkloadReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	desiredSlicesCount := totalDesiredSlices(wl, nodes)
 	if ac.State == kueue.CheckStateReady && (len(grouped.deleted) > 0 || len(slices) != desiredSlicesCount) {
 		log.V(3).Info("Slice has been deleted, evicting workload")
-		if err := r.evictWorkload(ctx, wl, ac, "Slice has been deleted"); err != nil {
+		if err := r.evictWorkload(ctx, wl, ac, core.WorkloadSliceDeletion, "Slice has been deleted"); err != nil {
 			return ctrl.Result{}, err
 		}
 		return ctrl.Result{}, r.deleteSlicesForEvictedWorkload(ctx, grouped)
@@ -627,7 +628,7 @@ func (r *WorkloadReconciler) syncSlicesForAssignment(ctx context.Context, wl *ku
 		log := ctrl.LoggerFrom(ctx)
 		log.V(2).Info("Slice validation failed, not creating Slices, evicting the workload", "error", err)
 		msg := err.Error()
-		if patchErr := r.evictWorkload(ctx, wl, ac, msg); patchErr != nil {
+		if patchErr := r.evictWorkload(ctx, wl, ac, core.WorkloadSliceConfigurationFailure, msg); patchErr != nil {
 			return nil, nil, errors.Join(err, patchErr)
 		}
 		return nil, nil, errWorkloadEvicted
@@ -644,7 +645,7 @@ func (r *WorkloadReconciler) syncSlicesForAssignment(ctx context.Context, wl *ku
 			log.V(2).Info(fmt.Sprintf("Admission check %q updated state from %q to %q", ac.Name, ac.State, kueue.CheckStatePending), "reason", msg)
 			ac.State = kueue.CheckStatePending
 			ac.Message = api.TruncateConditionMessage(msg)
-			patchErr := r.updateWorkloadAdmissionCheckStatus(ctx, wl, ac)
+			patchErr := r.updateWorkloadAdmissionCheckStatus(ctx, wl, ac, "")
 			if patchErr != nil {
 				return nil, nil, errors.Join(err, patchErr)
 			}
@@ -720,16 +721,36 @@ func (r *WorkloadReconciler) validatePartitionCount(
 	return nil
 }
 
-func (r *WorkloadReconciler) evictWorkload(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, message string) error {
+func (r *WorkloadReconciler) evictWorkload(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, reason, message string) error {
 	ac.State = kueue.CheckStateRetry
 	ac.RequeueAfterSeconds = ptr.To(int32(r.retryDelayOnSliceFailure.Round(time.Second).Seconds()))
 	ac.Message = api.TruncateConditionMessage(message)
-	return r.updateWorkloadAdmissionCheckStatus(ctx, wl, ac)
+	return r.updateWorkloadAdmissionCheckStatus(ctx, wl, ac, reason)
 }
 
-func (r *WorkloadReconciler) updateWorkloadAdmissionCheckStatus(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState) error {
+func (r *WorkloadReconciler) updateWorkloadAdmissionCheckStatus(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, evictedReason string) error {
 	wlPatch := workload.BaseSSAWorkload(wl, true)
 	workload.SetAdmissionCheckState(&wlPatch.Status.AdmissionChecks, *ac, r.clock)
+
+	if evictedReason != "" {
+		evictionCond := metav1.Condition{
+			Type:    core.WorkloadSliceFailureConditionType,
+			Status:  metav1.ConditionTrue,
+			Reason:  evictedReason,
+			Message: ac.Message,
+		}
+		apimeta.SetStatusCondition(&wlPatch.Status.Conditions, evictionCond)
+	} else if ac.State != kueue.CheckStateRetry {
+		if oldCond := apimeta.FindStatusCondition(wl.Status.Conditions, core.WorkloadSliceFailureConditionType); oldCond != nil {
+			apimeta.SetStatusCondition(&wlPatch.Status.Conditions, metav1.Condition{
+				Type:    core.WorkloadSliceFailureConditionType,
+				Status:  metav1.ConditionFalse,
+				Reason:  oldCond.Reason,
+				Message: api.TruncateConditionMessage("Previously: " + oldCond.Message),
+			})
+		}
+	}
+
 	//nolint:staticcheck //SA1019: client.Apply is deprecated
 	err := r.client.Status().Patch(ctx, wlPatch, client.Apply, client.FieldOwner(SliceControllerName), client.ForceOwnership)
 	if err != nil && !apierrors.IsNotFound(err) {
@@ -743,14 +764,14 @@ func (r *WorkloadReconciler) syncAdmissionCheckStatus(ctx context.Context, wl *k
 	originalState := ac.State
 	originalMessage := ac.Message
 
-	r.prepareAdmissionCheckStatus(ctx, wl, ac, slices, desiredSlicesCount)
+	evictedReason := r.prepareAdmissionCheckStatus(ctx, wl, ac, slices, desiredSlicesCount)
 
 	// No changes.
 	if originalState == ac.State && ac.Message == originalMessage {
 		return nil
 	}
 
-	if err := r.updateWorkloadAdmissionCheckStatus(ctx, wl, ac); err != nil {
+	if err := r.updateWorkloadAdmissionCheckStatus(ctx, wl, ac, evictedReason); err != nil {
 		return err
 	}
 
@@ -799,11 +820,11 @@ func calculateEffectiveSliceCounts(slicesByState map[core.SliceState][]v1beta1.S
 	return effectiveActiveCount, effectiveFailedCount
 }
 
-func (r *WorkloadReconciler) prepareAdmissionCheckStatus(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, slices []v1beta1.Slice, desiredSlicesCount int) {
+func (r *WorkloadReconciler) prepareAdmissionCheckStatus(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, slices []v1beta1.Slice, desiredSlicesCount int) string {
 	log := ctrl.LoggerFrom(ctx)
 	// wait for Kueue to reset check to Pending after eviction
 	if ac.State == kueue.CheckStateRetry {
-		return
+		return ""
 	}
 	slicesByState := core.GroupSlicesByState(slices, r.activationTimeout)
 	podSetRequiresHealthy := make(map[string]bool)
@@ -814,6 +835,7 @@ func (r *WorkloadReconciler) prepareAdmissionCheckStatus(ctx context.Context, wl
 	}
 	effectiveActiveCount, effectiveFailedCount := calculateEffectiveSliceCounts(slicesByState, wl, podSetRequiresHealthy)
 
+	var reason string
 	switch {
 	case desiredSlicesCount == effectiveActiveCount:
 		ac.State = kueue.CheckStateReady
@@ -821,6 +843,7 @@ func (r *WorkloadReconciler) prepareAdmissionCheckStatus(ctx context.Context, wl
 	case effectiveFailedCount > 0:
 		ac.State = kueue.CheckStateRetry
 		ac.RequeueAfterSeconds = ptr.To(int32(r.retryDelayOnSliceFailure.Round(time.Second).Seconds()))
+		reason = core.WorkloadSliceRuntimeFailure
 	case (features.Enabled(features.UseRetryMechanismForSliceCreation) && len(slicesByState[core.SliceStateStale]) > 0):
 		var staleSliceNames []string
 		for _, s := range slicesByState[core.SliceStateStale] {
@@ -830,10 +853,12 @@ func (r *WorkloadReconciler) prepareAdmissionCheckStatus(ctx context.Context, wl
 			"staleSlices", staleSliceNames)
 		ac.State = kueue.CheckStateRetry
 		ac.RequeueAfterSeconds = ptr.To(int32(r.retryDelayOnSliceFailure.Round(time.Second).Seconds()))
+		reason = core.WorkloadSliceFormationTimeout
 	default:
 		ac.State = kueue.CheckStatePending
 	}
 	ac.Message = buildAdmissionCheckMessage(slicesByState, effectiveFailedCount, wl, podSetRequiresHealthy)
+	return reason
 }
 
 func buildPodSetUpdates(wl *kueue.Workload) []kueue.PodSetUpdate {

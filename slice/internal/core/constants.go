@@ -74,6 +74,12 @@ const (
 	OwnerPodSetNameAnnotation        = "accelerator.gke.io/owner-podset-name"
 
 	LWSLeaderPodSetName = "leader"
+
+	WorkloadSliceFailureConditionType = "SliceFailure"
+	WorkloadSliceDeletion             = "Deletion"
+	WorkloadSliceConfigurationFailure = "ConfigurationFailure"
+	WorkloadSliceRuntimeFailure       = "RuntimeFailure"
+	WorkloadSliceFormationTimeout     = "FormationTimeout"
 )
 
 var (

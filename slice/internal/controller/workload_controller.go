@@ -29,7 +29,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
-	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
@@ -739,11 +738,11 @@ func (r *WorkloadReconciler) updateWorkloadAdmissionCheckStatus(ctx context.Cont
 			Reason:  evictedReason,
 			Message: ac.Message,
 		}
-		apimeta.SetStatusCondition(&wlPatch.Status.Conditions, evictionCond)
+		meta.SetStatusCondition(&wlPatch.Status.Conditions, evictionCond)
 	} else if ac.State != kueue.CheckStateRetry {
-		oldCond := apimeta.FindStatusCondition(wl.Status.Conditions, core.WorkloadSliceFailureConditionType)
+		oldCond := meta.FindStatusCondition(wl.Status.Conditions, core.WorkloadSliceFailureConditionType)
 		if oldCond != nil && oldCond.Status == metav1.ConditionTrue {
-			apimeta.SetStatusCondition(&wlPatch.Status.Conditions, metav1.Condition{
+			meta.SetStatusCondition(&wlPatch.Status.Conditions, metav1.Condition{
 				Type:    core.WorkloadSliceFailureConditionType,
 				Status:  metav1.ConditionFalse,
 				Reason:  oldCond.Reason,

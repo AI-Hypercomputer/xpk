@@ -1951,7 +1951,7 @@ func TestWorkloadReconciler(t *testing.T) {
 			},
 			wantResult: reconcile.Result{RequeueAfter: initializationRetryAfter},
 		},
-		"should set SliceFailure condition to False when slice are activating": {
+		"should set SliceFailure condition to False when slices are activating": {
 			request: baseRequest,
 			objs: []client.Object{
 				worker1Node.DeepCopy(),

@@ -741,7 +741,8 @@ func (r *WorkloadReconciler) updateWorkloadAdmissionCheckStatus(ctx context.Cont
 		}
 		apimeta.SetStatusCondition(&wlPatch.Status.Conditions, evictionCond)
 	} else if ac.State != kueue.CheckStateRetry {
-		if oldCond := apimeta.FindStatusCondition(wl.Status.Conditions, core.WorkloadSliceFailureConditionType); oldCond != nil {
+		oldCond := apimeta.FindStatusCondition(wl.Status.Conditions, core.WorkloadSliceFailureConditionType)
+		if oldCond != nil && oldCond.Status == metav1.ConditionTrue {
 			apimeta.SetStatusCondition(&wlPatch.Status.Conditions, metav1.Condition{
 				Type:    core.WorkloadSliceFailureConditionType,
 				Status:  metav1.ConditionFalse,

@@ -644,7 +644,7 @@ func (r *WorkloadReconciler) syncSlicesForAssignment(ctx context.Context, wl *ku
 			log.V(2).Info(fmt.Sprintf("Admission check %q updated state from %q to %q", ac.Name, ac.State, kueue.CheckStatePending), "reason", msg)
 			ac.State = kueue.CheckStatePending
 			ac.Message = api.TruncateConditionMessage(msg)
-			patchErr := r.updateWorkloadAdmissionCheckStatus(ctx, wl, ac, "")
+			patchErr := r.updateWorkloadStatus(ctx, wl, ac, "")
 			if patchErr != nil {
 				return nil, nil, errors.Join(err, patchErr)
 			}
@@ -724,10 +724,10 @@ func (r *WorkloadReconciler) evictWorkload(ctx context.Context, wl *kueue.Worklo
 	ac.State = kueue.CheckStateRetry
 	ac.RequeueAfterSeconds = ptr.To(int32(r.retryDelayOnSliceFailure.Round(time.Second).Seconds()))
 	ac.Message = api.TruncateConditionMessage(message)
-	return r.updateWorkloadAdmissionCheckStatus(ctx, wl, ac, reason)
+	return r.updateWorkloadStatus(ctx, wl, ac, reason)
 }
 
-func (r *WorkloadReconciler) updateWorkloadAdmissionCheckStatus(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, evictedReason string) error {
+func (r *WorkloadReconciler) updateWorkloadStatus(ctx context.Context, wl *kueue.Workload, ac *kueue.AdmissionCheckState, evictedReason string) error {
 	wlPatch := workload.BaseSSAWorkload(wl, true)
 	workload.SetAdmissionCheckState(&wlPatch.Status.AdmissionChecks, *ac, r.clock)
 
@@ -771,7 +771,7 @@ func (r *WorkloadReconciler) syncAdmissionCheckStatus(ctx context.Context, wl *k
 		return nil
 	}
 
-	if err := r.updateWorkloadAdmissionCheckStatus(ctx, wl, ac, evictedReason); err != nil {
+	if err := r.updateWorkloadStatus(ctx, wl, ac, evictedReason); err != nil {
 		return err
 	}
 

@@ -75,7 +75,7 @@ const (
 
 	LWSLeaderPodSetName = "leader"
 
-	WorkloadSliceFailureConditionType = "SliceFailure"
+	WorkloadSliceFailureConditionType = "TPUSliceFailure"
 	WorkloadSliceDeletion             = "Deletion"
 	WorkloadSliceConfigurationFailure = "ConfigurationFailure"
 	WorkloadSliceRuntimeFailure       = "RuntimeFailure"

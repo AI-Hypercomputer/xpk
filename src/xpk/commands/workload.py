@@ -33,7 +33,7 @@ from ..core.docker_container import (
     get_main_container_docker_image,
     get_user_workload_container,
 )
-from ..core.kueue_manager import LOCAL_QUEUE_NAME
+from ..core.kueue_manager import LOCAL_QUEUE_NAME, POC_TEAM_CONFIG, POC_TEAM_MAX_WORKLOAD_NAME
 from ..core.docker_resources import get_volumes, parse_env_config
 from ..core.gcloud_context import add_zone_and_project
 from ..core.monitoring import get_gke_outlier_dashboard
@@ -104,6 +104,52 @@ from ..utils.templates import get_templates_absolute_path
 _PATHWAYS_WORKLOAD_TEMPLATE = 'pathways_workload_create.yaml.j2'
 
 _SUPER_SLICING_WORKLOAD_NAME_LIMIT = 28
+
+
+def _resolve_poc_team(args) -> tuple[str, str, str]:
+  """Return (namespace, local_queue_name, priority_class) for --team, or defaults."""
+  if not getattr(args, 'team', None):
+    return ('', LOCAL_QUEUE_NAME, args.priority)
+  namespace, lq, priority_class = POC_TEAM_CONFIG[args.team]
+  max_len = POC_TEAM_MAX_WORKLOAD_NAME[args.team]
+  if len(args.workload) > max_len:
+    xpk_exit(
+        f'Workload name "{args.workload}" is {len(args.workload)} chars; '
+        f'max for team {args.team} (namespace {namespace}) is {max_len} chars. '
+        f'The dynamic slice admission check generates a Slice name as '
+        f'"{namespace}-<workload>-sli-<hash>" which must be <=49 characters.'
+    )
+  return (namespace, lq, priority_class)
+
+
+def _build_poc_labels(args) -> str:
+  """Return YAML label lines for PoC quota labels, or empty string."""
+  if not getattr(args, 'team', None):
+    return ''
+  lines = [f'team: {args.team}']
+  if getattr(args, 'value_class', None):
+    lines.append(f'value-class: {args.value_class}')
+  if getattr(args, 'declared_duration_minutes', None) is not None:
+    lines.append(f'declared-duration-minutes: "{args.declared_duration_minutes}"')
+  # indent to match template (4 spaces)
+  return ('\n    ').join(lines)
+
+
+def _build_poc_pod_template_labels(args) -> str:
+  """Return YAML label lines for PoC labels that must appear in pod template.
+
+  Kueue does NOT propagate arbitrary JobSet metadata labels to the Workload
+  object, so the time-limit controller reads declared-duration-minutes from
+  spec.podSets[*].template.metadata.labels instead.
+  """
+  if not getattr(args, 'team', None):
+    return ''
+  if getattr(args, 'declared_duration_minutes', None) is None:
+    return ''
+  # indent to match pod template labels (16 spaces)
+  return f'declared-duration-minutes: "{args.declared_duration_minutes}"'
+
+
 """Maximum safe workload name length to avoid exceeding GCE's 63-character limit.
 
 Kueue/Jobset prefixes and suffixes consume characters: 8 (`default-`), 7 (`jobset-`),
@@ -114,9 +160,11 @@ WORKLOAD_CREATE_YAML = """apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
 metadata:
   name: {args.workload}
+  {namespace_field}
   labels:
     kueue.x-k8s.io/queue-name: {local_queue_name}  # Name of the LocalQueue
     xpk.google.com/workload: {args.workload}
+    {poc_labels}
   annotations:
     {jobset_annotations}
 spec:
@@ -137,6 +185,7 @@ spec:
             metadata:
               labels:
                 xpk.google.com/workload: {args.workload}
+                {poc_pod_template_labels}
               annotations:
                 {storage_annotations}
                 {sub_slicing_annotations}
@@ -746,6 +795,10 @@ def workload_create(args) -> None:
         args, workload_system, parallel_containers
     )
 
+    poc_namespace, poc_local_queue, poc_priority = _resolve_poc_team(args)
+    # Override args.priority so the pod spec picks up the team priority class
+    if poc_namespace:
+      args.priority = poc_priority
     yml_string = WORKLOAD_CREATE_YAML.format(
         args=args,
         jobset_annotations=jobset_annotations,
@@ -763,7 +816,10 @@ def workload_create(args) -> None:
         placement_policy_label=placement_policy_label,
         node_selector_machine_label=node_selector_machine_label,
         tpu_slice_topology_annotation=tpu_slice_topology_annotation,
-        local_queue_name=LOCAL_QUEUE_NAME,
+        local_queue_name=poc_local_queue,
+        namespace_field=f'namespace: {poc_namespace}' if poc_namespace else '',
+        poc_labels=_build_poc_labels(args),
+        poc_pod_template_labels=_build_poc_pod_template_labels(args),
         autoprovisioning_args=autoprovisioning_args,
         volumes=get_volumes(args, workload_system),
         storage_annotations=('\n' + (' ' * 16)).join(

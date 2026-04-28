@@ -660,6 +660,35 @@ def add_shared_workload_create_optional_arguments(args_parsers):
             ' the workload.'
         ),
     )
+    # PoC quota system flags
+    custom_parser.add_argument(
+        '--team',
+        type=str,
+        default=None,
+        choices=['ml-perf', 'nightly-regression', 'gsc', 'dev', 'scale-test'],
+        help=(
+            'PoC quota system: team name. When set, automatically routes the job'
+            ' to the correct namespace (poc-<team>), LocalQueue (lq), and'
+            ' PriorityClass. Overrides --priority.'
+        ),
+    )
+    custom_parser.add_argument(
+        '--value-class',
+        type=str,
+        default=None,
+        choices=['regression', 'benchmark', 'scale-test', 'development'],
+        help='PoC quota system: job type label for audit and priority ordering.',
+    )
+    custom_parser.add_argument(
+        '--declared-duration-minutes',
+        type=int,
+        default=None,
+        help=(
+            'PoC quota system: honest p90 estimate of job runtime in minutes.'
+            ' Used by the time-limit controller to stop overrunning jobs.'
+            ' Required when --team is set.'
+        ),
+    )
 
 
 def add_shared_workload_create_env_arguments(args_parsers):

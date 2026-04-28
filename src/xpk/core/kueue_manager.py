@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+import hashlib
 import math
 from dataclasses import dataclass
 from typing import Optional, List, Dict, Any
@@ -48,27 +49,32 @@ WAIT_FOR_KUEUE_TIMEOUT = "10m"
 CLUSTER_QUEUE_NAME = "cluster-queue"
 LOCAL_QUEUE_NAME = "multislice-queue"
 
-# PoC quota system: team → (namespace, local-queue, priority-class)
-# When --team is specified, these override the defaults above.
-POC_TEAM_CONFIG = {
-    "ml-perf":            ("poc-ml-perf",            "lq", "poc-ml-perf-priority"),
-    "nightly-regression": ("poc-nightly",            "lq", "poc-nightly-priority"),
-    "gsc":                ("poc-gsc",                "lq", "poc-gsc-priority"),
-    "dev":                ("poc-dev",                "lq", "poc-dev-priority"),
-    "scale-test":         ("poc-scale-test",         "lq", "poc-scale-test-priority"),
-}
+def derive_k8s_workload_name(display_name: str, max_len: int) -> str:
+  """Derive a short K8s-safe JobSet name from a user-provided display name.
 
-# Max safe JobSet name length per PoC namespace (= xpk --workload argument).
-# Kueue auto-names the Workload as "jobset-{name}-{hash5}" (13+len(name) chars).
-# The slice controller shortens the Slice name to "{ns}-{workload}-s-{hash5}".
-# Full constraint: len(ns)+1+(13+len(name))+8 <= 49  =>  len(name) <= 27-len(ns)
-POC_TEAM_MAX_WORKLOAD_NAME = {
-    "ml-perf":            16,  # namespace=poc-ml-perf (11):            27-11=16
-    "nightly-regression": 16,  # namespace=poc-nightly (11):            27-11=16
-    "gsc":                20,  # namespace=poc-gsc (7):                 27-7=20
-    "dev":                20,  # namespace=poc-dev (7):                 27-7=20
-    "scale-test":         13,  # namespace=poc-scale-test (14):         27-14=13
-}
+  The superslice admission controller requires slice names ≤ 49 chars:
+    {namespace}-jobset-{k8s_name}-{kueue_hash5}-slice-job-{i}
+  So k8s_name must be ≤ max_len chars. max_len comes from the cluster's
+  poc-team-config ConfigMap (see poc_discovery.max_k8s_workload_name_len),
+  computed from len(namespace) and the super-slice admission controller's
+  char-limit / fixed-overhead constants.
+
+  Format: {ldap_prefix}-{hex4}
+  - ldap_prefix: display_name up to the first '-', truncated to fit
+  - hex4: first 4 hex chars of SHA256(display_name) — deterministic, so
+    'xpk workload delete/status --workload=<display_name>' can reconstruct
+    the same k8s_name for lookup (though the label is the primary lookup key).
+
+  The mapping is deterministic: same display_name → same k8s_name.
+  Users avoid collisions by including a unique suffix in their display name
+  (e.g. 'amandaliang-run42'), which propagates into the hex4.
+  """
+  # Reserve 5 chars for '-' + 4 hex digits
+  max_prefix = max_len - 5
+  ldap = display_name.split('-')[0]
+  prefix = ldap[:max_prefix]
+  hex4 = hashlib.sha256(display_name.encode()).hexdigest()[:4]
+  return f'{prefix}-{hex4}'
 SUB_SLICE_TOPOLOGY_NAME = "sub-slice-topology"
 SUPER_SLICE_TOPOLOGY_NAME = "super-slice-topology"
 KUEUE_CONFIG_JINJA_FILE = "kueue_config.yaml.j2"

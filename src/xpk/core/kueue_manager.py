@@ -49,13 +49,26 @@ WAIT_FOR_KUEUE_TIMEOUT = "10m"
 CLUSTER_QUEUE_NAME = "cluster-queue"
 LOCAL_QUEUE_NAME = "multislice-queue"
 
+SUB_SLICE_TOPOLOGY_NAME = "sub-slice-topology"
+SUPER_SLICE_TOPOLOGY_NAME = "super-slice-topology"
+KUEUE_CONFIG_JINJA_FILE = "kueue_config.yaml.j2"
+KUEUE_GKE_DEFAULT_TOPOLOGY_JINJA_FILE = "kueue_gke_default_topology.yaml.j2"
+KUEUE_CONTROLLER_MANAGER_JINJA_FILE = "kueue_controller_manager.yaml.j2"
+KUEUE_SUB_SLICING_TOPOLOGY_JINJA_FILE = "kueue_sub_slicing_topology.yaml.j2"
+KUEUE_SUPER_SLICING_TOPOLOGY_JINJA_FILE = "kueue_super_slicing_topology.yaml.j2"
+MEMORY_SIZE_PER_VM = 32
+MIN_MEMORY_LIMIT_SIZE = 4096
+CPU_SIZE_PER_VM = 0.004
+MIN_CPU_LIMIT_SIZE = 2
+
+
 def derive_k8s_workload_name(display_name: str, max_len: int) -> str:
   """Derive a short K8s-safe JobSet name from a user-provided display name.
 
-  The superslice admission controller requires slice names ≤ 49 chars:
+  The super-slice admission controller requires slice names ≤ ~49 chars:
     {namespace}-jobset-{k8s_name}-{kueue_hash5}-slice-job-{i}
   So k8s_name must be ≤ max_len chars. max_len comes from the cluster's
-  poc-team-config ConfigMap (see poc_discovery.max_k8s_workload_name_len),
+  team-quota ConfigMap (see quota_discovery.max_k8s_workload_name_len),
   computed from len(namespace) and the super-slice admission controller's
   char-limit / fixed-overhead constants.
 
@@ -75,17 +88,6 @@ def derive_k8s_workload_name(display_name: str, max_len: int) -> str:
   prefix = ldap[:max_prefix]
   hex4 = hashlib.sha256(display_name.encode()).hexdigest()[:4]
   return f'{prefix}-{hex4}'
-SUB_SLICE_TOPOLOGY_NAME = "sub-slice-topology"
-SUPER_SLICE_TOPOLOGY_NAME = "super-slice-topology"
-KUEUE_CONFIG_JINJA_FILE = "kueue_config.yaml.j2"
-KUEUE_GKE_DEFAULT_TOPOLOGY_JINJA_FILE = "kueue_gke_default_topology.yaml.j2"
-KUEUE_CONTROLLER_MANAGER_JINJA_FILE = "kueue_controller_manager.yaml.j2"
-KUEUE_SUB_SLICING_TOPOLOGY_JINJA_FILE = "kueue_sub_slicing_topology.yaml.j2"
-KUEUE_SUPER_SLICING_TOPOLOGY_JINJA_FILE = "kueue_super_slicing_topology.yaml.j2"
-MEMORY_SIZE_PER_VM = 32
-MIN_MEMORY_LIMIT_SIZE = 4096
-CPU_SIZE_PER_VM = 0.004
-MIN_CPU_LIMIT_SIZE = 2
 
 
 @dataclass(frozen=True)

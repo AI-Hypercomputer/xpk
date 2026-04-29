@@ -14,11 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-"""Discover PoC team configuration from the cluster's poc-team-config ConfigMap.
+"""Discover team-based Kueue quota configuration from a cluster ConfigMap.
 
-The ConfigMap is rendered by the Helm chart in cluster-management/poc/chart
-from a single values.yaml — so a cluster admin can add/remove/retune teams
-without any xpk code change.
+xpk's `--team` / `--value-class` / `--declared-duration-minutes` flags route a
+workload to a per-team Kueue namespace + ClusterQueue, with priority and slice-
+name sizing derived from cluster-side config. The config (which teams exist,
+their quotas, namespaces, priorities, and the JobSet-name length budget) is
+read at runtime from a ConfigMap so that adding/retuning a team requires no
+xpk code change.
 
 Callers should have run `get_cluster_credentials(args)` (or otherwise set up
 kubectl) before calling into this module.
@@ -26,16 +29,25 @@ kubectl) before calling into this module.
 
 import difflib
 import json
+from dataclasses import dataclass
 
 from . import local_cache
 from .commands import run_command_for_value
 
 CONFIG_CM_NAMESPACE = "kueue-system"
-CONFIG_CM_NAME      = "poc-team-config"
+CONFIG_CM_NAME      = "poc-team-config"   # cluster-side ConfigMap name; set by chart
 CONFIG_CM_KEY       = "config.json"
 
 
-def fetch_poc_config() -> dict | None:
+@dataclass(frozen=True)
+class TeamRouting:
+  """Per-team Kueue routing parameters resolved from the cluster ConfigMap."""
+  namespace: str
+  local_queue: str
+  priority_class: str
+
+
+def fetch_quota_config() -> dict | None:
   """Return the parsed ConfigMap payload, or None if unavailable/malformed.
 
   On success, refreshes ~/.xpk/poc-cache/<context>.json as a side effect so
@@ -76,8 +88,8 @@ def available_value_classes(cfg: dict) -> list[str]:
   return list(cfg.get('valueClasses') or [])
 
 
-def resolve_team(cfg: dict, team: str) -> tuple[str, str, str]:
-  """Return (namespace, local_queue, priority_class) for the team.
+def resolve_team(cfg: dict, team: str) -> TeamRouting:
+  """Return TeamRouting for the team.
 
   Raises KeyError with a listing of available teams if not found.
   """
@@ -88,14 +100,26 @@ def resolve_team(cfg: dict, team: str) -> tuple[str, str, str]:
         f'Available teams: {", ".join(available_teams(cfg)) or "<none>"}'
     )
   t = teams[team]
-  return (t['namespace'], t['localQueue'], t['priorityClass'])
+  return TeamRouting(
+      namespace=t['namespace'],
+      local_queue=t['localQueue'],
+      priority_class=t['priorityClass'],
+  )
 
 
 def max_k8s_workload_name_len(cfg: dict, namespace: str) -> int:
   """Max safe JobSet name length = sliceName.charLimit - fixedOverhead - len(ns).
 
-  Defaults match the super-slice admission controller constraint (49 total,
-  26 fixed overhead from prefixes/suffixes).
+  The super-slice admission controller enforces a hard length limit on the
+  Slice CRD names it creates from the JobSet, of the form
+  `<namespace>-<jobset-name>-slice-job-<replica-index>`. The total `charLimit`
+  (49 by default) minus the `fixedOverhead` (the 26-char framing for the
+  `-slice-job-N` suffix and the jobset-controller's own prefixing) minus the
+  namespace length yields the budget left for the actual JobSet (and hence
+  workload) name.
+
+  These values come from the cluster ConfigMap so a cluster admin can adjust
+  them without an xpk release.
   """
   sn = cfg.get('sliceName') or {}
   char_limit = int(sn.get('charLimit', 49))

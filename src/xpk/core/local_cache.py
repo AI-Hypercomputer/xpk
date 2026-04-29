@@ -14,10 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-"""Tiny per-cluster cache of PoC config for faster errors + tab completion.
+"""Tiny per-cluster cache of team-quota config for faster errors + tab completion.
 
-Populated automatically whenever xpk successfully fetches the `poc-team-config`
-ConfigMap from a cluster. Read by:
+Populated automatically whenever xpk successfully fetches the team-quota
+ConfigMap from a cluster (see core/quota_discovery.py). Read by:
   - argcomplete completers (sub-second tab completion without a cluster call)
   - error-message suggesters ("did you mean ...")
 
@@ -25,7 +25,7 @@ No secrets are stored. The cache is advisory: if it is stale, out of sync, or
 absent, xpk falls through to live discovery with no behavior change.
 
 Layout:
-  ~/.xpk/poc-cache/<kubectl-context>.json
+  ~/.xpk/quota-cache/<kubectl-context>.json
 """
 
 import datetime as _dt
@@ -35,7 +35,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-CACHE_DIR = Path.home() / ".xpk" / "poc-cache"
+CACHE_DIR = Path.home() / ".xpk" / "quota-cache"
 DEFAULT_TTL = _dt.timedelta(hours=1)
 
 

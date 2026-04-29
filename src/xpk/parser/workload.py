@@ -23,15 +23,15 @@ from ..commands.workload import (
     workload_create_pathways,
     workload_delete,
     workload_list,
-    workload_status,
 )
+from ..commands.workload_status import workload_status
 from ..core.docker_image import DEFAULT_DOCKER_IMAGE, DEFAULT_SCRIPT_DIR
 from .common import add_shared_arguments, add_tpu_type_argument, add_tpu_and_device_type_arguments
 from .validators import directory_path_type, name_type
 
 
 def _cached_field_completer(field: str):
-  """Build an argcomplete completer that reads the PoC cache for `field`
+  """Build an argcomplete completer that reads the team-quota cache for `field`
   ('teams' or 'valueClasses'). Prefers the cache entry for the kubectl
   context corresponding to parsed_args.cluster; falls back to the union of
   all cached contexts so completion still helps on an unfamiliar cluster."""
@@ -96,7 +96,7 @@ def set_workload_parsers(workload_parser: ArgumentParser):
   # "workload status" command parser.
   workload_status_parser = workload_subcommands.add_parser(
       'status',
-      help='Show PoC queue status and diagnose stuck or queued workloads.',
+      help='Diagnose a workload routed via --team: queued vs admitted vs stuck.',
   )
   set_workload_status_parser(workload_status_parser)
 
@@ -590,15 +590,15 @@ def set_workload_status_parser(workload_status_parser: ArgumentParser):
       type=name_type,
       default=None,
       required=True,
-      help='The name of the PoC cluster.',
+      help='The name of the cluster.',
   ).completer = _cluster_completer
   workload_status_parser.add_argument(
       '--team',
       type=str,
       required=True,
       help=(
-          'Your PoC team name. The set of valid teams is discovered at'
-          ' runtime from the cluster\'s poc-team-config ConfigMap.'
+          'Your team name. The set of valid teams is discovered at'
+          ' runtime from the cluster\'s team-quota ConfigMap.'
       ),
   ).completer = _cached_field_completer('teams')
   workload_status_parser.add_argument(
@@ -730,16 +730,19 @@ def add_shared_workload_create_optional_arguments(args_parsers):
             ' the workload.'
         ),
     )
-    # PoC quota system flags
+    # Team-based Kueue quota routing flags. When --team is set, the workload
+    # is auto-routed to the team's namespace + LocalQueue + PriorityClass
+    # discovered at runtime from the cluster's team-quota ConfigMap, so a
+    # cluster admin can add/remove/retune teams without an xpk release.
     custom_parser.add_argument(
         '--team',
         type=str,
         default=None,
         help=(
-            'PoC quota system: team name. When set, automatically routes the job'
-            ' to the correct namespace, LocalQueue, and PriorityClass. Overrides'
-            ' --priority. Valid teams are discovered at runtime from the'
-            ' cluster\'s poc-team-config ConfigMap.'
+            'Team name. When set, automatically routes the job to the team\'s'
+            ' namespace, LocalQueue, and PriorityClass. Overrides --priority.'
+            ' Valid teams are discovered at runtime from the cluster\'s'
+            ' team-quota ConfigMap.'
         ),
     ).completer = _cached_field_completer('teams')
     custom_parser.add_argument(
@@ -747,9 +750,8 @@ def add_shared_workload_create_optional_arguments(args_parsers):
         type=str,
         default=None,
         help=(
-            'PoC quota system: job type label for audit and priority ordering.'
-            ' Valid classes are discovered at runtime from the cluster\'s'
-            ' poc-team-config ConfigMap.'
+            'Job type label for audit and priority ordering. Valid classes are'
+            ' discovered at runtime from the cluster\'s team-quota ConfigMap.'
         ),
     ).completer = _cached_field_completer('valueClasses')
     custom_parser.add_argument(
@@ -757,9 +759,20 @@ def add_shared_workload_create_optional_arguments(args_parsers):
         type=int,
         default=None,
         help=(
-            'PoC quota system: honest p90 estimate of job runtime in minutes.'
-            ' Used by the time-limit controller to stop overrunning jobs.'
+            'Honest p90 estimate of job runtime in minutes. Used by the'
+            ' cluster-side time-limit controller to stop overrunning jobs.'
             ' Required when --team is set.'
+        ),
+    )
+    custom_parser.add_argument(
+        '--no-shorten-jobset-name',
+        action='store_true',
+        default=False,
+        help=(
+            'When --team is set, xpk normally shortens the K8s JobSet name to'
+            ' fit the super-slice admission controller\'s sliceName.charLimit.'
+            ' Pass this flag to disable shortening (use args.workload as-is)'
+            ' — only safe when your workload name is short enough already.'
         ),
     )
 

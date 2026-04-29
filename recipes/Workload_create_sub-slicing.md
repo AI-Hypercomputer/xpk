@@ -34,14 +34,16 @@ kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="Conf
 [XPK] Task: `Upload Container Image` is implemented by the following command not running since it is a dry run. 
 crane mutate python:3.10 --append e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 --platform linux/amd64 --tag gcr.io/golden-project/dry-run-runner:prefix-current --workdir /app
 [XPK] Deleting container image archive e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
-[XPK] Temp file (2018fe16498f36301979a10667302a0aff6beb09956705b64ff396373af777ba) content: 
+[XPK] Temp file (7833616bd7d41bf12e4c54931e5c34fd465acc327fd31e91629ebd8d288c18b8) content: 
 apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
 metadata:
   name: golden-workload
+  
   labels:
     kueue.x-k8s.io/queue-name: multislice-queue  # Name of the LocalQueue
     xpk.google.com/workload: golden-workload
+    
   annotations:
     
 spec:
@@ -74,6 +76,7 @@ spec:
             metadata:
               labels:
                 xpk.google.com/workload: golden-workload
+                
               annotations:
                 
                 kueue.x-k8s.io/podset-required-topology: "cloud.google.com/gke-tpu-slice-2x4-id"
@@ -144,7 +147,7 @@ spec:
               
 
 [XPK] Task: `Creating Workload` is implemented by the following command not running since it is a dry run. 
-kubectl apply -f 2018fe16498f36301979a10667302a0aff6beb09956705b64ff396373af777ba
+kubectl apply -f 7833616bd7d41bf12e4c54931e5c34fd465acc327fd31e91629ebd8d288c18b8
 [XPK] Task: `GKE Dashboard List` is implemented by the following command not running since it is a dry run. 
 gcloud monitoring dashboards list --project=golden-project --filter="displayName:'GKE - TPU Monitoring Dashboard'" --format="value(name)" --verbosity=error
 [XPK] Check statistics and outlier mode of GKE metrics here: https://console.cloud.google.com/monitoring/dashboards/builder/0?project=golden-project&f.rlabel.cluster_name.ClusterName=golden-cluster. To view the metric data for your workload, select golden-workload from the JobName filter on the dashboard.

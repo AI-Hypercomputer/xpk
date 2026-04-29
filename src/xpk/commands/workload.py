@@ -34,12 +34,12 @@ from ..core.docker_container import (
     get_user_workload_container,
 )
 from ..core.kueue_manager import LOCAL_QUEUE_NAME, derive_k8s_workload_name
-from ..core.poc_discovery import (
+from ..core.quota_discovery import (
     CONFIG_CM_NAME,
     CONFIG_CM_NAMESPACE,
     available_teams,
     available_value_classes,
-    fetch_poc_config,
+    fetch_quota_config,
     max_k8s_workload_name_len,
     resolve_team,
     suggest,
@@ -116,21 +116,26 @@ _PATHWAYS_WORKLOAD_TEMPLATE = 'pathways_workload_create.yaml.j2'
 _SUPER_SLICING_WORKLOAD_NAME_LIMIT = 28
 
 
-def _load_poc_cfg(args) -> dict | None:
-  """Fetch the PoC ConfigMap once per invocation and cache on args. Returns
-  None if --team is unset (so upstream, non-PoC behavior is preserved)."""
-  if not getattr(args, 'team', None):
+def _load_quota_cfg(args) -> dict | None:
+  """Fetch the team-quota ConfigMap once per invocation and cache on args.
+
+  Returns None if --team is unset (so upstream, non-team-routing behavior is
+  preserved). Robust against unit-test code that passes a MagicMock for args:
+  we require args.team to be a non-empty string, not just truthy.
+  """
+  team = getattr(args, 'team', None)
+  if not isinstance(team, str) or not team.strip():
     return None
-  cached = getattr(args, '_poc_cfg', None)
+  cached = getattr(args, '_quota_cfg', None)
   if cached is not None:
     return cached
-  cfg = fetch_poc_config()
+  cfg = fetch_quota_config()
   if cfg is None:
     xpk_print(
-        f'ERROR: --team={args.team!r} requires the PoC ConfigMap'
+        f'ERROR: --team={args.team!r} requires the team-quota ConfigMap'
         f' "{CONFIG_CM_NAMESPACE}/{CONFIG_CM_NAME}" on the target cluster.'
-        ' Deploy cluster-management/poc/chart first, or drop --team to bypass'
-        ' PoC routing.'
+        ' Deploy the cluster quota chart first, or drop --team to bypass'
+        ' team-based routing.'
     )
     xpk_exit(1)
   if args.team not in (cfg.get('teams') or {}):
@@ -152,23 +157,34 @@ def _load_poc_cfg(args) -> dict | None:
           f'{hint_line} Available: {", ".join(vcs)}'
       )
       xpk_exit(1)
-  args._poc_cfg = cfg
+  args._quota_cfg = cfg
   return cfg
 
 
-def _resolve_poc_team(args) -> tuple[str, str, str]:
-  """Return (namespace, local_queue_name, priority_class) for --team, or defaults."""
-  cfg = _load_poc_cfg(args)
+def _resolve_quota_team(args):
+  """Return TeamRouting for --team, or upstream defaults wrapped equivalently.
+
+  When --team is unset, returns an empty namespace and the upstream
+  LOCAL_QUEUE_NAME / args.priority so callers can format the YAML uniformly.
+  """
+  cfg = _load_quota_cfg(args)
   if cfg is None:
-    return ('', LOCAL_QUEUE_NAME, args.priority)
+    # Mimic the dataclass shape so callers can use attribute access uniformly.
+    from ..core.quota_discovery import TeamRouting
+    return TeamRouting(namespace='', local_queue=LOCAL_QUEUE_NAME, priority_class=args.priority)
   return resolve_team(cfg, args.team)
 
 
-def _build_poc_labels(args) -> str:
-  """Return YAML label lines for PoC quota labels, or empty string."""
-  if not getattr(args, 'team', None):
+def _build_team_labels(args) -> str:
+  """Return YAML label lines for team-routing labels, or empty string.
+
+  These labels are read by the cluster-side time-limit and quota controllers
+  to enforce per-team duration caps and value-class accounting.
+  """
+  team = getattr(args, 'team', None)
+  if not isinstance(team, str) or not team.strip():
     return ''
-  lines = [f'team: {args.team}']
+  lines = [f'team: {team}']
   if getattr(args, 'value_class', None):
     lines.append(f'value-class: {args.value_class}')
   if getattr(args, 'declared_duration_minutes', None) is not None:
@@ -177,14 +193,15 @@ def _build_poc_labels(args) -> str:
   return ('\n    ').join(lines)
 
 
-def _build_poc_pod_template_labels(args) -> str:
-  """Return YAML label lines for PoC labels that must appear in pod template.
+def _build_team_pod_template_labels(args) -> str:
+  """Return YAML label lines for team labels that must appear in pod template.
 
   Kueue does NOT propagate arbitrary JobSet metadata labels to the Workload
   object, so the time-limit controller reads declared-duration-minutes from
   spec.podSets[*].template.metadata.labels instead.
   """
-  if not getattr(args, 'team', None):
+  team = getattr(args, 'team', None)
+  if not isinstance(team, str) or not team.strip():
     return ''
   if getattr(args, 'declared_duration_minutes', None) is None:
     return ''
@@ -206,7 +223,7 @@ metadata:
   labels:
     kueue.x-k8s.io/queue-name: {local_queue_name}  # Name of the LocalQueue
     xpk.google.com/workload: {args.workload}
-    {poc_labels}
+    {team_labels}
   annotations:
     {jobset_annotations}
 spec:
@@ -227,7 +244,7 @@ spec:
             metadata:
               labels:
                 xpk.google.com/workload: {args.workload}
-                {poc_pod_template_labels}
+                {team_pod_template_labels}
               annotations:
                 {storage_annotations}
                 {sub_slicing_annotations}
@@ -486,8 +503,8 @@ def workload_create(args) -> None:
     k8s_api_client = setup_k8s_env(args)
     setup_k8s_service_accounts()
 
-  # Default PoC routing values; the TPU non-pathways path below may override.
-  poc_namespace = ''
+  # Default team-routing values; the TPU non-pathways path below may override.
+  team_namespace = ''
   k8s_name = args.workload
 
   workload_exists = check_if_workload_exists(args)
@@ -567,10 +584,11 @@ def workload_create(args) -> None:
 
   parse_env_config(args, tensorboard_config)
 
-  # For PoC teams, inject the user's full display name as XPK_WORKLOAD_NAME so
-  # training scripts can reference it for GCS artifact paths regardless of the
-  # short K8s name xpk derives for the JobSet.
-  if getattr(args, 'team', None):
+  # When --team is set, inject the user's full display name as XPK_WORKLOAD_NAME
+  # so training scripts can reference it for GCS artifact paths regardless of
+  # the (potentially shortened) K8s name xpk derives for the JobSet.
+  team = getattr(args, 'team', None)
+  if isinstance(team, str) and team.strip():
     args.env.setdefault('XPK_WORKLOAD_NAME', args.workload)
 
   autoprovisioning_args = ''
@@ -848,16 +866,29 @@ def workload_create(args) -> None:
         args, workload_system, parallel_containers
     )
 
-    poc_namespace, poc_local_queue, poc_priority = _resolve_poc_team(args)
-    # Derive a short K8s-safe JobSet name for PoC teams; use display name as-is otherwise.
-    if poc_namespace:
-      max_len = max_k8s_workload_name_len(args._poc_cfg, poc_namespace)
-      k8s_name = derive_k8s_workload_name(args.workload, max_len)
-      args.priority = poc_priority
-      xpk_print(
-          f'PoC workload "{args.workload}" → K8s JobSet name: "{k8s_name}"'
-          f' (use $XPK_WORKLOAD_NAME in your command for GCS artifact paths)'
-      )
+    routing = _resolve_quota_team(args)
+    team_namespace = routing.namespace
+    # Derive a short K8s-safe JobSet name when the workload is routed to a
+    # team namespace AND the user-facing workload name exceeds the
+    # super-slice admission controller's per-name budget. See
+    # core.kueue_manager.derive_k8s_workload_name and
+    # core.quota_discovery.max_k8s_workload_name_len for the budget math.
+    # The user can disable shortening with --no-shorten-jobset-name.
+    if team_namespace:
+      max_len = max_k8s_workload_name_len(args._quota_cfg, team_namespace)
+      shorten = not getattr(args, 'no_shorten_jobset_name', False)
+      if shorten:
+        k8s_name = derive_k8s_workload_name(args.workload, max_len)
+      else:
+        k8s_name = args.workload
+      args.priority = routing.priority_class
+      if k8s_name != args.workload:
+        xpk_print(
+            f'workload "{args.workload}" → K8s JobSet name: "{k8s_name}"'
+            f' (shortened to fit super-slice charLimit; use'
+            f' $XPK_WORKLOAD_NAME in your command for GCS artifact paths;'
+            f' pass --no-shorten-jobset-name to disable)'
+        )
     else:
       k8s_name = args.workload
     yml_string = WORKLOAD_CREATE_YAML.format(
@@ -878,10 +909,10 @@ def workload_create(args) -> None:
         placement_policy_label=placement_policy_label,
         node_selector_machine_label=node_selector_machine_label,
         tpu_slice_topology_annotation=tpu_slice_topology_annotation,
-        local_queue_name=poc_local_queue,
-        namespace_field=f'namespace: {poc_namespace}' if poc_namespace else '',
-        poc_labels=_build_poc_labels(args),
-        poc_pod_template_labels=_build_poc_pod_template_labels(args),
+        local_queue_name=routing.local_queue,
+        namespace_field=f'namespace: {team_namespace}' if team_namespace else '',
+        team_labels=_build_team_labels(args),
+        team_pod_template_labels=_build_team_pod_template_labels(args),
         autoprovisioning_args=autoprovisioning_args,
         volumes=get_volumes(args, workload_system),
         storage_annotations=('\n' + (' ' * 16)).join(
@@ -965,9 +996,11 @@ def workload_create(args) -> None:
         f'{get_pathways_unified_query_link(args)}'
     )
   else:
-    # PoC teams route to a per-team namespace and use a short K8s JobSet name
-    # derived from args.workload. Fall back to upstream defaults otherwise.
-    log_namespace = poc_namespace or 'default'
+    # When --team is in use, the workload routes to a per-team namespace and
+    # the K8s JobSet name may be shortened from args.workload. Use those
+    # actual values for the dashboard / Cloud Logging URLs so links land on
+    # the right resource. Falls back to upstream defaults otherwise.
+    log_namespace = team_namespace or 'default'
     log_pod_prefix = k8s_name
     xpk_print(
         'Follow your workload here:'
@@ -1144,292 +1177,3 @@ def workload_list(args) -> None:
   xpk_exit(0)
 
 
-# ---------------------------------------------------------------------------
-# workload status — PoC queue health diagnostic
-# ---------------------------------------------------------------------------
-
-def workload_status(args) -> None:
-  """Show PoC Kueue queue status for a workload or an entire team namespace.
-
-  Tells the user if their workload is running, queued normally, or stuck,
-  and provides a plain-English diagnosis with fix instructions.
-
-  Args:
-    args: user provided arguments (--cluster, --team, --workload).
-  """
-  import json as _json
-  from datetime import datetime, timezone
-
-  import subprocess as _subprocess
-
-  if should_validate_dependencies(args):
-    validate_dependencies_list(
-        args, [SystemDependency.KUBECTL, SystemDependency.GCLOUD]
-    )
-
-  # Fill project from gcloud config if not provided.
-  if not getattr(args, 'project', None):
-    r = _subprocess.run(
-        ['gcloud', 'config', 'get', 'project'], capture_output=True, text=True
-    )
-    args.project = r.stdout.strip().splitlines()[-1] if r.returncode == 0 else ''
-  if not args.project:
-    xpk_print('ERROR: --project not set and could not be determined from gcloud config.')
-    xpk_exit(1)
-
-  # Look up the cluster location directly — avoids requiring compute/zone in
-  # gcloud config (which get_cluster_credentials needs but users often lack).
-  if not getattr(args, 'zone', None):
-    rc, loc = run_command_for_value(
-        f'gcloud container clusters list --project={args.project}'
-        f' --filter=name={args.cluster} --format="value(location)"',
-        task='Find cluster location',
-        quiet=True,
-    )
-    if rc != 0 or not loc.strip():
-      xpk_print(f'ERROR: Could not find cluster "{args.cluster}" in project {args.project}.')
-      xpk_exit(1)
-    args.zone = loc.strip()
-
-  get_cluster_credentials(args)
-
-  team = args.team
-  namespace, _lq, _pc = _resolve_poc_team(args)
-  cq_name = namespace  # ClusterQueue name matches namespace name
-
-  # ------------------------------------------------------------------
-  # Internal helpers (no --context needed; xpk sets up kubeconfig)
-  # ------------------------------------------------------------------
-
-  def _kube_json(*kubectl_args):
-    cmd = 'kubectl ' + ' '.join(kubectl_args) + ' -o json'
-    rc, out = run_command_for_value(cmd, task=cmd, quiet=True)
-    if rc != 0 or not out:
-      return None
-    try:
-      return _json.loads(out)
-    except _json.JSONDecodeError:
-      return None
-
-  def _events_text(ns, name):
-    cmd = (
-        f'kubectl get events -n {ns}'
-        f' --field-selector involvedObject.name={name}'
-        f' --sort-by=.lastTimestamp'
-    )
-    rc, out = run_command_for_value(cmd, task='get events', quiet=True)
-    return out.strip() if rc == 0 else ''
-
-  def _age(ts_str):
-    if not ts_str:
-      return '?'
-    ts = datetime.fromisoformat(ts_str.replace('Z', '+00:00'))
-    s = int((datetime.now(timezone.utc) - ts).total_seconds())
-    if s < 60:
-      return f'{s}s'
-    if s < 3600:
-      return f'{s // 60}m'
-    return f'{s // 3600}h{(s % 3600) // 60}m'
-
-  def _cond(wl, ctype):
-    for c in wl.get('status', {}).get('conditions', []):
-      if c.get('type') == ctype:
-        return c
-    return None
-
-  def _is_true(c):
-    return c is not None and c.get('status') == 'True'
-
-  def _cq_chips(cq, section):
-    total = 0
-    for flavor in cq.get('status', {}).get(section, []):
-      for res in flavor.get('resources', []):
-        if res.get('name') == 'google.com/tpu':
-          total += int(res.get('total', 0))
-    return total
-
-  def _cq_quota(cq):
-    nominal, borrow = 0, 0
-    for rg in cq.get('spec', {}).get('resourceGroups', []):
-      for flavor in rg.get('flavors', []):
-        for res in flavor.get('resources', []):
-          if res.get('name') == 'google.com/tpu':
-            nominal += int(res.get('nominalQuota', 0))
-            b = res.get('borrowingLimit')
-            if b is not None:
-              borrow += int(b)
-    return nominal, borrow
-
-  def _ordinal(n):
-    return f"{n}{['th','st','nd','rd','th'][min(n % 10, 4) if n % 100 not in (11,12,13) else 0]}"
-
-  def _xpk_name_of(wl):
-    name = wl['metadata'].get('labels', {}).get('xpk.google.com/workload')
-    if name:
-      return name
-    for ref in wl['metadata'].get('ownerReferences', []):
-      if ref.get('kind') in ('JobSet', 'Job'):
-        return ref.get('name', '')
-    n = wl['metadata']['name']
-    if n.startswith('jobset-'):
-      n = n[len('jobset-'):]
-    if len(n) > 6 and n[-6] == '-':
-      n = n[:-6]
-    return n
-
-  def _print_cq_summary(cq):
-    if not cq:
-      return
-    st = cq.get('status', {})
-    nominal, borrow_limit = _cq_quota(cq)
-    running_chips  = _cq_chips(cq, 'flavorsUsage')
-    reserved_chips = _cq_chips(cq, 'flavorsReservation')
-    admitted   = st.get('admittedWorkloads', 0)
-    reserving  = st.get('reservingWorkloads', 0)
-    pending    = st.get('pendingWorkloads', 0)
-    xpk_print(f'  Quota   : {nominal} chips nominal  +{borrow_limit} borrow  ='
-              f' {nominal + borrow_limit} max')
-    if reserved_chips > 0 and reserved_chips != running_chips:
-      xpk_print(f'  Reserved: {reserved_chips} chips'
-                f' ({reserving} workload(s) — quota held, awaiting admission)')
-    xpk_print(f'  Running : {running_chips} chips ({admitted} workload(s) admitted)')
-    xpk_print(f'  Queued  : {pending} workload(s) waiting for quota')
-
-  def _diagnose_one(wl, all_items, cq):
-    kueue_name = wl['metadata']['name']
-    xpk_name   = _xpk_name_of(wl)
-    created_at = wl['metadata']['creationTimestamp']
-
-    cond_reserved = _cond(wl, 'QuotaReserved')
-    cond_admitted = _cond(wl, 'Admitted')
-    cond_finished = _cond(wl, 'Finished')
-
-    is_admitted = _is_true(cond_admitted)
-    is_reserved = _is_true(cond_reserved)
-    is_finished = _is_true(cond_finished)
-    finish_reason = cond_finished.get('reason', '') if cond_finished else ''
-
-    xpk_print(f'Workload : {xpk_name}  ->  {kueue_name}')
-    xpk_print(f'Age      : {_age(created_at)}')
-
-    if is_finished:
-      status_word = 'success' if finish_reason == 'Succeeded' else finish_reason
-      xpk_print(f'Status   : FINISHED ({status_word})')
-      msg = (cond_finished or {}).get('message', '')
-      if msg:
-        xpk_print(f'           {msg}')
-      xpk_print('')
-      return
-
-    if is_admitted:
-      admitted_ts = (cond_admitted or {}).get('lastTransitionTime', '')
-      xpk_print(f'Status   : RUNNING  (admitted {_age(admitted_ts)} ago)')
-      xpk_print(f'Team quota ({cq_name}):')
-      _print_cq_summary(cq)
-      xpk_print('')
-      return
-
-    if is_reserved:
-      reserved_ts = (cond_reserved or {}).get('lastTransitionTime', '')
-      xpk_print(f'Status   : STUCK — quota reserved but not admitted ({_age(reserved_ts)} ago)')
-      xpk_print(f'Team quota ({cq_name}):')
-      _print_cq_summary(cq)
-      events = _events_text(namespace, kueue_name)
-      warn = [l for l in events.splitlines()
-              if any(w in l for w in ('Warning', 'Error', 'Failed', 'error', 'failed'))]
-      if warn:
-        xpk_print('Diagnosis: AdmissionCheck failed. Error(s):')
-        for line in warn[-3:]:
-          xpk_print(f'  {line.strip()}')
-        if 'more than 49 characters' in events:
-          import re
-          m = re.search(r'"([^"]*-slice-job-\d+)"', events)
-          max_len = 23 - len(namespace)
-          xpk_print(f'')
-          xpk_print(f'  Fix: --workload name "{xpk_name}" ({len(xpk_name)} chars)'
-                    f' exceeds the {max_len}-char limit for {namespace}.')
-          xpk_print(f'       Delete the JobSet and resubmit with a name <= {max_len} chars.')
-          xpk_print(f'       Example: {xpk_name[:max_len]}')
-      else:
-        xpk_print('Diagnosis: AdmissionCheck still processing (no errors yet).')
-        xpk_print(f'  kubectl describe workload {kueue_name} -n {namespace}')
-      xpk_print('')
-      return
-
-    # Queued — compute position
-    my_ts  = created_at
-    my_pri = wl.get('spec', {}).get('priority') or 0
-    ahead = []
-    for other in all_items:
-      oname = other['metadata']['name']
-      if oname == kueue_name:
-        continue
-      if _is_true(_cond(other, 'Admitted')) or _is_true(_cond(other, 'Finished')):
-        continue
-      if _is_true(_cond(other, 'QuotaReserved')):
-        continue
-      other_ts  = other['metadata']['creationTimestamp']
-      other_pri = other.get('spec', {}).get('priority') or 0
-      if other_pri > my_pri or (other_pri == my_pri and other_ts < my_ts):
-        ahead.append(_xpk_name_of(other))
-
-    pos = len(ahead) + 1
-    xpk_print(f'Status   : QUEUED — waiting for quota')
-    if ahead:
-      sample = ', '.join(ahead[:3]) + ('...' if len(ahead) > 3 else '')
-      xpk_print(f'Position : {_ordinal(pos)} in line  ({len(ahead)} workload(s) ahead: {sample})')
-    else:
-      xpk_print(f'Position : {_ordinal(pos)} in line  (nothing ahead of you in this queue)')
-    xpk_print(f'Team quota ({cq_name}):')
-    _print_cq_summary(cq)
-
-    # Anomaly detection
-    st = (cq or {}).get('status', {})
-    nominal, _ = _cq_quota(cq) if cq else (0, 0)
-    running = _cq_chips(cq, 'flavorsUsage') if cq else 0
-    if pos == 1 and st.get('admittedWorkloads', 0) == 0 and running == 0 and nominal > 0:
-      xpk_print('Diagnosis: You\'re 1st in line with quota available but nothing running.')
-      xpk_print(f'  This is unusual. Check: kubectl describe workload {kueue_name} -n {namespace}')
-    elif pos == 1 and nominal > 0 and running < nominal * 0.9:
-      xpk_print(f'Diagnosis: You\'re 1st in line and quota is not full — should be admitted soon.')
-      xpk_print(f'  If still queued in a few minutes, check:')
-      xpk_print(f'  kubectl describe workload {kueue_name} -n {namespace}')
-    else:
-      xpk_print('Diagnosis: Things look normal — waiting behind other workloads.')
-    xpk_print('')
-
-  # ------------------------------------------------------------------
-  # Fetch data and run diagnostics
-  # ------------------------------------------------------------------
-  cq = _kube_json('get', 'clusterqueue', cq_name)
-  all_wl_data = _kube_json('get', 'workload', '-n', namespace)
-  all_items = all_wl_data.get('items', []) if all_wl_data else []
-
-  if args.workload:
-    prefix = f'jobset-{args.workload}-'
-    matches = [i for i in all_items if i['metadata']['name'].startswith(prefix)]
-    if not matches:
-      xpk_print(f'No workload found matching "{prefix}*" in {namespace}')
-      xpk_exit(1)
-    if len(matches) > 1:
-      names = [i['metadata']['name'] for i in matches]
-      xpk_print(f'Multiple matches: {names}. Use the full Kueue name with --workload.')
-      xpk_exit(1)
-    _diagnose_one(matches[0], all_items, cq)
-  else:
-    if not all_items:
-      xpk_print(f'No workloads in {namespace} — queue is empty.')
-      xpk_print(f'Team quota ({cq_name}):')
-      if cq:
-        nominal, borrow = _cq_quota(cq)
-        xpk_print(f'  Quota: {nominal} chips nominal  +{borrow} borrow  = {nominal + borrow} max')
-      xpk_exit(0)
-
-    def _sort_key(i):
-      return (0 if _is_true(_cond(i, 'Admitted')) else 1,
-              i['metadata']['creationTimestamp'])
-
-    for item in sorted(all_items, key=_sort_key):
-      _diagnose_one(item, all_items, cq)
-
-  xpk_exit(0)

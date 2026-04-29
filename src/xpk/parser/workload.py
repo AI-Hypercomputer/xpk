@@ -599,7 +599,7 @@ def set_workload_status_parser(workload_status_parser: ArgumentParser):
       required=True,
       help='The name of the cluster.',
   ).completer = _cluster_completer  # type: ignore[attr-defined]
-  workload_status_parser.add_argument(
+  team_arg = workload_status_parser.add_argument(
       '--team',
       type=str,
       required=True,
@@ -607,9 +607,8 @@ def set_workload_status_parser(workload_status_parser: ArgumentParser):
           'Your team name. The set of valid teams is discovered at'
           " runtime from the cluster's team-quota ConfigMap."
       ),
-  ).completer = _cached_field_completer(
-      'teams'
-  )  # type: ignore[attr-defined]
+  )
+  team_arg.completer = _cached_field_completer('teams')  # type: ignore[attr-defined]
   workload_status_parser.add_argument(
       '--workload',
       type=str,

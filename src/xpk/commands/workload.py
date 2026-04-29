@@ -486,6 +486,10 @@ def workload_create(args) -> None:
     k8s_api_client = setup_k8s_env(args)
     setup_k8s_service_accounts()
 
+  # Default PoC routing values; the TPU non-pathways path below may override.
+  poc_namespace = ''
+  k8s_name = args.workload
+
   workload_exists = check_if_workload_exists(args)
 
   if workload_exists:
@@ -961,10 +965,14 @@ def workload_create(args) -> None:
         f'{get_pathways_unified_query_link(args)}'
     )
   else:
+    # PoC teams route to a per-team namespace and use a short K8s JobSet name
+    # derived from args.workload. Fall back to upstream defaults otherwise.
+    log_namespace = poc_namespace or 'default'
+    log_pod_prefix = k8s_name
     xpk_print(
         'Follow your workload here:'
         # pylint: disable=line-too-long
-        f' https://console.cloud.google.com/kubernetes/service/{get_cluster_location(args.project, args.cluster, args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
+        f' https://console.cloud.google.com/kubernetes/service/{get_cluster_location(args.project, args.cluster, args.zone)}/{args.cluster}/{log_namespace}/{log_pod_prefix}/details?project={args.project}'
     )
     duration_of_logs = 'P1D'  # Past 1 Day
     log_filter = (
@@ -972,8 +980,8 @@ def workload_create(args) -> None:
         f'resource.labels.project_id="{args.project}"\n'
         f'resource.labels.location="{get_cluster_location(args.project, args.cluster, args.zone)}"\n'
         f'resource.labels.cluster_name="{args.cluster}"\n'
-        'resource.labels.namespace_name="default"\n'
-        f'resource.labels.pod_name:"{args.workload}-slice-job-0-0-"\n'
+        f'resource.labels.namespace_name="{log_namespace}"\n'
+        f'resource.labels.pod_name:"{log_pod_prefix}-slice-job-0-0-"\n'
         'severity>=DEFAULT'
     )
     encoded_filter = urllib.parse.quote(log_filter, safe='')

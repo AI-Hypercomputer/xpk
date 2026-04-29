@@ -23,7 +23,6 @@ Reads the team-quota ConfigMap to resolve the team's namespace + ClusterQueue.
 """
 
 import json as _json
-import re
 import subprocess as _subprocess
 from datetime import datetime, timezone
 
@@ -54,7 +53,8 @@ def workload_status(args) -> None:
   # Fill project from gcloud config if not provided.
   if not getattr(args, 'project', None):
     r = _subprocess.run(
-        ['gcloud', 'config', 'get', 'project'], capture_output=True, text=True
+        ['gcloud', 'config', 'get', 'project'],
+        capture_output=True, text=True, check=False,
     )
     args.project = r.stdout.strip().splitlines()[-1] if r.returncode == 0 else ''
   if not args.project:
@@ -79,7 +79,7 @@ def workload_status(args) -> None:
 
   # Imported lazily to avoid a circular import: commands/workload.py imports
   # this module's parser, and we'd otherwise close the loop.
-  from .workload import _resolve_quota_team
+  from .workload import _resolve_quota_team  # pylint: disable=import-outside-toplevel
 
   routing = _resolve_quota_team(args)
   namespace = routing.namespace
@@ -226,7 +226,6 @@ def workload_status(args) -> None:
         for line in warn[-3:]:
           xpk_print(f'  {line.strip()}')
         if 'more than 49 characters' in events:
-          m = re.search(r'"([^"]*-slice-job-\d+)"', events)
           max_len = 23 - len(namespace)
           xpk_print('')
           xpk_print(f'  Fix: --workload name "{xpk_name}" ({len(xpk_name)} chars)'

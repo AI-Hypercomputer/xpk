@@ -86,7 +86,7 @@ def test_available_teams_returns_sorted_keys():
 
 
 def test_available_teams_handles_missing_key():
-  assert available_teams({}) == []
+  assert not available_teams({})
 
 
 def test_available_value_classes_returns_list():
@@ -95,7 +95,7 @@ def test_available_value_classes_returns_list():
 
 
 def test_available_value_classes_handles_missing_key():
-  assert available_value_classes({}) == []
+  assert not available_value_classes({})
 
 
 # ---------- max_k8s_workload_name_len ----------

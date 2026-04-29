@@ -52,7 +52,7 @@ def current_context() -> str | None:
   try:
     r = subprocess.run(
         ["kubectl", "config", "current-context"],
-        capture_output=True, text=True, timeout=5,
+        capture_output=True, text=True, timeout=5, check=False,
     )
   except (FileNotFoundError, subprocess.TimeoutExpired):
     return None
@@ -144,7 +144,7 @@ def gke_contexts_from_kubeconfig() -> list[str]:
   try:
     r = subprocess.run(
         ["kubectl", "config", "get-contexts", "-o", "name"],
-        capture_output=True, text=True, timeout=5,
+        capture_output=True, text=True, timeout=5, check=False,
     )
   except (FileNotFoundError, subprocess.TimeoutExpired):
     return []

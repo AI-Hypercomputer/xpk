@@ -27,7 +27,7 @@ from ..core.cluster import (
     get_cluster_credentials,
     setup_k8s_env,
 )
-from ..core.commands import run_command_with_updates, run_commands, run_command_for_value
+from ..core.commands import run_command_with_updates, run_commands
 from ..core.config import (VERTEX_TENSORBOARD_FEATURE_FLAG, XPK_CURRENT_VERSION)
 from ..core.docker_container import (
     get_main_container_docker_image,
@@ -37,6 +37,7 @@ from ..core.kueue_manager import LOCAL_QUEUE_NAME, derive_k8s_workload_name
 from ..core.quota_discovery import (
     CONFIG_CM_NAME,
     CONFIG_CM_NAMESPACE,
+    TeamRouting,
     available_teams,
     available_value_classes,
     fetch_quota_config,
@@ -157,7 +158,7 @@ def _load_quota_cfg(args) -> dict | None:
           f'{hint_line} Available: {", ".join(vcs)}'
       )
       xpk_exit(1)
-  args._quota_cfg = cfg
+  args._quota_cfg = cfg  # pylint: disable=protected-access
   return cfg
 
 
@@ -170,7 +171,6 @@ def _resolve_quota_team(args):
   cfg = _load_quota_cfg(args)
   if cfg is None:
     # Mimic the dataclass shape so callers can use attribute access uniformly.
-    from ..core.quota_discovery import TeamRouting
     return TeamRouting(namespace='', local_queue=LOCAL_QUEUE_NAME, priority_class=args.priority)
   return resolve_team(cfg, args.team)
 
@@ -875,6 +875,7 @@ def workload_create(args) -> None:
     # core.quota_discovery.max_k8s_workload_name_len for the budget math.
     # The user can disable shortening with --no-shorten-jobset-name.
     if team_namespace:
+      # pylint: disable-next=protected-access
       max_len = max_k8s_workload_name_len(args._quota_cfg, team_namespace)
       shorten = not getattr(args, 'no_shorten_jobset_name', False)
       if shorten:

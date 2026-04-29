@@ -22,7 +22,7 @@ import yaml
 from unittest.mock import MagicMock, patch
 
 from xpk.core.kubectl_common import PatchResources
-from xpk.core.kueue_manager import KueueConfig, KueueManager, has_sub_slicing_enabled, has_super_slicing_enabled
+from xpk.core.kueue_manager import KueueConfig, KueueManager, derive_k8s_workload_name, has_sub_slicing_enabled, has_super_slicing_enabled
 from xpk.core.system_characteristics import GpuConfig, DockerPlatform, AcceleratorType, SystemCharacteristics, UserFacingNameToSystemCharacteristics
 from xpk.core.testing.commands_tester import CommandsTester
 from packaging.version import Version
@@ -722,8 +722,6 @@ def _first(generator: Generator[T, None, None]) -> T:
 # derive_k8s_workload_name
 # ---------------------------------------------------------------------------
 
-from xpk.core.kueue_manager import derive_k8s_workload_name
-
 
 def test_derive_k8s_workload_name_is_deterministic():
   a = derive_k8s_workload_name("amandaliang-run42", max_len=12)
@@ -742,7 +740,7 @@ def test_derive_k8s_workload_name_uses_ldap_prefix_before_first_dash():
   result = derive_k8s_workload_name("amandaliang-run42", max_len=12)
   assert result.startswith("amandal")  # first 7 chars of 'amandaliang'
   # Suffix is 4 hex chars.
-  assert len(result.split("-")[-1]) == 4
+  assert len(result.rsplit("-", maxsplit=1)[-1]) == 4
 
 
 def test_derive_k8s_workload_name_distinguishes_different_inputs():
@@ -756,4 +754,4 @@ def test_derive_k8s_workload_name_short_input_still_gets_hashed():
   # short hash-suffixed name (so callers can rely on the format).
   result = derive_k8s_workload_name("a", max_len=12)
   assert "-" in result
-  assert len(result.split("-")[-1]) == 4
+  assert len(result.rsplit("-", maxsplit=1)[-1]) == 4

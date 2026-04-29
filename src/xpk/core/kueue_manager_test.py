@@ -730,7 +730,9 @@ def test_derive_k8s_workload_name_is_deterministic():
 
 
 def test_derive_k8s_workload_name_respects_max_len():
-  result = derive_k8s_workload_name("very-long-display-name-that-overflows", max_len=12)
+  result = derive_k8s_workload_name(
+      "very-long-display-name-that-overflows", max_len=12
+  )
   assert len(result) <= 12
 
 

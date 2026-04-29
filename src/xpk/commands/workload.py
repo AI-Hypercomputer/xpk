@@ -154,8 +154,8 @@ def _load_quota_cfg(args) -> dict | None:
       hints = suggest(args.value_class, vcs)
       hint_line = f' Did you mean: {", ".join(hints)}?' if hints else ''
       xpk_print(
-          f'ERROR: --value-class={args.value_class!r} not valid on this cluster.'
-          f'{hint_line} Available: {", ".join(vcs)}'
+          f'ERROR: --value-class={args.value_class!r} not valid on this'
+          f' cluster.{hint_line} Available: {", ".join(vcs)}'
       )
       xpk_exit(1)
   args._quota_cfg = cfg  # pylint: disable=protected-access
@@ -171,7 +171,9 @@ def _resolve_quota_team(args):
   cfg = _load_quota_cfg(args)
   if cfg is None:
     # Mimic the dataclass shape so callers can use attribute access uniformly.
-    return TeamRouting(namespace='', local_queue=LOCAL_QUEUE_NAME, priority_class=args.priority)
+    return TeamRouting(
+        namespace='', local_queue=LOCAL_QUEUE_NAME, priority_class=args.priority
+    )
   return resolve_team(cfg, args.team)
 
 
@@ -188,7 +190,9 @@ def _build_team_labels(args) -> str:
   if getattr(args, 'value_class', None):
     lines.append(f'value-class: {args.value_class}')
   if getattr(args, 'declared_duration_minutes', None) is not None:
-    lines.append(f'declared-duration-minutes: "{args.declared_duration_minutes}"')
+    lines.append(
+        f'declared-duration-minutes: "{args.declared_duration_minutes}"'
+    )
   # indent to match template (4 spaces)
   return ('\n    ').join(lines)
 
@@ -886,9 +890,9 @@ def workload_create(args) -> None:
       if k8s_name != args.workload:
         xpk_print(
             f'workload "{args.workload}" → K8s JobSet name: "{k8s_name}"'
-            f' (shortened to fit super-slice charLimit; use'
-            f' $XPK_WORKLOAD_NAME in your command for GCS artifact paths;'
-            f' pass --no-shorten-jobset-name to disable)'
+            ' (shortened to fit super-slice charLimit; use'
+            ' $XPK_WORKLOAD_NAME in your command for GCS artifact paths;'
+            ' pass --no-shorten-jobset-name to disable)'
         )
     else:
       k8s_name = args.workload
@@ -911,7 +915,9 @@ def workload_create(args) -> None:
         node_selector_machine_label=node_selector_machine_label,
         tpu_slice_topology_annotation=tpu_slice_topology_annotation,
         local_queue_name=routing.local_queue,
-        namespace_field=f'namespace: {team_namespace}' if team_namespace else '',
+        namespace_field=f'namespace: {team_namespace}'
+        if team_namespace
+        else '',
         team_labels=_build_team_labels(args),
         team_pod_template_labels=_build_team_pod_template_labels(args),
         autoprovisioning_args=autoprovisioning_args,
@@ -1176,5 +1182,3 @@ def workload_list(args) -> None:
   xpk_print(f'See your workloads in Cloud Console: {workload_list_gcp_link}')
 
   xpk_exit(0)
-
-

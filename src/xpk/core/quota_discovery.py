@@ -34,14 +34,15 @@ from dataclasses import dataclass
 from . import local_cache
 from .commands import run_command_for_value
 
-CONFIG_CM_NAMESPACE = "kueue-system"
-CONFIG_CM_NAME      = "poc-team-config"   # cluster-side ConfigMap name; set by chart
-CONFIG_CM_KEY       = "config.json"
+CONFIG_CM_NAMESPACE = 'kueue-system'
+CONFIG_CM_NAME = 'poc-team-config'  # cluster-side ConfigMap name; set by chart
+CONFIG_CM_KEY = 'config.json'
 
 
 @dataclass(frozen=True)
 class TeamRouting:
   """Per-team Kueue routing parameters resolved from the cluster ConfigMap."""
+
   namespace: str
   local_queue: str
   priority_class: str
@@ -54,7 +55,9 @@ def fetch_quota_config() -> dict | None:
   that argcomplete and did-you-mean suggestions work even when the cluster
   isn't reachable.
   """
-  cmd = f'kubectl get configmap -n {CONFIG_CM_NAMESPACE} {CONFIG_CM_NAME} -o json'
+  cmd = (
+      f'kubectl get configmap -n {CONFIG_CM_NAMESPACE} {CONFIG_CM_NAME} -o json'
+  )
   rc, out = run_command_for_value(cmd, task=cmd, quiet=True)
   if rc != 0 or not out:
     return None
@@ -75,7 +78,9 @@ def fetch_quota_config() -> dict | None:
   return cfg
 
 
-def suggest(user_input: str, candidates: list[str], limit: int = 3) -> list[str]:
+def suggest(
+    user_input: str, candidates: list[str], limit: int = 3
+) -> list[str]:
   """Return up to `limit` closest matches for an unknown value."""
   return difflib.get_close_matches(user_input, candidates, n=limit, cutoff=0.5)
 
@@ -123,5 +128,5 @@ def max_k8s_workload_name_len(cfg: dict, namespace: str) -> int:
   """
   sn = cfg.get('sliceName') or {}
   char_limit = int(sn.get('charLimit', 49))
-  fixed      = int(sn.get('fixedOverhead', 26))
+  fixed = int(sn.get('fixedOverhead', 26))
   return char_limit - fixed - len(namespace)

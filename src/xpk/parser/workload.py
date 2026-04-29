@@ -35,6 +35,7 @@ def _cached_field_completer(field: str):
   ('teams' or 'valueClasses'). Prefers the cache entry for the kubectl
   context corresponding to parsed_args.cluster; falls back to the union of
   all cached contexts so completion still helps on an unfamiliar cluster."""
+
   def _complete(prefix, parsed_args, **_kwargs):
     cluster = getattr(parsed_args, 'cluster', None)
     candidates = set()
@@ -49,14 +50,18 @@ def _cached_field_completer(field: str):
         payload = local_cache.read(c) or {}
         candidates.update(payload.get(field) or [])
     return sorted(v for v in candidates if v.startswith(prefix or ''))
+
   return _complete
 
 
 def _cluster_completer(prefix, parsed_args, **_kwargs):
   """Tab-complete --cluster from GKE contexts in the user's kubeconfig."""
   del parsed_args
-  return [c for c in local_cache.gke_contexts_from_kubeconfig()
-          if c.startswith(prefix or '')]
+  return [
+      c
+      for c in local_cache.gke_contexts_from_kubeconfig()
+      if c.startswith(prefix or '')
+  ]
 
 
 def set_workload_parsers(workload_parser: ArgumentParser):
@@ -96,7 +101,9 @@ def set_workload_parsers(workload_parser: ArgumentParser):
   # "workload status" command parser.
   workload_status_parser = workload_subcommands.add_parser(
       'status',
-      help='Diagnose a workload routed via --team: queued vs admitted vs stuck.',
+      help=(
+          'Diagnose a workload routed via --team: queued vs admitted vs stuck.'
+      ),
   )
   set_workload_status_parser(workload_status_parser)
 
@@ -598,7 +605,7 @@ def set_workload_status_parser(workload_status_parser: ArgumentParser):
       required=True,
       help=(
           'Your team name. The set of valid teams is discovered at'
-          ' runtime from the cluster\'s team-quota ConfigMap.'
+          " runtime from the cluster's team-quota ConfigMap."
       ),
   ).completer = _cached_field_completer('teams')
   workload_status_parser.add_argument(
@@ -739,9 +746,9 @@ def add_shared_workload_create_optional_arguments(args_parsers):
         type=str,
         default=None,
         help=(
-            'Team name. When set, automatically routes the job to the team\'s'
+            "Team name. When set, automatically routes the job to the team's"
             ' namespace, LocalQueue, and PriorityClass. Overrides --priority.'
-            ' Valid teams are discovered at runtime from the cluster\'s'
+            " Valid teams are discovered at runtime from the cluster's"
             ' team-quota ConfigMap.'
         ),
     ).completer = _cached_field_completer('teams')
@@ -751,7 +758,7 @@ def add_shared_workload_create_optional_arguments(args_parsers):
         default=None,
         help=(
             'Job type label for audit and priority ordering. Valid classes are'
-            ' discovered at runtime from the cluster\'s team-quota ConfigMap.'
+            " discovered at runtime from the cluster's team-quota ConfigMap."
         ),
     ).completer = _cached_field_completer('valueClasses')
     custom_parser.add_argument(
@@ -770,7 +777,7 @@ def add_shared_workload_create_optional_arguments(args_parsers):
         default=False,
         help=(
             'When --team is set, xpk normally shortens the K8s JobSet name to'
-            ' fit the super-slice admission controller\'s sliceName.charLimit.'
+            " fit the super-slice admission controller's sliceName.charLimit."
             ' Pass this flag to disable shortening (use args.workload as-is)'
             ' — only safe when your workload name is short enough already.'
         ),

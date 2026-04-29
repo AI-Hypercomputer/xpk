@@ -52,7 +52,10 @@ def current_context() -> str | None:
   try:
     r = subprocess.run(
         ["kubectl", "config", "current-context"],
-        capture_output=True, text=True, timeout=5, check=False,
+        capture_output=True,
+        text=True,
+        timeout=5,
+        check=False,
     )
   except (FileNotFoundError, subprocess.TimeoutExpired):
     return None
@@ -72,11 +75,13 @@ def write(context: str, cfg: dict) -> None:
     except OSError:
       pass
     payload = {
-        "context":      context,
-        "fetchedAt":    _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds"),
-        "teams":        sorted((cfg.get("teams") or {}).keys()),
+        "context": context,
+        "fetchedAt": _dt.datetime.now(_dt.timezone.utc).isoformat(
+            timespec="seconds"
+        ),
+        "teams": sorted((cfg.get("teams") or {}).keys()),
         "valueClasses": list(cfg.get("valueClasses") or []),
-        "sliceName":    cfg.get("sliceName") or {},
+        "sliceName": cfg.get("sliceName") or {},
     }
     dst = _path_for(context)
     with tempfile.NamedTemporaryFile(
@@ -144,7 +149,10 @@ def gke_contexts_from_kubeconfig() -> list[str]:
   try:
     r = subprocess.run(
         ["kubectl", "config", "get-contexts", "-o", "name"],
-        capture_output=True, text=True, timeout=5, check=False,
+        capture_output=True,
+        text=True,
+        timeout=5,
+        check=False,
     )
   except (FileNotFoundError, subprocess.TimeoutExpired):
     return []

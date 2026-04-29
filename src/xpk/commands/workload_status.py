@@ -54,11 +54,18 @@ def workload_status(args) -> None:
   if not getattr(args, 'project', None):
     r = _subprocess.run(
         ['gcloud', 'config', 'get', 'project'],
-        capture_output=True, text=True, check=False,
+        capture_output=True,
+        text=True,
+        check=False,
     )
-    args.project = r.stdout.strip().splitlines()[-1] if r.returncode == 0 else ''
+    args.project = (
+        r.stdout.strip().splitlines()[-1] if r.returncode == 0 else ''
+    )
   if not args.project:
-    xpk_print('ERROR: --project not set and could not be determined from gcloud config.')
+    xpk_print(
+        'ERROR: --project not set and could not be determined from gcloud'
+        ' config.'
+    )
     xpk_exit(1)
 
   # Look up the cluster location directly — avoids requiring compute/zone in
@@ -71,7 +78,10 @@ def workload_status(args) -> None:
         quiet=True,
     )
     if rc != 0 or not loc.strip():
-      xpk_print(f'ERROR: Could not find cluster "{args.cluster}" in project {args.project}.')
+      xpk_print(
+          f'ERROR: Could not find cluster "{args.cluster}" in project'
+          f' {args.project}.'
+      )
       xpk_exit(1)
     args.zone = loc.strip()
 
@@ -99,7 +109,7 @@ def workload_status(args) -> None:
     cmd = (
         f'kubectl get events -n {ns}'
         f' --field-selector involvedObject.name={name}'
-        f' --sort-by=.lastTimestamp'
+        ' --sort-by=.lastTimestamp'
     )
     rc, out = run_command_for_value(cmd, task='get events', quiet=True)
     return out.strip() if rc == 0 else ''
@@ -145,7 +155,9 @@ def workload_status(args) -> None:
     return nominal, borrow
 
   def _ordinal(n):
-    return f"{n}{['th','st','nd','rd','th'][min(n % 10, 4) if n % 100 not in (11,12,13) else 0]}"
+    return (
+        f"{n}{['th','st','nd','rd','th'][min(n % 10, 4) if n % 100 not in (11,12,13) else 0]}"
+    )
 
   def _xpk_name_of(wl):
     name = wl['metadata'].get('labels', {}).get('xpk.google.com/workload')
@@ -156,7 +168,7 @@ def workload_status(args) -> None:
         return ref.get('name', '')
     n = wl['metadata']['name']
     if n.startswith('jobset-'):
-      n = n[len('jobset-'):]
+      n = n[len('jobset-') :]
     if len(n) > 6 and n[-6] == '-':
       n = n[:-6]
     return n
@@ -166,22 +178,28 @@ def workload_status(args) -> None:
       return
     st = cq.get('status', {})
     nominal, borrow_limit = _cq_quota(cq)
-    running_chips  = _cq_chips(cq, 'flavorsUsage')
+    running_chips = _cq_chips(cq, 'flavorsUsage')
     reserved_chips = _cq_chips(cq, 'flavorsReservation')
-    admitted   = st.get('admittedWorkloads', 0)
-    reserving  = st.get('reservingWorkloads', 0)
-    pending    = st.get('pendingWorkloads', 0)
-    xpk_print(f'  Quota   : {nominal} chips nominal  +{borrow_limit} borrow  ='
-              f' {nominal + borrow_limit} max')
+    admitted = st.get('admittedWorkloads', 0)
+    reserving = st.get('reservingWorkloads', 0)
+    pending = st.get('pendingWorkloads', 0)
+    xpk_print(
+        f'  Quota   : {nominal} chips nominal  +{borrow_limit} borrow  ='
+        f' {nominal + borrow_limit} max'
+    )
     if reserved_chips > 0 and reserved_chips != running_chips:
-      xpk_print(f'  Reserved: {reserved_chips} chips'
-                f' ({reserving} workload(s) — quota held, awaiting admission)')
-    xpk_print(f'  Running : {running_chips} chips ({admitted} workload(s) admitted)')
+      xpk_print(
+          f'  Reserved: {reserved_chips} chips'
+          f' ({reserving} workload(s) — quota held, awaiting admission)'
+      )
+    xpk_print(
+        f'  Running : {running_chips} chips ({admitted} workload(s) admitted)'
+    )
     xpk_print(f'  Queued  : {pending} workload(s) waiting for quota')
 
   def _diagnose_one(wl, all_items, cq):
     kueue_name = wl['metadata']['name']
-    xpk_name   = _xpk_name_of(wl)
+    xpk_name = _xpk_name_of(wl)
     created_at = wl['metadata']['creationTimestamp']
 
     cond_reserved = _cond(wl, 'QuotaReserved')
@@ -215,12 +233,20 @@ def workload_status(args) -> None:
 
     if is_reserved:
       reserved_ts = (cond_reserved or {}).get('lastTransitionTime', '')
-      xpk_print(f'Status   : STUCK — quota reserved but not admitted ({_age(reserved_ts)} ago)')
+      xpk_print(
+          'Status   : STUCK — quota reserved but not admitted'
+          f' ({_age(reserved_ts)} ago)'
+      )
       xpk_print(f'Team quota ({cq_name}):')
       _print_cq_summary(cq)
       events = _events_text(namespace, kueue_name)
-      warn = [l for l in events.splitlines()
-              if any(w in l for w in ('Warning', 'Error', 'Failed', 'error', 'failed'))]
+      warn = [
+          l
+          for l in events.splitlines()
+          if any(
+              w in l for w in ('Warning', 'Error', 'Failed', 'error', 'failed')
+          )
+      ]
       if warn:
         xpk_print('Diagnosis: AdmissionCheck failed. Error(s):')
         for line in warn[-3:]:
@@ -228,9 +254,14 @@ def workload_status(args) -> None:
         if 'more than 49 characters' in events:
           max_len = 23 - len(namespace)
           xpk_print('')
-          xpk_print(f'  Fix: --workload name "{xpk_name}" ({len(xpk_name)} chars)'
-                    f' exceeds the {max_len}-char limit for {namespace}.')
-          xpk_print(f'       Delete the JobSet and resubmit with a name <= {max_len} chars.')
+          xpk_print(
+              f'  Fix: --workload name "{xpk_name}" ({len(xpk_name)} chars)'
+              f' exceeds the {max_len}-char limit for {namespace}.'
+          )
+          xpk_print(
+              '       Delete the JobSet and resubmit with a name <='
+              f' {max_len} chars.'
+          )
           xpk_print(f'       Example: {xpk_name[:max_len]}')
       else:
         xpk_print('Diagnosis: AdmissionCheck still processing (no errors yet).')
@@ -239,18 +270,20 @@ def workload_status(args) -> None:
       return
 
     # Queued — compute position
-    my_ts  = created_at
+    my_ts = created_at
     my_pri = wl.get('spec', {}).get('priority') or 0
     ahead = []
     for other in all_items:
       oname = other['metadata']['name']
       if oname == kueue_name:
         continue
-      if _is_true(_cond(other, 'Admitted')) or _is_true(_cond(other, 'Finished')):
+      if _is_true(_cond(other, 'Admitted')) or _is_true(
+          _cond(other, 'Finished')
+      ):
         continue
       if _is_true(_cond(other, 'QuotaReserved')):
         continue
-      other_ts  = other['metadata']['creationTimestamp']
+      other_ts = other['metadata']['creationTimestamp']
       other_pri = other.get('spec', {}).get('priority') or 0
       if other_pri > my_pri or (other_pri == my_pri and other_ts < my_ts):
         ahead.append(_xpk_name_of(other))
@@ -259,9 +292,15 @@ def workload_status(args) -> None:
     xpk_print('Status   : QUEUED — waiting for quota')
     if ahead:
       sample = ', '.join(ahead[:3]) + ('...' if len(ahead) > 3 else '')
-      xpk_print(f'Position : {_ordinal(pos)} in line  ({len(ahead)} workload(s) ahead: {sample})')
+      xpk_print(
+          f'Position : {_ordinal(pos)} in line  ({len(ahead)} workload(s)'
+          f' ahead: {sample})'
+      )
     else:
-      xpk_print(f'Position : {_ordinal(pos)} in line  (nothing ahead of you in this queue)')
+      xpk_print(
+          f'Position : {_ordinal(pos)} in line  (nothing ahead of you in this'
+          ' queue)'
+      )
     xpk_print(f'Team quota ({cq_name}):')
     _print_cq_summary(cq)
 
@@ -269,15 +308,31 @@ def workload_status(args) -> None:
     st = (cq or {}).get('status', {})
     nominal, _ = _cq_quota(cq) if cq else (0, 0)
     running = _cq_chips(cq, 'flavorsUsage') if cq else 0
-    if pos == 1 and st.get('admittedWorkloads', 0) == 0 and running == 0 and nominal > 0:
-      xpk_print('Diagnosis: You\'re 1st in line with quota available but nothing running.')
-      xpk_print(f'  This is unusual. Check: kubectl describe workload {kueue_name} -n {namespace}')
+    if (
+        pos == 1
+        and st.get('admittedWorkloads', 0) == 0
+        and running == 0
+        and nominal > 0
+    ):
+      xpk_print(
+          "Diagnosis: You're 1st in line with quota available but nothing"
+          ' running.'
+      )
+      xpk_print(
+          f'  This is unusual. Check: kubectl describe workload {kueue_name} -n'
+          f' {namespace}'
+      )
     elif pos == 1 and nominal > 0 and running < nominal * 0.9:
-      xpk_print('Diagnosis: You\'re 1st in line and quota is not full — should be admitted soon.')
+      xpk_print(
+          "Diagnosis: You're 1st in line and quota is not full — should be"
+          ' admitted soon.'
+      )
       xpk_print('  If still queued in a few minutes, check:')
       xpk_print(f'  kubectl describe workload {kueue_name} -n {namespace}')
     else:
-      xpk_print('Diagnosis: Things look normal — waiting behind other workloads.')
+      xpk_print(
+          'Diagnosis: Things look normal — waiting behind other workloads.'
+      )
     xpk_print('')
 
   cq = _kube_json('get', 'clusterqueue', cq_name)
@@ -292,7 +347,9 @@ def workload_status(args) -> None:
       xpk_exit(1)
     if len(matches) > 1:
       names = [i['metadata']['name'] for i in matches]
-      xpk_print(f'Multiple matches: {names}. Use the full Kueue name with --workload.')
+      xpk_print(
+          f'Multiple matches: {names}. Use the full Kueue name with --workload.'
+      )
       xpk_exit(1)
     _diagnose_one(matches[0], all_items, cq)
   else:
@@ -301,12 +358,17 @@ def workload_status(args) -> None:
       xpk_print(f'Team quota ({cq_name}):')
       if cq:
         nominal, borrow = _cq_quota(cq)
-        xpk_print(f'  Quota: {nominal} chips nominal  +{borrow} borrow  = {nominal + borrow} max')
+        xpk_print(
+            f'  Quota: {nominal} chips nominal  +{borrow} borrow  ='
+            f' {nominal + borrow} max'
+        )
       xpk_exit(0)
 
     def _sort_key(i):
-      return (0 if _is_true(_cond(i, 'Admitted')) else 1,
-              i['metadata']['creationTimestamp'])
+      return (
+          0 if _is_true(_cond(i, 'Admitted')) else 1,
+          i['metadata']['creationTimestamp'],
+      )
 
     for item in sorted(all_items, key=_sort_key):
       _diagnose_one(item, all_items, cq)

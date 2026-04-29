@@ -91,7 +91,11 @@ def test_available_teams_handles_missing_key():
 
 def test_available_value_classes_returns_list():
   cfg = _sample_cfg()
-  assert available_value_classes(cfg) == ['benchmark', 'regression', 'development']
+  assert available_value_classes(cfg) == [
+      'benchmark',
+      'regression',
+      'development',
+  ]
 
 
 def test_available_value_classes_handles_missing_key():
@@ -113,7 +117,9 @@ def test_max_k8s_workload_name_len_falls_back_to_defaults():
 
 
 def test_max_k8s_workload_name_len_handles_partial_overrides():
-  cfg = {'sliceName': {'charLimit': 60}}  # fixedOverhead falls back to default 26
+  cfg = {
+      'sliceName': {'charLimit': 60}
+  }  # fixedOverhead falls back to default 26
   assert max_k8s_workload_name_len(cfg, 'foo') == 60 - 26 - 3
 
 
@@ -145,7 +151,9 @@ def test_fetch_quota_config_returns_parsed_payload(mocker):
       'xpk.core.quota_discovery.run_command_for_value',
       return_value=(0, json.dumps(cm)),
   )
-  mocker.patch('xpk.core.quota_discovery.local_cache.current_context', return_value=None)
+  mocker.patch(
+      'xpk.core.quota_discovery.local_cache.current_context', return_value=None
+  )
   out = fetch_quota_config()
   assert out == cfg
 
@@ -182,7 +190,10 @@ def test_fetch_quota_config_writes_cache_when_context_known(mocker):
       'xpk.core.quota_discovery.run_command_for_value',
       return_value=(0, json.dumps(cm)),
   )
-  mocker.patch('xpk.core.quota_discovery.local_cache.current_context', return_value='gke_proj_zone_cluster')
+  mocker.patch(
+      'xpk.core.quota_discovery.local_cache.current_context',
+      return_value='gke_proj_zone_cluster',
+  )
   cache_write = mocker.patch('xpk.core.quota_discovery.local_cache.write')
   fetch_quota_config()
   cache_write.assert_called_once_with('gke_proj_zone_cluster', cfg)

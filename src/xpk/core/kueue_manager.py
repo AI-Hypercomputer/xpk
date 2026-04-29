@@ -84,10 +84,10 @@ def derive_k8s_workload_name(display_name: str, max_len: int) -> str:
   """
   # Reserve 5 chars for '-' + 4 hex digits
   max_prefix = max_len - 5
-  ldap = display_name.split('-')[0]
+  ldap = display_name.split("-")[0]
   prefix = ldap[:max_prefix]
   hex4 = hashlib.sha256(display_name.encode()).hexdigest()[:4]
-  return f'{prefix}-{hex4}'
+  return f"{prefix}-{hex4}"
 
 
 @dataclass(frozen=True)

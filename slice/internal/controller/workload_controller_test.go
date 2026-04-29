@@ -1923,7 +1923,7 @@ func TestWorkloadReconciler(t *testing.T) {
 					ReserveQuota(baseAdmission, now).
 					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					Finalizers(SliceControllerName).
-					SliceFailure(core.WorkloadSliceRuntimeFailure, "Slices are in states: 1 ACTIVE, 1 FAILED").
+					SliceFailure(core.WorkloadSliceRuntimeFailure, "Slices are in states: 1 ACTIVE, 1 FAILED. Errors: default-workload-ps2-0: Error by test").
 					Obj(),
 			},
 			wantWorkloads: []kueue.Workload{
@@ -1937,7 +1937,7 @@ func TestWorkloadReconciler(t *testing.T) {
 						Type:    core.WorkloadSliceFailureConditionType,
 						Status:  metav1.ConditionFalse,
 						Reason:  core.WorkloadSliceRuntimeFailure,
-						Message: "Previously: Slices are in states: 1 ACTIVE, 1 FAILED",
+						Message: "Previously: Slices are in states: 1 ACTIVE, 1 FAILED. Errors: default-workload-ps2-0: Error by test",
 					}).
 					Obj(),
 			},
@@ -1962,7 +1962,7 @@ func TestWorkloadReconciler(t *testing.T) {
 					ReserveQuota(baseAdmission, now).
 					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					Finalizers(SliceControllerName).
-					SliceFailure(core.WorkloadSliceRuntimeFailure, "Slices are in states: 1 ACTIVE, 1 FAILED").
+					SliceFailure(core.WorkloadSliceRuntimeFailure, "Slices are in states: 1 ACTIVE, 1 FAILED. Errors: default-workload-ps2-0: Error by test").
 					Obj(),
 				baseSlice1Wrapper.Clone().Activating().Obj(),
 				baseSlice2Wrapper.Clone().Activating().Obj(),
@@ -1978,7 +1978,7 @@ func TestWorkloadReconciler(t *testing.T) {
 						Type:    core.WorkloadSliceFailureConditionType,
 						Status:  metav1.ConditionFalse,
 						Reason:  core.WorkloadSliceRuntimeFailure,
-						Message: "Previously: Slices are in states: 1 ACTIVE, 1 FAILED",
+						Message: "Previously: Slices are in states: 1 ACTIVE, 1 FAILED. Errors: default-workload-ps2-0: Error by test",
 					}).
 					Obj(),
 			},
@@ -2000,7 +2000,7 @@ func TestWorkloadReconciler(t *testing.T) {
 					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					Finalizers(SliceControllerName).
 					AdmissionCheck(buildAdmissionCheckStateWithRequeue(kueue.CheckStateRetry, "retrying", ptr.To(int32(10)))).
-					SliceFailure(core.WorkloadSliceRuntimeFailure, "Slices are in states: 1 ACTIVE, 1 FAILED").
+					SliceFailure(core.WorkloadSliceRuntimeFailure, "Slices are in states: 1 ACTIVE, 1 FAILED. Errors: default-workload-ps2-0: Error by test").
 					Obj(),
 			},
 			wantWorkloads: []kueue.Workload{
@@ -2010,7 +2010,7 @@ func TestWorkloadReconciler(t *testing.T) {
 					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					Finalizers(SliceControllerName).
 					AdmissionCheck(buildAdmissionCheckStateWithRequeue(kueue.CheckStateRetry, "retrying", ptr.To(int32(10)))).
-					SliceFailure(core.WorkloadSliceRuntimeFailure, "Slices are in states: 1 ACTIVE, 1 FAILED").
+					SliceFailure(core.WorkloadSliceRuntimeFailure, "Slices are in states: 1 ACTIVE, 1 FAILED. Errors: default-workload-ps2-0: Error by test").
 					Obj(),
 			},
 		},

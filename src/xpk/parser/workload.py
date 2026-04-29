@@ -472,7 +472,7 @@ def set_workload_delete_parser(workload_delete_parser: ArgumentParser):
       default=None,
       help='The name of the cluster to delete the job on.',
       required=True,
-  ).completer = _cluster_completer
+  ).completer = _cluster_completer  # type: ignore[attr-defined]
   ### "workload delete" Optional arguments
   workload_delete_parser_optional_arguments.add_argument(
       '--workload',
@@ -527,7 +527,7 @@ def set_workload_list_parser(workload_list_parser: ArgumentParser):
       default=None,
       help='The name of the cluster to list jobs on.',
       required=True,
-  ).completer = _cluster_completer
+  ).completer = _cluster_completer  # type: ignore[attr-defined]
 
   workload_list_parser.add_argument(
       '--filter-by-status',
@@ -598,7 +598,7 @@ def set_workload_status_parser(workload_status_parser: ArgumentParser):
       default=None,
       required=True,
       help='The name of the cluster.',
-  ).completer = _cluster_completer
+  ).completer = _cluster_completer  # type: ignore[attr-defined]
   workload_status_parser.add_argument(
       '--team',
       type=str,
@@ -607,7 +607,9 @@ def set_workload_status_parser(workload_status_parser: ArgumentParser):
           'Your team name. The set of valid teams is discovered at'
           " runtime from the cluster's team-quota ConfigMap."
       ),
-  ).completer = _cached_field_completer('teams')
+  ).completer = _cached_field_completer(
+      'teams'
+  )  # type: ignore[attr-defined]
   workload_status_parser.add_argument(
       '--workload',
       type=str,

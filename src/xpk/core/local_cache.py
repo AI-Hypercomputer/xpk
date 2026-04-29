@@ -105,7 +105,8 @@ def read(context: str) -> dict | None:
     p = _path_for(context)
     if not p.exists():
       return None
-    return json.loads(p.read_text())
+    payload = json.loads(p.read_text())
+    return payload if isinstance(payload, dict) else None
   except Exception:  # pylint: disable=broad-except
     return None
 

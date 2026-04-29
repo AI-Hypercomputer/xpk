@@ -128,7 +128,7 @@ def _load_quota_cfg(args) -> dict | None:
   if not isinstance(team, str) or not team.strip():
     return None
   cached = getattr(args, '_quota_cfg', None)
-  if cached is not None:
+  if isinstance(cached, dict):
     return cached
   cfg = fetch_quota_config()
   if cfg is None:

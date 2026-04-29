@@ -72,6 +72,8 @@ def fetch_quota_config() -> dict | None:
     cfg = json.loads(raw)
   except json.JSONDecodeError:
     return None
+  if not isinstance(cfg, dict):
+    return None
   ctx = local_cache.current_context()
   if ctx:
     local_cache.write(ctx, cfg)

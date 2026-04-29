@@ -76,10 +76,17 @@ const (
 	LWSLeaderPodSetName = "leader"
 
 	WorkloadSliceFailureConditionType = "TPUSliceFailure"
-	WorkloadSliceDeletion             = "Deletion"
+
+	// WorkloadSliceDeletion indicates that the slice associated with the workload has been deleted
+	// (eg. manually with "kubectl delete").
+	WorkloadSliceDeletion = "Deletion"
+	// WorkloadSliceConfigurationFailure indicates a misconfiguration in the slice definition
+	// that prevents the slice from being created.
 	WorkloadSliceConfigurationFailure = "ConfigurationFailure"
-	WorkloadSliceRuntimeFailure       = "RuntimeFailure"
-	WorkloadSliceFormationTimeout     = "FormationTimeout"
+	// WorkloadSliceRuntimeFailure indicates a failure during the slice's operation.
+	WorkloadSliceRuntimeFailure = "RuntimeFailure"
+	// WorkloadSliceFormationTimeout indicates that the slice activation did not complete within the expected time.
+	WorkloadSliceFormationTimeout = "FormationTimeout"
 )
 
 var (

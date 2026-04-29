@@ -891,12 +891,14 @@ func buildAdmissionCheckMessage(slicesByState map[core.SliceState][]v1beta1.Slic
 		message = fmt.Sprintf("Slices are in states: %s", strings.Join(stateMessages, ", "))
 	}
 
-	if effectiveFailedCount > 0 {
+	hasStaleSlicesAsErrors := features.Enabled(features.UseRetryMechanismForSliceCreation) && len(slicesByState[core.SliceStateStale]) > 0
+
+	if effectiveFailedCount > 0 || hasStaleSlicesAsErrors {
 		var errMessages []string
 		for _, slice := range slicesByState[core.SliceStateFailed] {
 			cond := meta.FindStatusCondition(slice.Status.Conditions, v1beta1.SliceStateConditionType)
 			if cond != nil {
-				errMessages = append(errMessages, cond.Message)
+				errMessages = append(errMessages, fmt.Sprintf("%s: %s", slice.Name, cond.Message))
 			}
 		}
 		if features.Enabled(features.FailOnUntoleratedDegradedSlice) {
@@ -906,11 +908,22 @@ func buildAdmissionCheckMessage(slicesByState map[core.SliceState][]v1beta1.Slic
 					continue
 				}
 				if cond := meta.FindStatusCondition(slice.Status.Conditions, v1beta1.SliceStateConditionType); cond != nil {
-					errMessages = append(errMessages, fmt.Sprintf("%s (degraded)", cond.Message))
+					errMessages = append(errMessages, fmt.Sprintf("%s: %s (degraded)", slice.Name, cond.Message))
 				}
 			}
 		}
-		message += ". Errors: " + strings.Join(errMessages, "; ")
+		if hasStaleSlicesAsErrors {
+			for _, slice := range slicesByState[core.SliceStateStale] {
+				if cond := meta.FindStatusCondition(slice.Status.Conditions, v1beta1.SliceStateConditionType); cond != nil && cond.Message != "" {
+					errMessages = append(errMessages, fmt.Sprintf("%s: %s (stale)", slice.Name, cond.Message))
+				} else {
+					errMessages = append(errMessages, fmt.Sprintf("%s: stale", slice.Name))
+				}
+			}
+		}
+		if len(errMessages) > 0 {
+			message += ". Errors: " + strings.Join(errMessages, "; ")
+		}
 	}
 	return api.TruncateConditionMessage(message)
 }

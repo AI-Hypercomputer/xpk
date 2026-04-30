@@ -180,6 +180,7 @@ def test_parse_kubernetes_status():
               "status": "True",
               "lastTransitionTime": "2023-01-01T00:00:00Z",
               "message": "All good",
+              "reason": "Healthy",
           },
           {"type": "Test", "status": "", "lastTransitionTime": None},
       ]
@@ -192,11 +193,13 @@ def test_parse_kubernetes_status():
   assert status.conditions[0].status == "True"
   assert status.conditions[0].lastTransitionTime == "2023-01-01T00:00:00Z"
   assert status.conditions[0].message == "All good"
+  assert status.conditions[0].reason == "Healthy"
 
   assert status.conditions[1].type == "Test"
   assert status.conditions[1].status is None
   assert status.conditions[1].lastTransitionTime is None
   assert status.conditions[1].message is None
+  assert status.conditions[1].reason is None
 
 
 def test_parse_kubernetes_status_empty():

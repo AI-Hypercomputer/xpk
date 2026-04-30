@@ -718,11 +718,6 @@ def _first(generator: Generator[T, None, None]) -> T:
   return result
 
 
-# ---------------------------------------------------------------------------
-# derive_k8s_workload_name
-# ---------------------------------------------------------------------------
-
-
 def test_derive_k8s_workload_name_is_deterministic():
   a = derive_k8s_workload_name("amandaliang-run42", max_len=12)
   b = derive_k8s_workload_name("amandaliang-run42", max_len=12)

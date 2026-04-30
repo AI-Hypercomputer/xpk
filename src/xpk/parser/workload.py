@@ -16,6 +16,7 @@ limitations under the License.
 
 import argparse
 from argparse import ArgumentParser
+from typing import Any
 
 from ..core import local_cache
 from ..commands.workload import (
@@ -52,6 +53,17 @@ def _cached_field_completer(field: str):
     return sorted(v for v in candidates if v.startswith(prefix or ''))
 
   return _complete
+
+
+def _set_completer(action: argparse.Action, completer: Any) -> None:
+  """Attach an argcomplete completer to an argparse Action.
+
+  argcomplete monkey-patches argparse.Action with a `completer` attribute
+  at runtime; mypy can't see that attribute through the static stubs, so a
+  plain `action.completer = ...` assignment trips `attr-defined`. setattr
+  keeps the assignment explicit and avoids a per-call-site type-ignore.
+  """
+  setattr(action, 'completer', completer)
 
 
 def _cluster_completer(prefix, parsed_args, **_kwargs):
@@ -466,13 +478,16 @@ def set_workload_delete_parser(workload_delete_parser: ArgumentParser):
   add_shared_arguments(workload_delete_parser_optional_arguments)
 
   ### "workload delete" Required arguments
-  workload_delete_parser_required_arguments.add_argument(
-      '--cluster',
-      type=name_type,
-      default=None,
-      help='The name of the cluster to delete the job on.',
-      required=True,
-  ).completer = _cluster_completer  # type: ignore[attr-defined]
+  _set_completer(
+      workload_delete_parser_required_arguments.add_argument(
+          '--cluster',
+          type=name_type,
+          default=None,
+          help='The name of the cluster to delete the job on.',
+          required=True,
+      ),
+      _cluster_completer,
+  )
   ### "workload delete" Optional arguments
   workload_delete_parser_optional_arguments.add_argument(
       '--workload',
@@ -521,13 +536,16 @@ def set_workload_delete_parser(workload_delete_parser: ArgumentParser):
 
 
 def set_workload_list_parser(workload_list_parser: ArgumentParser):
-  workload_list_parser.add_argument(
-      '--cluster',
-      type=name_type,
-      default=None,
-      help='The name of the cluster to list jobs on.',
-      required=True,
-  ).completer = _cluster_completer  # type: ignore[attr-defined]
+  _set_completer(
+      workload_list_parser.add_argument(
+          '--cluster',
+          type=name_type,
+          default=None,
+          help='The name of the cluster to list jobs on.',
+          required=True,
+      ),
+      _cluster_completer,
+  )
 
   workload_list_parser.add_argument(
       '--filter-by-status',
@@ -592,23 +610,28 @@ def set_workload_list_parser(workload_list_parser: ArgumentParser):
 
 def set_workload_status_parser(workload_status_parser: ArgumentParser):
   """Configure the 'xpk workload status' subcommand."""
-  workload_status_parser.add_argument(
-      '--cluster',
-      type=name_type,
-      default=None,
-      required=True,
-      help='The name of the cluster.',
-  ).completer = _cluster_completer  # type: ignore[attr-defined]
-  team_arg = workload_status_parser.add_argument(
-      '--team',
-      type=str,
-      required=True,
-      help=(
-          'Your team name. The set of valid teams is discovered at'
-          " runtime from the cluster's team-quota ConfigMap."
+  _set_completer(
+      workload_status_parser.add_argument(
+          '--cluster',
+          type=name_type,
+          default=None,
+          required=True,
+          help='The name of the cluster.',
       ),
+      _cluster_completer,
   )
-  team_arg.completer = _cached_field_completer('teams')  # type: ignore[attr-defined]
+  _set_completer(
+      workload_status_parser.add_argument(
+          '--team',
+          type=str,
+          required=True,
+          help=(
+              'Your team name. The set of valid teams is discovered at'
+              " runtime from the cluster's team-quota ConfigMap."
+          ),
+      ),
+      _cached_field_completer('teams'),
+  )
   workload_status_parser.add_argument(
       '--workload',
       type=str,
@@ -636,13 +659,16 @@ def add_shared_workload_create_required_arguments(args_parsers):
         help='The name of the workload to run.',
         required=True,
     )
-    custom_parser.add_argument(
-        '--cluster',
-        type=name_type,
-        default=None,
-        help='The name of the cluster to run the job on.',
-        required=True,
-    ).completer = _cluster_completer
+    _set_completer(
+        custom_parser.add_argument(
+            '--cluster',
+            type=name_type,
+            default=None,
+            help='The name of the cluster to run the job on.',
+            required=True,
+        ),
+        _cluster_completer,
+    )
 
 
 def add_shared_workload_create_optional_arguments(args_parsers):
@@ -742,26 +768,33 @@ def add_shared_workload_create_optional_arguments(args_parsers):
     # is auto-routed to the team's namespace + LocalQueue + PriorityClass
     # discovered at runtime from the cluster's team-quota ConfigMap, so a
     # cluster admin can add/remove/retune teams without an xpk release.
-    custom_parser.add_argument(
-        '--team',
-        type=str,
-        default=None,
-        help=(
-            "Team name. When set, automatically routes the job to the team's"
-            ' namespace, LocalQueue, and PriorityClass. Overrides --priority.'
-            " Valid teams are discovered at runtime from the cluster's"
-            ' team-quota ConfigMap.'
+    _set_completer(
+        custom_parser.add_argument(
+            '--team',
+            type=str,
+            default=None,
+            help=(
+                'Team name. When set, automatically routes the job to the'
+                " team's namespace, LocalQueue, and PriorityClass. Overrides"
+                ' --priority. Valid teams are discovered at runtime from'
+                " the cluster's team-quota ConfigMap."
+            ),
         ),
-    ).completer = _cached_field_completer('teams')
-    custom_parser.add_argument(
-        '--value-class',
-        type=str,
-        default=None,
-        help=(
-            'Job type label for audit and priority ordering. Valid classes are'
-            " discovered at runtime from the cluster's team-quota ConfigMap."
+        _cached_field_completer('teams'),
+    )
+    _set_completer(
+        custom_parser.add_argument(
+            '--value-class',
+            type=str,
+            default=None,
+            help=(
+                'Job type label for audit and priority ordering. Valid'
+                " classes are discovered at runtime from the cluster's"
+                ' team-quota ConfigMap.'
+            ),
         ),
-    ).completer = _cached_field_completer('valueClasses')
+        _cached_field_completer('valueClasses'),
+    )
     custom_parser.add_argument(
         '--declared-duration-minutes',
         type=int,

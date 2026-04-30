@@ -33,6 +33,7 @@ from dataclasses import dataclass
 
 from . import local_cache
 from .commands import run_command_for_value
+from ..utils.console import xpk_exit, xpk_print
 
 CONFIG_CM_NAMESPACE = 'kueue-system'
 CONFIG_CM_NAME = 'poc-team-config'  # cluster-side ConfigMap name; set by chart
@@ -112,6 +113,67 @@ def resolve_team(cfg: dict, team: str) -> TeamRouting:
       local_queue=t['localQueue'],
       priority_class=t['priorityClass'],
   )
+
+
+def load_quota_cfg(args) -> dict | None:
+  """Fetch + validate the team-quota ConfigMap once per invocation.
+
+  Returns None when --team is unset (so the upstream non-team-routing path
+  is preserved). Caches the result on `args.quota_cfg` so a single
+  invocation never hits the cluster twice.
+
+  Robust against unit-test code that passes a MagicMock for args:
+  args.team must be a non-empty *string*, not just truthy.
+  """
+  team = getattr(args, 'team', None)
+  if not isinstance(team, str) or not team.strip():
+    return None
+  cached = getattr(args, 'quota_cfg', None)
+  if isinstance(cached, dict):
+    return cached
+  cfg = fetch_quota_config()
+  if cfg is None:
+    xpk_print(
+        f'ERROR: --team={args.team!r} requires the team-quota ConfigMap'
+        f' "{CONFIG_CM_NAMESPACE}/{CONFIG_CM_NAME}" on the target cluster.'
+        ' Deploy the cluster quota chart first, or drop --team to bypass'
+        ' team-based routing.'
+    )
+    xpk_exit(1)
+  if args.team not in (cfg.get('teams') or {}):
+    teams = available_teams(cfg)
+    hints = suggest(args.team, teams)
+    hint_line = f' Did you mean: {", ".join(hints)}?' if hints else ''
+    xpk_print(
+        f'ERROR: --team={args.team!r} not found on this cluster.{hint_line}'
+        f' Available teams: {", ".join(teams) or "<none>"}'
+    )
+    xpk_exit(1)
+  if getattr(args, 'value_class', None):
+    vcs = available_value_classes(cfg)
+    if vcs and args.value_class not in vcs:
+      hints = suggest(args.value_class, vcs)
+      hint_line = f' Did you mean: {", ".join(hints)}?' if hints else ''
+      xpk_print(
+          f'ERROR: --value-class={args.value_class!r} not valid on this'
+          f' cluster.{hint_line} Available: {", ".join(vcs)}'
+      )
+      xpk_exit(1)
+  args.quota_cfg = cfg
+  return cfg
+
+
+def resolve_team_for_args(args) -> TeamRouting | None:
+  """Return TeamRouting when --team was set, or None when it was not.
+
+  Callers decide what to do with None — `workload create` falls back to
+  upstream LocalQueue + args.priority; `workload status` errors out
+  because --team is required there.
+  """
+  cfg = load_quota_cfg(args)
+  if cfg is None:
+    return None
+  return resolve_team(cfg, args.team)
 
 
 def max_k8s_workload_name_len(cfg: dict, namespace: str) -> int:

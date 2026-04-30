@@ -35,15 +35,9 @@ from ..core.docker_container import (
 )
 from ..core.kueue_manager import LOCAL_QUEUE_NAME, derive_k8s_workload_name
 from ..core.quota_discovery import (
-    CONFIG_CM_NAME,
-    CONFIG_CM_NAMESPACE,
     TeamRouting,
-    available_teams,
-    available_value_classes,
-    fetch_quota_config,
     max_k8s_workload_name_len,
-    resolve_team,
-    suggest,
+    resolve_team_for_args,
 )
 from ..core.docker_resources import get_volumes, parse_env_config
 from ..core.gcloud_context import add_zone_and_project
@@ -115,66 +109,6 @@ from ..utils.templates import get_templates_absolute_path
 _PATHWAYS_WORKLOAD_TEMPLATE = 'pathways_workload_create.yaml.j2'
 
 _SUPER_SLICING_WORKLOAD_NAME_LIMIT = 28
-
-
-def _load_quota_cfg(args) -> dict | None:
-  """Fetch the team-quota ConfigMap once per invocation and cache on args.
-
-  Returns None if --team is unset (so upstream, non-team-routing behavior is
-  preserved). Robust against unit-test code that passes a MagicMock for args:
-  we require args.team to be a non-empty string, not just truthy.
-  """
-  team = getattr(args, 'team', None)
-  if not isinstance(team, str) or not team.strip():
-    return None
-  cached = getattr(args, '_quota_cfg', None)
-  if isinstance(cached, dict):
-    return cached
-  cfg = fetch_quota_config()
-  if cfg is None:
-    xpk_print(
-        f'ERROR: --team={args.team!r} requires the team-quota ConfigMap'
-        f' "{CONFIG_CM_NAMESPACE}/{CONFIG_CM_NAME}" on the target cluster.'
-        ' Deploy the cluster quota chart first, or drop --team to bypass'
-        ' team-based routing.'
-    )
-    xpk_exit(1)
-  if args.team not in (cfg.get('teams') or {}):
-    teams = available_teams(cfg)
-    hints = suggest(args.team, teams)
-    hint_line = f' Did you mean: {", ".join(hints)}?' if hints else ''
-    xpk_print(
-        f'ERROR: --team={args.team!r} not found on this cluster.{hint_line}'
-        f' Available teams: {", ".join(teams) or "<none>"}'
-    )
-    xpk_exit(1)
-  if getattr(args, 'value_class', None):
-    vcs = available_value_classes(cfg)
-    if vcs and args.value_class not in vcs:
-      hints = suggest(args.value_class, vcs)
-      hint_line = f' Did you mean: {", ".join(hints)}?' if hints else ''
-      xpk_print(
-          f'ERROR: --value-class={args.value_class!r} not valid on this'
-          f' cluster.{hint_line} Available: {", ".join(vcs)}'
-      )
-      xpk_exit(1)
-  args._quota_cfg = cfg  # pylint: disable=protected-access
-  return cfg
-
-
-def _resolve_quota_team(args):
-  """Return TeamRouting for --team, or upstream defaults wrapped equivalently.
-
-  When --team is unset, returns an empty namespace and the upstream
-  LOCAL_QUEUE_NAME / args.priority so callers can format the YAML uniformly.
-  """
-  cfg = _load_quota_cfg(args)
-  if cfg is None:
-    # Mimic the dataclass shape so callers can use attribute access uniformly.
-    return TeamRouting(
-        namespace='', local_queue=LOCAL_QUEUE_NAME, priority_class=args.priority
-    )
-  return resolve_team(cfg, args.team)
 
 
 def _build_team_labels(args) -> str:
@@ -870,23 +804,22 @@ def workload_create(args) -> None:
         args, workload_system, parallel_containers
     )
 
-    routing = _resolve_quota_team(args)
-    team_namespace = routing.namespace
-    # Derive a short K8s-safe JobSet name when the workload is routed to a
-    # team namespace AND the user-facing workload name exceeds the
-    # super-slice admission controller's per-name budget. See
-    # core.kueue_manager.derive_k8s_workload_name and
-    # core.quota_discovery.max_k8s_workload_name_len for the budget math.
-    # The user can disable shortening with --no-shorten-jobset-name.
-    if team_namespace:
-      # pylint: disable-next=protected-access
-      max_len = max_k8s_workload_name_len(args._quota_cfg, team_namespace)
+    team_routing = resolve_team_for_args(args)
+    if team_routing is not None:
+      team_namespace = team_routing.namespace
+      # Derive a short K8s-safe JobSet name when the workload is routed to a
+      # team namespace AND the user-facing workload name exceeds the
+      # super-slice admission controller's per-name budget. See
+      # core.kueue_manager.derive_k8s_workload_name and
+      # core.quota_discovery.max_k8s_workload_name_len for the budget math.
+      # The user can disable shortening with --no-shorten-jobset-name.
+      max_len = max_k8s_workload_name_len(args.quota_cfg, team_namespace)
       shorten = not getattr(args, 'no_shorten_jobset_name', False)
       if shorten:
         k8s_name = derive_k8s_workload_name(args.workload, max_len)
       else:
         k8s_name = args.workload
-      args.priority = routing.priority_class
+      args.priority = team_routing.priority_class
       if k8s_name != args.workload:
         xpk_print(
             f'workload "{args.workload}" → K8s JobSet name: "{k8s_name}"'
@@ -894,8 +827,15 @@ def workload_create(args) -> None:
             ' $XPK_WORKLOAD_NAME in your command for GCS artifact paths;'
             ' pass --no-shorten-jobset-name to disable)'
         )
+      routing = team_routing
     else:
+      team_namespace = ''
       k8s_name = args.workload
+      routing = TeamRouting(
+          namespace='',
+          local_queue=LOCAL_QUEUE_NAME,
+          priority_class=args.priority,
+      )
     yml_string = WORKLOAD_CREATE_YAML.format(
         args=args,
         k8s_name=k8s_name,

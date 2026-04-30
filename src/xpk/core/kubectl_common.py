@@ -28,6 +28,7 @@ class KubernetesCondition:
   status: str | None = None
   lastTransitionTime: str | None = None
   message: str | None = None
+  reason: str | None = None
 
 
 @dataclass(frozen=True)
@@ -51,6 +52,7 @@ def parse_kubernetes_status(
             status=c.get("status") or None,
             lastTransitionTime=c.get("lastTransitionTime") or None,
             message=c.get("message") or None,
+            reason=c.get("reason") or None,
         )
     )
 

@@ -23,11 +23,13 @@ Reads the team-quota ConfigMap to resolve the team's namespace + ClusterQueue.
 """
 
 import json as _json
-import subprocess as _subprocess
 from datetime import datetime, timezone
+from typing import Any
 
 from ..core.cluster import get_cluster_credentials
 from ..core.commands import run_command_for_value
+from ..core.kubectl_common import KubernetesCondition, parse_kubernetes_status
+from ..core.quota_discovery import resolve_team_for_args
 from ..utils.console import xpk_exit, xpk_print
 from ..utils.validation import (
     SystemDependency,
@@ -52,15 +54,12 @@ def workload_status(args) -> None:
 
   # Fill project from gcloud config if not provided.
   if not getattr(args, 'project', None):
-    r = _subprocess.run(
-        ['gcloud', 'config', 'get', 'project'],
-        capture_output=True,
-        text=True,
-        check=False,
+    rc, out = run_command_for_value(
+        'gcloud config get project',
+        task='gcloud config get project',
+        quiet=True,
     )
-    args.project = (
-        r.stdout.strip().splitlines()[-1] if r.returncode == 0 else ''
-    )
+    args.project = out.strip().splitlines()[-1] if rc == 0 and out else ''
   if not args.project:
     xpk_print(
         'ERROR: --project not set and could not be determined from gcloud'
@@ -87,25 +86,27 @@ def workload_status(args) -> None:
 
   get_cluster_credentials(args)
 
-  # Imported lazily to avoid a circular import: commands/workload.py imports
-  # this module's parser, and we'd otherwise close the loop.
-  from .workload import _resolve_quota_team  # pylint: disable=import-outside-toplevel
+  routing = resolve_team_for_args(args)
+  if routing is None:
+    xpk_print('ERROR: --team is required for `xpk workload status`.')
+    xpk_exit(1)
 
-  routing = _resolve_quota_team(args)
+  assert routing is not None  # narrow for type checker
   namespace = routing.namespace
   cq_name = namespace  # ClusterQueue name matches namespace name
 
-  def _kube_json(*kubectl_args):
+  def _kube_json(*kubectl_args: str) -> dict | None:
     cmd = 'kubectl ' + ' '.join(kubectl_args) + ' -o json'
     rc, out = run_command_for_value(cmd, task=cmd, quiet=True)
     if rc != 0 or not out:
       return None
     try:
-      return _json.loads(out)
+      payload = _json.loads(out)
     except _json.JSONDecodeError:
       return None
+    return payload if isinstance(payload, dict) else None
 
-  def _events_text(ns, name):
+  def _events_text(ns: str, name: str) -> str:
     cmd = (
         f'kubectl get events -n {ns}'
         f' --field-selector involvedObject.name={name}'
@@ -114,7 +115,7 @@ def workload_status(args) -> None:
     rc, out = run_command_for_value(cmd, task='get events', quiet=True)
     return out.strip() if rc == 0 else ''
 
-  def _age(ts_str):
+  def _age(ts_str: str | None) -> str:
     if not ts_str:
       return '?'
     ts = datetime.fromisoformat(ts_str.replace('Z', '+00:00'))
@@ -125,16 +126,19 @@ def workload_status(args) -> None:
       return f'{s // 60}m'
     return f'{s // 3600}h{(s % 3600) // 60}m'
 
-  def _cond(wl, ctype):
-    for c in wl.get('status', {}).get('conditions', []):
-      if c.get('type') == ctype:
+  def _cond(wl: dict, ctype: str) -> KubernetesCondition | None:
+    status = parse_kubernetes_status(wl.get('status'))
+    for c in status.conditions:
+      if c.type == ctype:
         return c
     return None
 
-  def _is_true(c):
-    return c is not None and c.get('status') == 'True'
+  def _is_true(c: KubernetesCondition | None) -> bool:
+    return c is not None and c.status == 'True'
 
-  def _cq_chips(cq, section):
+  def _cq_chips(cq: dict | None, section: str) -> int:
+    if not cq:
+      return 0
     total = 0
     for flavor in cq.get('status', {}).get(section, []):
       for res in flavor.get('resources', []):
@@ -142,7 +146,9 @@ def workload_status(args) -> None:
           total += int(res.get('total', 0))
     return total
 
-  def _cq_quota(cq):
+  def _cq_quota(cq: dict | None) -> tuple[int, int]:
+    if not cq:
+      return 0, 0
     nominal, borrow = 0, 0
     for rg in cq.get('spec', {}).get('resourceGroups', []):
       for flavor in rg.get('flavors', []):
@@ -154,26 +160,26 @@ def workload_status(args) -> None:
               borrow += int(b)
     return nominal, borrow
 
-  def _ordinal(n):
+  def _ordinal(n: int) -> str:
     return (
         f"{n}{['th','st','nd','rd','th'][min(n % 10, 4) if n % 100 not in (11,12,13) else 0]}"
     )
 
-  def _xpk_name_of(wl):
+  def _xpk_name_of(wl: dict) -> str:
     name = wl['metadata'].get('labels', {}).get('xpk.google.com/workload')
     if name:
-      return name
+      return str(name)
     for ref in wl['metadata'].get('ownerReferences', []):
       if ref.get('kind') in ('JobSet', 'Job'):
-        return ref.get('name', '')
+        return str(ref.get('name', ''))
     n = wl['metadata']['name']
     if n.startswith('jobset-'):
       n = n[len('jobset-') :]
     if len(n) > 6 and n[-6] == '-':
       n = n[:-6]
-    return n
+    return str(n)
 
-  def _print_cq_summary(cq):
+  def _print_cq_summary(cq: dict | None) -> None:
     if not cq:
       return
     st = cq.get('status', {})
@@ -197,7 +203,7 @@ def workload_status(args) -> None:
     )
     xpk_print(f'  Queued  : {pending} workload(s) waiting for quota')
 
-  def _diagnose_one(wl, all_items, cq):
+  def _diagnose_one(wl: dict, all_items: list[dict], cq: dict | None) -> None:
     kueue_name = wl['metadata']['name']
     xpk_name = _xpk_name_of(wl)
     created_at = wl['metadata']['creationTimestamp']
@@ -209,7 +215,7 @@ def workload_status(args) -> None:
     is_admitted = _is_true(cond_admitted)
     is_reserved = _is_true(cond_reserved)
     is_finished = _is_true(cond_finished)
-    finish_reason = cond_finished.get('reason', '') if cond_finished else ''
+    finish_reason = cond_finished.reason or '' if cond_finished else ''
 
     xpk_print(f'Workload : {xpk_name}  ->  {kueue_name}')
     xpk_print(f'Age      : {_age(created_at)}')
@@ -217,14 +223,14 @@ def workload_status(args) -> None:
     if is_finished:
       status_word = 'success' if finish_reason == 'Succeeded' else finish_reason
       xpk_print(f'Status   : FINISHED ({status_word})')
-      msg = (cond_finished or {}).get('message', '')
+      msg = cond_finished.message if cond_finished else ''
       if msg:
         xpk_print(f'           {msg}')
       xpk_print('')
       return
 
     if is_admitted:
-      admitted_ts = (cond_admitted or {}).get('lastTransitionTime', '')
+      admitted_ts = cond_admitted.lastTransitionTime if cond_admitted else ''
       xpk_print(f'Status   : RUNNING  (admitted {_age(admitted_ts)} ago)')
       xpk_print(f'Team quota ({cq_name}):')
       _print_cq_summary(cq)
@@ -232,7 +238,7 @@ def workload_status(args) -> None:
       return
 
     if is_reserved:
-      reserved_ts = (cond_reserved or {}).get('lastTransitionTime', '')
+      reserved_ts = cond_reserved.lastTransitionTime if cond_reserved else ''
       xpk_print(
           'Status   : STUCK — quota reserved but not admitted'
           f' ({_age(reserved_ts)} ago)'
@@ -272,7 +278,7 @@ def workload_status(args) -> None:
     # Queued — compute position
     my_ts = created_at
     my_pri = wl.get('spec', {}).get('priority') or 0
-    ahead = []
+    ahead: list[str] = []
     for other in all_items:
       oname = other['metadata']['name']
       if oname == kueue_name:
@@ -306,8 +312,8 @@ def workload_status(args) -> None:
 
     # Anomaly detection
     st = (cq or {}).get('status', {})
-    nominal, _ = _cq_quota(cq) if cq else (0, 0)
-    running = _cq_chips(cq, 'flavorsUsage') if cq else 0
+    nominal, _ = _cq_quota(cq)
+    running = _cq_chips(cq, 'flavorsUsage')
     if (
         pos == 1
         and st.get('admittedWorkloads', 0) == 0
@@ -364,7 +370,7 @@ def workload_status(args) -> None:
         )
       xpk_exit(0)
 
-    def _sort_key(i):
+    def _sort_key(i: dict) -> tuple[int, Any]:
       return (
           0 if _is_true(_cond(i, 'Admitted')) else 1,
           i['metadata']['creationTimestamp'],

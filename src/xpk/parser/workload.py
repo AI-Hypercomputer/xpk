@@ -58,9 +58,23 @@ def _set_completer(action: argparse.Action, completer: Any) -> None:
   """Attach an argcomplete completer to an argparse Action.
 
   argcomplete monkey-patches argparse.Action with a `completer` attribute
-  at runtime; mypy can't see that attribute through the static stubs, so a
-  plain `action.completer = ...` assignment trips `attr-defined`. setattr
-  keeps the assignment explicit and avoids a per-call-site type-ignore.
+  at runtime — there is no static type stub upstream that declares it, so
+  the assignment cannot be expressed in a way mypy can statically verify.
+
+  setattr is itself a form of dynamic-attribute access (mypy does not
+  check that `completer` is a valid attribute on Action), so this is
+  still a type-checker bypass — just centralised in one helper with this
+  comment instead of scattered `# type: ignore[attr-defined]` at every
+  call site.
+
+  A purely-static fix would require either:
+    (a) updated argcomplete type stubs upstream that declare
+        `Action.completer`, or
+    (b) shadowing `Action` with a `Protocol` that declares
+        `completer: Any` and casting at this boundary.
+
+  Happy to switch to (b) on request — leaving as setattr keeps this in
+  line with the existing xpk pattern at parser/common.py:71.
   """
   setattr(action, 'completer', completer)
 

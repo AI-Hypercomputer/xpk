@@ -59,6 +59,7 @@ var (
 		cmpopts.IgnoreFields(metav1.Condition{}, "LastTransitionTime"),
 		cmpopts.IgnoreFields(metav1.ObjectMeta{}, "CreationTimestamp"),
 		cmpopts.EquateApproxTime(time.Second),
+		cmpopts.SortSlices(func(a, b metav1.Condition) bool { return a.Type < b.Type }),
 	}
 	errTest = errors.New("test error")
 )
@@ -1071,6 +1072,7 @@ func TestWorkloadReconciler(t *testing.T) {
 					Finalizers(SliceControllerName).
 					AdmissionCheck(buildAdmissionCheckStateWithRequeue(kueue.CheckStateRetry,
 						`partition IDs ["subblock1 (used by default-workload-ps1-0)"] are already used by existing Slices`, ptr.To(int32(10)))).
+					SliceFailure(core.WorkloadSliceConfigurationFailure, `partition IDs ["subblock1 (used by default-workload-ps1-0)"] are already used by existing Slices`).
 					Obj(),
 			},
 			wantSlices: []slice.Slice{
@@ -1205,6 +1207,7 @@ func TestWorkloadReconciler(t *testing.T) {
 					Finalizers(SliceControllerName).
 					AdmissionCheck(buildAdmissionCheckStateWithRequeue(kueue.CheckStateRetry,
 						`incorrect number of partitions for slices: [default-workload-ps1-0]`, ptr.To(int32(10)))).
+					SliceFailure(core.WorkloadSliceConfigurationFailure, `incorrect number of partitions for slices: [default-workload-ps1-0]`).
 					Obj(),
 			},
 			wantResult: reconcile.Result{RequeueAfter: initializationRetryAfter},
@@ -1909,6 +1912,109 @@ func TestWorkloadReconciler(t *testing.T) {
 					fmt.Sprintf(`Admission check %q updated state from "Pending" to "Ready"`, baseACName)),
 			},
 		},
+		"should set SliceFailure condition to False when slices are recreated": {
+			request: baseRequest,
+			objs: []client.Object{
+				worker1Node.DeepCopy(),
+				worker2Node.DeepCopy(),
+				baseAdmissionCheckWrapper.DeepCopy(),
+				baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					SliceFailure(core.WorkloadSliceRuntimeFailure, "Slices are in states: 1 ACTIVE, 1 FAILED. Errors: default-workload-ps2-0: Error by test").
+					Obj(),
+			},
+			wantWorkloads: []kueue.Workload{
+				*baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStatePending, `Slices are in states: 2 CREATED`)).
+					Condition(metav1.Condition{
+						Type:    core.WorkloadSliceFailureConditionType,
+						Status:  metav1.ConditionFalse,
+						Reason:  core.WorkloadSliceRuntimeFailure,
+						Message: "Previously: Slices are in states: 1 ACTIVE, 1 FAILED. Errors: default-workload-ps2-0: Error by test",
+					}).
+					Obj(),
+			},
+			wantSlices: []slice.Slice{
+				*baseSlice1Wrapper.DeepCopy(),
+				*baseSlice2Wrapper.DeepCopy(),
+			},
+			wantEvents: []utiltesting.EventRecord{
+				buildEventRecord(corev1.NamespaceDefault, corev1.EventTypeNormal, SlicesCreatedEventType,
+					`The Slices "default-workload-ps1-0", "default-workload-ps2-0" have been created`),
+			},
+			wantResult: reconcile.Result{RequeueAfter: initializationRetryAfter},
+		},
+		"should set SliceFailure condition to False when slices are activating": {
+			request: baseRequest,
+			objs: []client.Object{
+				worker1Node.DeepCopy(),
+				worker2Node.DeepCopy(),
+				baseAdmissionCheckWrapper.DeepCopy(),
+				baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					SliceFailure(core.WorkloadSliceRuntimeFailure, "Slices are in states: 1 ACTIVE, 1 FAILED. Errors: default-workload-ps2-0: Error by test").
+					Obj(),
+				baseSlice1Wrapper.Clone().Activating().Obj(),
+				baseSlice2Wrapper.Clone().Activating().Obj(),
+			},
+			wantWorkloads: []kueue.Workload{
+				*baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					AdmissionCheck(buildAdmissionCheckState(kueue.CheckStatePending, `Slices are in states: 2 ACTIVATING`)).
+					Condition(metav1.Condition{
+						Type:    core.WorkloadSliceFailureConditionType,
+						Status:  metav1.ConditionFalse,
+						Reason:  core.WorkloadSliceRuntimeFailure,
+						Message: "Previously: Slices are in states: 1 ACTIVE, 1 FAILED. Errors: default-workload-ps2-0: Error by test",
+					}).
+					Obj(),
+			},
+			wantSlices: []slice.Slice{
+				*baseSlice1Wrapper.Clone().Activating().Obj(),
+				*baseSlice2Wrapper.Clone().Activating().Obj(),
+			},
+			wantResult: reconcile.Result{RequeueAfter: initializationRetryAfter},
+		},
+		"should not reset SliceFailure condition to False when Admission Check remains Retry": {
+			request: baseRequest,
+			objs: []client.Object{
+				worker1Node.DeepCopy(),
+				worker2Node.DeepCopy(),
+				baseAdmissionCheckWrapper.DeepCopy(),
+				baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					AdmissionCheck(buildAdmissionCheckStateWithRequeue(kueue.CheckStateRetry, "retrying", ptr.To(int32(10)))).
+					SliceFailure(core.WorkloadSliceRuntimeFailure, "Slices are in states: 1 ACTIVE, 1 FAILED. Errors: default-workload-ps2-0: Error by test").
+					Obj(),
+			},
+			wantWorkloads: []kueue.Workload{
+				*baseWorkloadWrapper.Clone().
+					PodSets(basePodSets...).
+					ReserveQuota(baseAdmission, now).
+					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
+					Finalizers(SliceControllerName).
+					AdmissionCheck(buildAdmissionCheckStateWithRequeue(kueue.CheckStateRetry, "retrying", ptr.To(int32(10)))).
+					SliceFailure(core.WorkloadSliceRuntimeFailure, "Slices are in states: 1 ACTIVE, 1 FAILED. Errors: default-workload-ps2-0: Error by test").
+					Obj(),
+			},
+		},
+
 		"should update the Workload's AdmissionCheckState when one Slice is in the Ready state and another is in the Degraded state": {
 			request: baseRequest,
 			objs: []client.Object{
@@ -1976,7 +2082,8 @@ func TestWorkloadReconciler(t *testing.T) {
 					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					Finalizers(SliceControllerName).
 					AdmissionCheck(buildAdmissionCheckStateWithRequeue(kueue.CheckStateRetry,
-						`Slices are in states: 1 ACTIVE, 1 FAILED. Errors: Error by test`, ptr.To(int32(10)))).
+						`Slices are in states: 1 ACTIVE, 1 FAILED. Errors: default-workload-ps2-0: Error by test`, ptr.To(int32(10)))).
+					SliceFailure(core.WorkloadSliceRuntimeFailure, `Slices are in states: 1 ACTIVE, 1 FAILED. Errors: default-workload-ps2-0: Error by test`).
 					Obj(),
 			},
 			wantEvents: []utiltesting.EventRecord{
@@ -2034,7 +2141,8 @@ func TestWorkloadReconciler(t *testing.T) {
 					ReserveQuota(baseAdmission, now).
 					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					Finalizers(SliceControllerName).
-					AdmissionCheck(buildAdmissionCheckStateWithRequeue(kueue.CheckStateRetry, `Slices are in states: 1 ACTIVE, 1 STALE`, ptr.To(int32(10)))).
+					AdmissionCheck(buildAdmissionCheckStateWithRequeue(kueue.CheckStateRetry, `Slices are in states: 1 ACTIVE, 1 STALE. Errors: default-workload-ps2-0: Stale by test (stale)`, ptr.To(int32(10)))).
+					SliceFailure(core.WorkloadSliceFormationTimeout, `Slices are in states: 1 ACTIVE, 1 STALE. Errors: default-workload-ps2-0: Stale by test (stale)`).
 					Obj(),
 			},
 			wantEvents: []utiltesting.EventRecord{
@@ -2065,6 +2173,7 @@ func TestWorkloadReconciler(t *testing.T) {
 					Finalizers(SliceControllerName).
 					AdmissionCheck(buildAdmissionCheckStateWithRequeue(kueue.CheckStateRetry,
 						"Slice has been deleted", ptr.To(int32(10)))).
+					SliceFailure(core.WorkloadSliceDeletion, "Slice has been deleted").
 					Obj(),
 			},
 		},
@@ -2092,6 +2201,7 @@ func TestWorkloadReconciler(t *testing.T) {
 					Finalizers(SliceControllerName).
 					AdmissionCheck(buildAdmissionCheckStateWithRequeue(kueue.CheckStateRetry,
 						"Slice has been deleted", ptr.To(int32(10)))).
+					SliceFailure(core.WorkloadSliceDeletion, "Slice has been deleted").
 					Obj(),
 			},
 			wantSlices: []slice.Slice{
@@ -2436,7 +2546,8 @@ func TestWorkloadReconciler(t *testing.T) {
 					ControllerReference(jobSetGVK, baseJobSetName, baseJobSetName).
 					Finalizers(SliceControllerName).
 					AdmissionCheck(buildAdmissionCheckStateWithRequeue(kueue.CheckStateRetry,
-						`Slices are in states: 1 ACTIVE, 1 ACTIVE_DEGRADED. Errors: Hardware failure (degraded)`, ptr.To(int32(10)))).
+						`Slices are in states: 1 ACTIVE, 1 ACTIVE_DEGRADED. Errors: default-workload-ps1-0: Hardware failure (degraded)`, ptr.To(int32(10)))).
+					SliceFailure(core.WorkloadSliceRuntimeFailure, `Slices are in states: 1 ACTIVE, 1 ACTIVE_DEGRADED. Errors: default-workload-ps1-0: Hardware failure (degraded)`).
 					Obj(),
 			},
 			wantJobSets: []jobset.JobSet{*baseJobSetWrapper.Clone().Obj()},
@@ -2869,6 +2980,7 @@ func TestBuildAdmissionCheckMessage(t *testing.T) {
 	testCases := map[string]struct {
 		slicesByState         map[core.SliceState][]slice.Slice
 		effectiveFailedCount  int
+		enableRetryMechanism  bool
 		wl                    *kueue.Workload
 		podSetRequiresHealthy map[string]bool
 		want                  string
@@ -2904,12 +3016,27 @@ func TestBuildAdmissionCheckMessage(t *testing.T) {
 			effectiveFailedCount:  1,
 			wl:                    wl,
 			podSetRequiresHealthy: map[string]bool{},
-			want:                  "Slices are in states: 1 FAILED. Errors: Hardware failure",
+			want:                  "Slices are in states: 1 FAILED. Errors: slice1: Hardware failure",
+		},
+		"stale slices treated as failed": {
+			slicesByState: map[core.SliceState][]slice.Slice{
+				core.SliceStateStale: {
+					*utiltesting.MakeSliceWrapper("slice1").Obj(),
+				},
+			},
+			effectiveFailedCount:  0,
+			enableRetryMechanism:  true,
+			wl:                    wl,
+			podSetRequiresHealthy: map[string]bool{},
+			want:                  "Slices are in states: 1 STALE. Errors: slice1: stale",
 		},
 	}
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
+			if tc.enableRetryMechanism {
+				features.SetFeatureGateDuringTest(t, features.UseRetryMechanismForSliceCreation, true)
+			}
 			got := buildAdmissionCheckMessage(tc.slicesByState, tc.effectiveFailedCount, tc.wl, tc.podSetRequiresHealthy)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("Unexpected message (-want,+got):\n%s", diff)

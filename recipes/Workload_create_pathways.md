@@ -132,7 +132,7 @@ spec:
                 - name: XCLOUD_ENVIRONMENT
                   value: GCP
                 - name: JAX_BACKEND_TARGET
-                  value: grpc://$(PATHWAYS_HEAD):29000 
+                  value: grpc://$(PATHWAYS_HEAD):29000
                 securityContext:
                   privileged: true
                 command:

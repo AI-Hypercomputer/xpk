@@ -33,11 +33,24 @@ from dataclasses import dataclass
 
 from . import local_cache
 from .commands import run_command_for_value
+from .config import TEAM_CONFIGMAP_NAME_KEY, get_config
 from ..utils.console import xpk_exit, xpk_print
 
 CONFIG_CM_NAMESPACE = 'kueue-system'
-CONFIG_CM_NAME = 'poc-team-config'  # cluster-side ConfigMap name; set by chart
+DEFAULT_CONFIG_CM_NAME = 'team-quota-config'
 CONFIG_CM_KEY = 'config.json'
+
+
+def _configmap_name() -> str:
+  """Resolve the cluster-side ConfigMap name.
+
+  Operators with a pre-existing ConfigMap under a different name (e.g.
+  legacy deployments where it was called `poc-team-config`) can override
+  the default with `xpk config set team-configmap-name <name>` instead of
+  renaming the ConfigMap on the cluster.
+  """
+  override = get_config().get(TEAM_CONFIGMAP_NAME_KEY)
+  return override or DEFAULT_CONFIG_CM_NAME
 
 
 @dataclass(frozen=True)
@@ -52,13 +65,16 @@ class TeamRouting:
 def fetch_quota_config() -> dict | None:
   """Return the parsed ConfigMap payload, or None if unavailable/malformed.
 
-  On success, refreshes ~/.xpk/poc-cache/<context>.json as a side effect so
-  that argcomplete and did-you-mean suggestions work even when the cluster
-  isn't reachable.
+  On success, refreshes ~/.xpk/quota-cache/<context>.json as a side effect
+  so that argcomplete and did-you-mean suggestions work even when the
+  cluster isn't reachable.
+
+  The ConfigMap name defaults to `team-quota-config`; operators with a
+  pre-existing differently-named ConfigMap can override via
+  `xpk config set team-configmap-name <name>`.
   """
-  cmd = (
-      f'kubectl get configmap -n {CONFIG_CM_NAMESPACE} {CONFIG_CM_NAME} -o json'
-  )
+  cm_name = _configmap_name()
+  cmd = f'kubectl get configmap -n {CONFIG_CM_NAMESPACE} {cm_name} -o json'
   rc, out = run_command_for_value(cmd, task=cmd, quiet=True)
   if rc != 0 or not out:
     return None
@@ -133,11 +149,14 @@ def load_quota_cfg(args) -> dict | None:
     return cached
   cfg = fetch_quota_config()
   if cfg is None:
+    cm_name = _configmap_name()
     xpk_print(
         f'ERROR: --team={args.team!r} requires the team-quota ConfigMap'
-        f' "{CONFIG_CM_NAMESPACE}/{CONFIG_CM_NAME}" on the target cluster.'
-        ' Deploy the cluster quota chart first, or drop --team to bypass'
-        ' team-based routing.'
+        f' "{CONFIG_CM_NAMESPACE}/{cm_name}" on the target cluster.'
+        ' Deploy the cluster quota chart first, drop --team to bypass'
+        ' team-based routing, or set the ConfigMap name via'
+        ' `xpk config set team-configmap-name <name>` if your cluster'
+        ' uses a different name.'
     )
     xpk_exit(1)
   if args.team not in (cfg.get('teams') or {}):

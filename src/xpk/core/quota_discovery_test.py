@@ -197,3 +197,43 @@ def test_fetch_quota_config_writes_cache_when_context_known(mocker):
   cache_write = mocker.patch('xpk.core.quota_discovery.local_cache.write')
   fetch_quota_config()
   cache_write.assert_called_once_with('gke_proj_zone_cluster', cfg)
+
+
+# ---------- configurable ConfigMap name (team-configmap-name) ----------
+
+
+def test_fetch_quota_config_uses_default_configmap_name(mocker):
+  """With no override, the kubectl command targets the default name."""
+  fake_config = mocker.MagicMock()
+  fake_config.get.return_value = None  # no override set
+  mocker.patch('xpk.core.quota_discovery.get_config', return_value=fake_config)
+  rcfv = mocker.patch(
+      'xpk.core.quota_discovery.run_command_for_value',
+      return_value=(0, '{"data": {"config.json": "{}"}}'),
+  )
+  mocker.patch(
+      'xpk.core.quota_discovery.local_cache.current_context', return_value=None
+  )
+  fetch_quota_config()
+  cmd = rcfv.call_args.args[0]
+  assert 'team-quota-config' in cmd
+  assert 'poc-team-config' not in cmd
+
+
+def test_fetch_quota_config_honours_team_configmap_name_override(mocker):
+  """`xpk config set team-configmap-name X` causes kubectl to look up X."""
+  fake_config = mocker.MagicMock()
+  fake_config.get.return_value = 'poc-team-config'  # legacy operator override
+  mocker.patch('xpk.core.quota_discovery.get_config', return_value=fake_config)
+  rcfv = mocker.patch(
+      'xpk.core.quota_discovery.run_command_for_value',
+      return_value=(0, '{"data": {"config.json": "{}"}}'),
+  )
+  mocker.patch(
+      'xpk.core.quota_discovery.local_cache.current_context', return_value=None
+  )
+  fetch_quota_config()
+  cmd = rcfv.call_args.args[0]
+  assert 'poc-team-config' in cmd
+  assert 'team-quota-config' not in cmd
+  fake_config.get.assert_called_with('team-configmap-name')

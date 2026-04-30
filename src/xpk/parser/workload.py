@@ -25,7 +25,6 @@ from ..commands.workload import (
     workload_delete,
     workload_list,
 )
-from ..commands.workload_status import workload_status
 from ..core.docker_image import DEFAULT_DOCKER_IMAGE, DEFAULT_SCRIPT_DIR
 from .common import add_shared_arguments, add_tpu_type_argument, add_tpu_and_device_type_arguments
 from .validators import directory_path_type, name_type
@@ -109,15 +108,6 @@ def set_workload_parsers(workload_parser: ArgumentParser):
       'list', help='List jobs.'
   )
   set_workload_list_parser(workload_list_parser)
-
-  # "workload status" command parser.
-  workload_status_parser = workload_subcommands.add_parser(
-      'status',
-      help=(
-          'Diagnose a workload routed via --team: queued vs admitted vs stuck.'
-      ),
-  )
-  set_workload_status_parser(workload_status_parser)
 
 
 def set_workload_create_parser(workload_create_parser: ArgumentParser):
@@ -606,43 +596,6 @@ def set_workload_list_parser(workload_list_parser: ArgumentParser):
   add_shared_arguments(workload_list_parser)
 
   workload_list_parser.set_defaults(func=workload_list)
-
-
-def set_workload_status_parser(workload_status_parser: ArgumentParser):
-  """Configure the 'xpk workload status' subcommand."""
-  _set_completer(
-      workload_status_parser.add_argument(
-          '--cluster',
-          type=name_type,
-          default=None,
-          required=True,
-          help='The name of the cluster.',
-      ),
-      _cluster_completer,
-  )
-  _set_completer(
-      workload_status_parser.add_argument(
-          '--team',
-          type=str,
-          required=True,
-          help=(
-              'Your team name. The set of valid teams is discovered at'
-              " runtime from the cluster's team-quota ConfigMap."
-          ),
-      ),
-      _cached_field_completer('teams'),
-  )
-  workload_status_parser.add_argument(
-      '--workload',
-      type=str,
-      default=None,
-      help=(
-          'xpk --workload name to inspect (as passed to workload create).'
-          ' Omit to show all workloads for your team.'
-      ),
-  )
-  add_shared_arguments(workload_status_parser)
-  workload_status_parser.set_defaults(func=workload_status)
 
 
 def add_shared_workload_create_required_arguments(args_parsers):

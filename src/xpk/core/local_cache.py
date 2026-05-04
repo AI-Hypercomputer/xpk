@@ -31,9 +31,10 @@ Layout:
 import datetime as _dt
 import json
 import os
-import subprocess
 import tempfile
 from pathlib import Path
+
+from .commands import run_command_for_value
 
 CACHE_DIR = Path.home() / ".xpk" / "quota-cache"
 DEFAULT_TTL = _dt.timedelta(hours=1)
@@ -49,19 +50,15 @@ def _path_for(context: str) -> Path:
 
 def current_context() -> str | None:
   """Return the current kubectl context, or None."""
-  try:
-    r = subprocess.run(
-        ["kubectl", "config", "current-context"],
-        capture_output=True,
-        text=True,
-        timeout=5,
-        check=False,
-    )
-  except (FileNotFoundError, subprocess.TimeoutExpired):
+  err_code, val = run_command_for_value(
+      command="kubectl config current-context",
+      task="Get current kubectl context",
+      quiet=True,
+      hide_error=True,
+  )
+  if err_code != 0:
     return None
-  if r.returncode != 0:
-    return None
-  return (r.stdout or "").strip() or None
+  return (val or "").strip() or None
 
 
 def write(context: str, cfg: dict) -> None:
@@ -147,19 +144,15 @@ def all_contexts() -> list[str]:
 def gke_contexts_from_kubeconfig() -> list[str]:
   """Return kubectl contexts that look like GKE clusters (prefix gke_).
   Used to tab-complete the --cluster flag."""
-  try:
-    r = subprocess.run(
-        ["kubectl", "config", "get-contexts", "-o", "name"],
-        capture_output=True,
-        text=True,
-        timeout=5,
-        check=False,
-    )
-  except (FileNotFoundError, subprocess.TimeoutExpired):
+  err_code, val = run_command_for_value(
+      command="kubectl config get-contexts -o name",
+      task="List kubectl contexts",
+      quiet=True,
+      hide_error=True,
+  )
+  if err_code != 0:
     return []
-  if r.returncode != 0:
-    return []
-  ctxs = [line.strip() for line in r.stdout.splitlines() if line.strip()]
+  ctxs = [line.strip() for line in (val or "").splitlines() if line.strip()]
   # xpk uses the short cluster name, not the full context — strip the GKE prefix
   # pattern: gke_<project>_<location>_<cluster>
   names = set()

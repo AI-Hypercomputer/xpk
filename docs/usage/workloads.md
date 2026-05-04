@@ -173,8 +173,6 @@ xpk workload create \
   --declared-duration-minutes=90
 ```
 
-The new flags (each optional individually, but typically used together):
-
 | Flag | Purpose |
 |---|---|
 | `--team` | Team key from the cluster's team-quota ConfigMap. Sets namespace, LocalQueue, PriorityClass; overrides `--priority`. |

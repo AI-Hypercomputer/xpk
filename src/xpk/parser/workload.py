@@ -16,7 +16,7 @@ limitations under the License.
 
 import argparse
 from argparse import ArgumentParser
-from typing import Any
+from typing import Any, Callable
 
 from ..core import local_cache
 from ..commands.workload import (
@@ -30,15 +30,19 @@ from .common import add_shared_arguments, add_tpu_type_argument, add_tpu_and_dev
 from .validators import directory_path_type, name_type
 
 
-def _cached_field_completer(field: str):
+def _cached_field_completer(field: str) -> Callable[..., list[str]]:
   """Build an argcomplete completer that reads the team-quota cache for `field`
   ('teams' or 'valueClasses'). Prefers the cache entry for the kubectl
   context corresponding to parsed_args.cluster; falls back to the union of
   all cached contexts so completion still helps on an unfamiliar cluster."""
 
-  def _complete(prefix, parsed_args, **_kwargs):
+  def _complete(
+      prefix: str,
+      parsed_args: argparse.Namespace,
+      **_kwargs: Any,
+  ) -> list[str]:
     cluster = getattr(parsed_args, 'cluster', None)
-    candidates = set()
+    candidates: set[str] = set()
     if cluster:
       for c in local_cache.all_contexts():
         # kubectl contexts for GKE end with the cluster name
@@ -79,7 +83,11 @@ def _set_completer(action: argparse.Action, completer: Any) -> None:
   setattr(action, 'completer', completer)
 
 
-def _cluster_completer(prefix, parsed_args, **_kwargs):
+def _cluster_completer(
+    prefix: str,
+    parsed_args: argparse.Namespace,
+    **_kwargs: Any,
+) -> list[str]:
   """Tab-complete --cluster from GKE contexts in the user's kubeconfig."""
   del parsed_args
   return [

@@ -441,7 +441,6 @@ def workload_create(args) -> None:
     k8s_api_client = setup_k8s_env(args)
     setup_k8s_service_accounts()
 
-  # Default team-routing values; the TPU non-pathways path below may override.
   team_namespace = ''
   k8s_name = args.workload
 
@@ -521,13 +520,6 @@ def workload_create(args) -> None:
       xpk_exit(1)
 
   parse_env_config(args, tensorboard_config)
-
-  # When --team is set, inject the user's full display name as XPK_WORKLOAD_NAME
-  # so training scripts can reference it for GCS artifact paths regardless of
-  # the (potentially shortened) K8s name xpk derives for the JobSet.
-  team = getattr(args, 'team', None)
-  if isinstance(team, str) and team.strip():
-    args.env.setdefault('XPK_WORKLOAD_NAME', args.workload)
 
   autoprovisioning_args = ''
   autoprovisioning_enabled, return_code = is_autoprovisioning_enabled(
@@ -827,6 +819,7 @@ def workload_create(args) -> None:
             ' $XPK_WORKLOAD_NAME in your command for GCS artifact paths;'
             ' pass --no-shorten-jobset-name to disable)'
         )
+      args.env.setdefault('XPK_WORKLOAD_NAME', args.workload)
       routing = team_routing
     else:
       team_namespace = ''

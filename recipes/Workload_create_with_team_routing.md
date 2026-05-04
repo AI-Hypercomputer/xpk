@@ -9,10 +9,10 @@ and Kueue/team labels.
 
 # Running the command
 ```shell #golden
-XPK_TEAM_QUOTA_DRY_RUN_CONFIG='{"teams":{"ml-perf":{"namespace":"poc-ml-perf","localQueue":"lq","priorityClass":"poc-ml-perf-priority"},"dev":{"namespace":"poc-dev","localQueue":"lq","priorityClass":"poc-dev-priority"}},"valueClasses":["benchmark","regression","development"],"sliceName":{"charLimit":49,"fixedOverhead":26}}' xpk workload create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --workload=golden-workload --tpu-type=tpu7x-4x4x4 --command="python3 train.py" --team=ml-perf --value-class=benchmark --declared-duration-minutes=90 --dry-run
+XPK_TEAM_QUOTA_DRY_RUN_CONFIG='{"teams":{"ml-perf":{"namespace":"poc-ml-perf","localQueue":"lq","priorityClass":"poc-ml-perf-priority"},"dev":{"namespace":"poc-dev","localQueue":"lq","priorityClass":"poc-dev-priority"}},"valueClasses":["benchmark","regression","development"],"sliceName":{"charLimit":49,"fixedOverhead":26}}' xpk workload create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --workload=golden-workload --tpu-type=tpu7x-4x4x4 --command="python3 train.py" --team=ml-perf --value-class=benchmark --declared-duration-minutes=90 --script-dir=/tmp --dry-run
 ```
 <!--
-$ XPK_TEAM_QUOTA_DRY_RUN_CONFIG='{"teams":{"ml-perf":{"namespace":"poc-ml-perf","localQueue":"lq","priorityClass":"poc-ml-perf-priority"},"dev":{"namespace":"poc-dev","localQueue":"lq","priorityClass":"poc-dev-priority"}},"valueClasses":["benchmark","regression","development"],"sliceName":{"charLimit":49,"fixedOverhead":26}}' xpk workload create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --workload=golden-workload --tpu-type=tpu7x-4x4x4 --command="python3 train.py" --team=ml-perf --value-class=benchmark --declared-duration-minutes=90 --dry-run
+$ XPK_TEAM_QUOTA_DRY_RUN_CONFIG='{"teams":{"ml-perf":{"namespace":"poc-ml-perf","localQueue":"lq","priorityClass":"poc-ml-perf-priority"},"dev":{"namespace":"poc-dev","localQueue":"lq","priorityClass":"poc-dev-priority"}},"valueClasses":["benchmark","regression","development"],"sliceName":{"charLimit":49,"fixedOverhead":26}}' xpk workload create --project=golden-project --zone=us-central1-a --cluster=golden-cluster --workload=golden-workload --tpu-type=tpu7x-4x4x4 --command="python3 train.py" --team=ml-perf --value-class=benchmark --declared-duration-minutes=90 --script-dir=/tmp --dry-run
 [XPK] Starting xpk v0.0.0
 [XPK] Task: `Check if Workload Already Exists` is implemented by the following command not running since it is a dry run. 
 kubectl get workloads -o=custom-columns='Jobset:.metadata.ownerReferences[0].name'
@@ -34,7 +34,7 @@ kubectl get configmap golden-cluster-resources-configmap -o=custom-columns="Conf
 gcloud beta compute resource-policies describe tpu7x-128-4x4x4-placement-policy --project=golden-project --region=us-central1
 [XPK] Temp file (e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855) content: 
 
-[XPK] Adding /home/sivaibhav_google_com/xpk-fork to container image archive e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+[XPK] Adding /tmp to container image archive e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
 [XPK] Task: `Upload Container Image` is implemented by the following command not running since it is a dry run. 
 crane mutate python:3.10 --append e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 --platform linux/amd64 --tag gcr.io/golden-project/dry-run-runner:prefix-current --workdir /app
 [XPK] Deleting container image archive e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855

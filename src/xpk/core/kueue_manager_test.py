@@ -759,8 +759,6 @@ def test_derive_k8s_workload_name_raises_when_max_len_too_small():
   # negative-slicing branch silently produced names exceeding max_len.
   # Now the function fails loud so a misconfigured ConfigMap is caught
   # up-front rather than at admission time.
-  import pytest
-
   for max_len in (4, 0, -1):
     with pytest.raises(ValueError, match="max_len"):
       derive_k8s_workload_name("amandaliang", max_len=max_len)

@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+import hashlib
 import math
 from dataclasses import dataclass
 from typing import Optional, List, Dict, Any
@@ -47,6 +48,7 @@ LATEST_BREAKING_VERSION = Version("v0.15.0")
 WAIT_FOR_KUEUE_TIMEOUT = "10m"
 CLUSTER_QUEUE_NAME = "cluster-queue"
 LOCAL_QUEUE_NAME = "multislice-queue"
+
 SUB_SLICE_TOPOLOGY_NAME = "sub-slice-topology"
 SUPER_SLICE_TOPOLOGY_NAME = "super-slice-topology"
 KUEUE_CONFIG_JINJA_FILE = "kueue_config.yaml.j2"
@@ -58,6 +60,49 @@ MEMORY_SIZE_PER_VM = 32
 MIN_MEMORY_LIMIT_SIZE = 4096
 CPU_SIZE_PER_VM = 0.004
 MIN_CPU_LIMIT_SIZE = 2
+
+
+def derive_k8s_workload_name(display_name: str, max_len: int) -> str:
+  """Derive a short K8s-safe JobSet name from a user-provided display name.
+
+  The super-slice admission controller requires slice names ≤ ~49 chars:
+    {namespace}-jobset-{k8s_name}-{kueue_hash5}-slice-job-{i}
+  So k8s_name must be ≤ max_len chars. max_len comes from the cluster's
+  team-quota ConfigMap (see quota_discovery.max_k8s_workload_name_len),
+  computed from len(namespace) and the super-slice admission controller's
+  char-limit / fixed-overhead constants.
+
+  Format: {ldap_prefix}-{hex4}
+  - ldap_prefix: display_name up to the first '-', truncated to fit
+  - hex4: first 4 hex chars of SHA256(display_name) — deterministic, so
+    'xpk workload delete/status --workload=<display_name>' can reconstruct
+    the same k8s_name for lookup (though the label is the primary lookup key).
+
+  The mapping is deterministic: same display_name → same k8s_name.
+  Users avoid collisions by including a unique suffix in their display name
+  (e.g. 'amandaliang-run42'), which propagates into the hex4.
+
+  Raises ValueError when max_len is too small to fit the `-XXXX` suffix
+  (i.e. < 5). This can happen if the team-quota ConfigMap's
+  `sliceName.charLimit` is set too tightly relative to a long namespace;
+  failing loud here surfaces the misconfiguration up-front rather than
+  silently emitting a name that exceeds the super-slice charLimit (a
+  negative slice bound on `ldap[:max_prefix]` otherwise produces a string
+  longer than max_len).
+  """
+  # Reserve 5 chars for '-' + 4 hex digits. With max_len < 5 the slice
+  # below would silently use a negative bound and emit a too-long name.
+  if max_len < 5:
+    raise ValueError(
+        f"max_len ({max_len}) is too small to derive a workload name; "
+        "widen the team-quota ConfigMap's sliceName.charLimit or use a "
+        "shorter namespace."
+    )
+  max_prefix = max_len - 5
+  ldap = display_name.split("-")[0]
+  prefix = ldap[:max_prefix]
+  hex4 = hashlib.sha256(display_name.encode()).hexdigest()[:4]
+  return f"{prefix}-{hex4}"
 
 
 @dataclass(frozen=True)

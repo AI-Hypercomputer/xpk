@@ -16,6 +16,9 @@ limitations under the License.
 
 import argparse
 from argparse import ArgumentParser
+from typing import Any, Callable
+
+from ..core import local_cache
 from ..commands.workload import (
     workload_create,
     workload_create_pathways,
@@ -25,6 +28,48 @@ from ..commands.workload import (
 from ..core.docker_image import DEFAULT_DOCKER_IMAGE, DEFAULT_SCRIPT_DIR
 from .common import add_shared_arguments, add_tpu_type_argument, add_tpu_and_device_type_arguments
 from .validators import directory_path_type, name_type
+
+
+def _cached_field_completer(field: str) -> Callable[..., list[str]]:
+  """Build an argcomplete completer that reads the team-quota cache for `field`
+  ('teams' or 'valueClasses'). Prefers the cache entry for the kubectl
+  context corresponding to parsed_args.cluster; falls back to the union of
+  all cached contexts so completion still helps on an unfamiliar cluster."""
+
+  def _complete(
+      prefix: str,
+      parsed_args: argparse.Namespace,
+      **_kwargs: Any,
+  ) -> list[str]:
+    cluster = getattr(parsed_args, 'cluster', None)
+    candidates: set[str] = set()
+    if cluster:
+      for c in local_cache.all_contexts():
+        # kubectl contexts for GKE end with the cluster name
+        if c.endswith('_' + cluster) or c == cluster:
+          payload = local_cache.read(c) or {}
+          candidates.update(payload.get(field) or [])
+    if not candidates:
+      for c in local_cache.all_contexts():
+        payload = local_cache.read(c) or {}
+        candidates.update(payload.get(field) or [])
+    return sorted(v for v in candidates if v.startswith(prefix or ''))
+
+  return _complete
+
+
+def _cluster_completer(
+    prefix: str,
+    parsed_args: argparse.Namespace,
+    **_kwargs: Any,
+) -> list[str]:
+  """Tab-complete --cluster from GKE contexts in the user's kubeconfig."""
+  del parsed_args
+  return [
+      c
+      for c in local_cache.gke_contexts_from_kubeconfig()
+      if c.startswith(prefix or '')
+  ]
 
 
 def set_workload_parsers(workload_parser: ArgumentParser):
@@ -405,7 +450,7 @@ def set_workload_create_pathways_parser(
   workload_create_pathways_parser.set_defaults(func=workload_create_pathways)
 
 
-def set_workload_delete_parser(workload_delete_parser: ArgumentParser):
+def set_workload_delete_parser(workload_delete_parser):
   workload_delete_parser_required_arguments = (
       workload_delete_parser.add_argument_group(
           'Required Arguments',
@@ -426,7 +471,7 @@ def set_workload_delete_parser(workload_delete_parser: ArgumentParser):
       default=None,
       help='The name of the cluster to delete the job on.',
       required=True,
-  )
+  ).completer = _cluster_completer
   ### "workload delete" Optional arguments
   workload_delete_parser_optional_arguments.add_argument(
       '--workload',
@@ -474,14 +519,14 @@ def set_workload_delete_parser(workload_delete_parser: ArgumentParser):
   workload_delete_parser.set_defaults(func=workload_delete)
 
 
-def set_workload_list_parser(workload_list_parser: ArgumentParser):
+def set_workload_list_parser(workload_list_parser):
   workload_list_parser.add_argument(
       '--cluster',
       type=name_type,
       default=None,
       help='The name of the cluster to list jobs on.',
       required=True,
-  )
+  ).completer = _cluster_completer
 
   workload_list_parser.add_argument(
       '--filter-by-status',
@@ -564,7 +609,7 @@ def add_shared_workload_create_required_arguments(args_parsers):
         default=None,
         help='The name of the cluster to run the job on.',
         required=True,
-    )
+    ).completer = _cluster_completer
 
 
 def add_shared_workload_create_optional_arguments(args_parsers):
@@ -658,6 +703,52 @@ def add_shared_workload_create_optional_arguments(args_parsers):
         help=(
             'Set this flag to get verbose logging to investigate the issue in'
             ' the workload.'
+        ),
+    )
+    # Team-based Kueue quota routing flags. When --team is set, the workload
+    # is auto-routed to the team's namespace + LocalQueue + PriorityClass
+    # discovered at runtime from the cluster's team-quota ConfigMap, so a
+    # cluster admin can add/remove/retune teams without an xpk release.
+    custom_parser.add_argument(
+        '--team',
+        type=str,
+        default=None,
+        help=(
+            'Team name. When set, automatically routes the job to the'
+            " team's namespace, LocalQueue, and PriorityClass. Overrides"
+            ' --priority. Valid teams are discovered at runtime from'
+            " the cluster's team-quota ConfigMap."
+        ),
+    ).completer = _cached_field_completer('teams')
+    custom_parser.add_argument(
+        '--value-class',
+        type=str,
+        default=None,
+        help=(
+            'Job type label for audit and priority ordering. Valid'
+            " classes are discovered at runtime from the cluster's"
+            ' team-quota ConfigMap.'
+        ),
+    ).completer = _cached_field_completer('valueClasses')
+    custom_parser.add_argument(
+        '--declared-duration-minutes',
+        type=int,
+        default=None,
+        help=(
+            'Honest p90 estimate of job runtime in minutes. Used by the'
+            ' cluster-side time-limit controller to stop overrunning jobs.'
+            ' Required when --team is set.'
+        ),
+    )
+    custom_parser.add_argument(
+        '--no-shorten-jobset-name',
+        action='store_true',
+        default=False,
+        help=(
+            'When --team is set, xpk normally shortens the K8s JobSet name to'
+            " fit the super-slice admission controller's sliceName.charLimit."
+            ' Pass this flag to disable shortening (use args.workload as-is)'
+            ' — only safe when your workload name is short enough already.'
         ),
     )
 

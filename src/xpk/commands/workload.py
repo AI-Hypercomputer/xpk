@@ -33,7 +33,12 @@ from ..core.docker_container import (
     get_main_container_docker_image,
     get_user_workload_container,
 )
-from ..core.kueue_manager import LOCAL_QUEUE_NAME
+from ..core.kueue_manager import LOCAL_QUEUE_NAME, derive_k8s_workload_name
+from ..core.quota_discovery import (
+    TeamRouting,
+    max_k8s_workload_name_len,
+    resolve_team_for_args,
+)
 from ..core.docker_resources import get_volumes, parse_env_config
 from ..core.gcloud_context import add_zone_and_project
 from ..core.monitoring import get_gke_outlier_dashboard
@@ -104,6 +109,44 @@ from ..utils.templates import get_templates_absolute_path
 _PATHWAYS_WORKLOAD_TEMPLATE = 'pathways_workload_create.yaml.j2'
 
 _SUPER_SLICING_WORKLOAD_NAME_LIMIT = 28
+
+
+def _build_team_labels(args) -> str:
+  """Return YAML label lines for team-routing labels, or empty string.
+
+  These labels are read by the cluster-side time-limit and quota controllers
+  to enforce per-team duration caps and value-class accounting.
+  """
+  team = getattr(args, 'team', None)
+  if not isinstance(team, str) or not team.strip():
+    return ''
+  lines = [f'team: {team}']
+  if getattr(args, 'value_class', None):
+    lines.append(f'value-class: {args.value_class}')
+  if getattr(args, 'declared_duration_minutes', None) is not None:
+    lines.append(
+        f'declared-duration-minutes: "{args.declared_duration_minutes}"'
+    )
+  # indent to match template (4 spaces)
+  return ('\n    ').join(lines)
+
+
+def _build_team_pod_template_labels(args) -> str:
+  """Return YAML label lines for team labels that must appear in pod template.
+
+  Kueue does NOT propagate arbitrary JobSet metadata labels to the Workload
+  object, so the time-limit controller reads declared-duration-minutes from
+  spec.podSets[*].template.metadata.labels instead.
+  """
+  team = getattr(args, 'team', None)
+  if not isinstance(team, str) or not team.strip():
+    return ''
+  if getattr(args, 'declared_duration_minutes', None) is None:
+    return ''
+  # indent to match pod template labels (16 spaces)
+  return f'declared-duration-minutes: "{args.declared_duration_minutes}"'
+
+
 """Maximum safe workload name length to avoid exceeding GCE's 63-character limit.
 
 Kueue/Jobset prefixes and suffixes consume characters: 8 (`default-`), 7 (`jobset-`),
@@ -113,10 +156,12 @@ Kueue/Jobset prefixes and suffixes consume characters: 8 (`default-`), 7 (`jobse
 WORKLOAD_CREATE_YAML = """apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
 metadata:
-  name: {args.workload}
+  name: {k8s_name}
+  {namespace_field}
   labels:
     kueue.x-k8s.io/queue-name: {local_queue_name}  # Name of the LocalQueue
     xpk.google.com/workload: {args.workload}
+    {team_labels}
   annotations:
     {jobset_annotations}
 spec:
@@ -137,6 +182,7 @@ spec:
             metadata:
               labels:
                 xpk.google.com/workload: {args.workload}
+                {team_pod_template_labels}
               annotations:
                 {storage_annotations}
                 {sub_slicing_annotations}
@@ -395,6 +441,9 @@ def workload_create(args) -> None:
     k8s_api_client = setup_k8s_env(args)
     setup_k8s_service_accounts()
 
+  team_namespace = ''
+  k8s_name = args.workload
+
   workload_exists = check_if_workload_exists(args)
 
   if workload_exists:
@@ -562,6 +611,7 @@ def workload_create(args) -> None:
 
   if (
       use_super_slicing
+      and not getattr(args, 'team', None)
       and len(args.workload) > _SUPER_SLICING_WORKLOAD_NAME_LIMIT
   ):
     xpk_print(
@@ -746,8 +796,42 @@ def workload_create(args) -> None:
         args, workload_system, parallel_containers
     )
 
+    team_routing = resolve_team_for_args(args)
+    if team_routing is not None:
+      team_namespace = team_routing.namespace
+      # Derive a short K8s-safe JobSet name when the workload is routed to a
+      # team namespace AND the user-facing workload name exceeds the
+      # super-slice admission controller's per-name budget. See
+      # core.kueue_manager.derive_k8s_workload_name and
+      # core.quota_discovery.max_k8s_workload_name_len for the budget math.
+      # The user can disable shortening with --no-shorten-jobset-name.
+      max_len = max_k8s_workload_name_len(args.quota_cfg, team_namespace)
+      shorten = not getattr(args, 'no_shorten_jobset_name', False)
+      if shorten:
+        k8s_name = derive_k8s_workload_name(args.workload, max_len)
+      else:
+        k8s_name = args.workload
+      args.priority = team_routing.priority_class
+      if k8s_name != args.workload:
+        xpk_print(
+            f'workload "{args.workload}" → K8s JobSet name: "{k8s_name}"'
+            ' (shortened to fit super-slice charLimit; use'
+            ' $XPK_WORKLOAD_NAME in your command for GCS artifact paths;'
+            ' pass --no-shorten-jobset-name to disable)'
+        )
+      args.env.setdefault('XPK_WORKLOAD_NAME', args.workload)
+      routing = team_routing
+    else:
+      team_namespace = ''
+      k8s_name = args.workload
+      routing = TeamRouting(
+          namespace='',
+          local_queue=LOCAL_QUEUE_NAME,
+          priority_class=args.priority,
+      )
     yml_string = WORKLOAD_CREATE_YAML.format(
         args=args,
+        k8s_name=k8s_name,
         jobset_annotations=jobset_annotations,
         container=container,
         vms_per_slice=workload_system.vms_per_slice,
@@ -763,7 +847,12 @@ def workload_create(args) -> None:
         placement_policy_label=placement_policy_label,
         node_selector_machine_label=node_selector_machine_label,
         tpu_slice_topology_annotation=tpu_slice_topology_annotation,
-        local_queue_name=LOCAL_QUEUE_NAME,
+        local_queue_name=routing.local_queue,
+        namespace_field=f'namespace: {team_namespace}'
+        if team_namespace
+        else '',
+        team_labels=_build_team_labels(args),
+        team_pod_template_labels=_build_team_pod_template_labels(args),
         autoprovisioning_args=autoprovisioning_args,
         volumes=get_volumes(args, workload_system),
         storage_annotations=('\n' + (' ' * 16)).join(
@@ -847,10 +936,16 @@ def workload_create(args) -> None:
         f'{get_pathways_unified_query_link(args)}'
     )
   else:
+    # When --team is in use, the workload routes to a per-team namespace and
+    # the K8s JobSet name may be shortened from args.workload. Use those
+    # actual values for the dashboard / Cloud Logging URLs so links land on
+    # the right resource. Falls back to upstream defaults otherwise.
+    log_namespace = team_namespace or 'default'
+    log_pod_prefix = k8s_name
     xpk_print(
         'Follow your workload here:'
         # pylint: disable=line-too-long
-        f' https://console.cloud.google.com/kubernetes/service/{get_cluster_location(args.project, args.cluster, args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
+        f' https://console.cloud.google.com/kubernetes/service/{get_cluster_location(args.project, args.cluster, args.zone)}/{args.cluster}/{log_namespace}/{log_pod_prefix}/details?project={args.project}'
     )
     duration_of_logs = 'P1D'  # Past 1 Day
     log_filter = (
@@ -858,8 +953,8 @@ def workload_create(args) -> None:
         f'resource.labels.project_id="{args.project}"\n'
         f'resource.labels.location="{get_cluster_location(args.project, args.cluster, args.zone)}"\n'
         f'resource.labels.cluster_name="{args.cluster}"\n'
-        'resource.labels.namespace_name="default"\n'
-        f'resource.labels.pod_name:"{args.workload}-slice-job-0-0-"\n'
+        f'resource.labels.namespace_name="{log_namespace}"\n'
+        f'resource.labels.pod_name:"{log_pod_prefix}-slice-job-0-0-"\n'
         'severity>=DEFAULT'
     )
     encoded_filter = urllib.parse.quote(log_filter, safe='')

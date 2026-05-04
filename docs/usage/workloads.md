@@ -154,6 +154,58 @@ xpk workload create \
       xpk-test --tpu-type=v5litepod-16 --priority=medium
       ```
 
+### Team-based Kueue routing (`--team`)
+
+When the cluster admin has deployed the team-quota chart (which publishes a
+`team-quota-config` ConfigMap in `kueue-system`), users can pass `--team` to
+have xpk auto-route the workload to the team's namespace, LocalQueue, and
+PriorityClass — no manual YAML knowledge required.
+
+```shell
+xpk workload create \
+  --cluster=$CLUSTER_NAME \
+  --tpu-type=tpu7x-128 \
+  --num-slices=2 \
+  --workload=$WORKLOAD_NAME \
+  --command="python3 train.py" \
+  --team=ml-perf \
+  --value-class=benchmark \
+  --declared-duration-minutes=90
+```
+
+| Flag | Purpose |
+|---|---|
+| `--team` | Team key from the cluster's team-quota ConfigMap. Sets namespace, LocalQueue, PriorityClass; overrides `--priority`. |
+| `--value-class` | Job-type label for audit and priority ordering (e.g. `benchmark`, `regression`, `development`). Validated against the ConfigMap. |
+| `--declared-duration-minutes` | Honest p90 estimate of runtime in minutes. Used by the cluster-side time-limit controller to stop overrunning jobs. |
+| `--no-shorten-jobset-name` | Opt out of the auto-shortening described below. The submission will fail loudly instead. |
+
+**Automatic JobSet-name shortening.** On clusters with the super-slice
+admission controller, a per-team character budget applies to the JobSet
+name (the controller composes it with the namespace and a Kueue hash, all
+under a hard 49-char ceiling). When `--team` routes the workload to a team
+namespace, xpk derives a deterministic short K8s name like
+`<ldap-prefix>-<sha-hex4>` to fit. The full `--workload` value is
+preserved as the `xpk.google.com/workload` label and as
+`$XPK_WORKLOAD_NAME` inside every pod, so artifact paths stay readable.
+Pass `--no-shorten-jobset-name` to disable shortening.
+
+**Discovery is at runtime, no xpk release needed.** Adding/removing/retuning
+a team is an admin-side ConfigMap edit; xpk reads the current values on
+every `--team` invocation and the local cache (`~/.xpk/quota-cache/`)
+keeps tab completion and "did you mean" suggestions working without an
+extra cluster round-trip.
+
+**Custom ConfigMap name (legacy deployments).** The default ConfigMap name
+is `team-quota-config`. Operators with a pre-existing ConfigMap under a
+different name can override:
+
+```shell
+xpk config set team-configmap-name my-custom-name
+```
+
+Without this override the lookup goes to `kueue-system/team-quota-config`.
+
 ### Create Vertex AI Experiment to upload data to Vertex AI Tensorboard
 *Note: This feature is available in XPK >= 0.4.0. Enable [Vertex AI API](https://cloud.google.com/vertex-ai/docs/start/cloud-environment#enable_vertexai_apis) in your Google Cloud console to use this feature. Make sure you have
 [Vertex AI Administrator](https://cloud.google.com/vertex-ai/docs/general/access-control#aiplatform.admin) role

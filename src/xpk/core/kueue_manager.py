@@ -81,8 +81,23 @@ def derive_k8s_workload_name(display_name: str, max_len: int) -> str:
   The mapping is deterministic: same display_name → same k8s_name.
   Users avoid collisions by including a unique suffix in their display name
   (e.g. 'amandaliang-run42'), which propagates into the hex4.
+
+  Raises ValueError when max_len is too small to fit the `-XXXX` suffix
+  (i.e. < 5). This can happen if the team-quota ConfigMap's
+  `sliceName.charLimit` is set too tightly relative to a long namespace;
+  failing loud here surfaces the misconfiguration up-front rather than
+  silently emitting a name that exceeds the super-slice charLimit (a
+  negative slice bound on `ldap[:max_prefix]` otherwise produces a string
+  longer than max_len).
   """
-  # Reserve 5 chars for '-' + 4 hex digits
+  # Reserve 5 chars for '-' + 4 hex digits. With max_len < 5 the slice
+  # below would silently use a negative bound and emit a too-long name.
+  if max_len < 5:
+    raise ValueError(
+        f"max_len ({max_len}) is too small to derive a workload name; "
+        "widen the team-quota ConfigMap's sliceName.charLimit or use a "
+        "shorter namespace."
+    )
   max_prefix = max_len - 5
   ldap = display_name.split("-")[0]
   prefix = ldap[:max_prefix]

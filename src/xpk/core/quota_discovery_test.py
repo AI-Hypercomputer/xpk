@@ -18,11 +18,14 @@ import json
 
 import pytest
 
+import argparse
+
 from .quota_discovery import (
     TeamRouting,
     available_teams,
     available_value_classes,
     fetch_quota_config,
+    load_quota_cfg,
     max_k8s_workload_name_len,
     resolve_team,
     suggest,
@@ -237,3 +240,59 @@ def test_fetch_quota_config_honours_team_configmap_name_override(mocker):
   assert 'poc-team-config' in cmd
   assert 'team-quota-config' not in cmd
   fake_config.get.assert_called_with('team-configmap-name')
+
+
+def test_fetch_quota_config_quotes_user_provided_configmap_name(mocker):
+  """A configmap name with shell metacharacters must be shell-quoted before
+  interpolation into the kubectl command (run_command_for_value uses
+  shell=True). Defends against config-poisoning local privilege escalation."""
+  fake_config = mocker.MagicMock()
+  fake_config.get.return_value = 'evil; rm -rf /'
+  mocker.patch('xpk.core.quota_discovery.get_config', return_value=fake_config)
+  rcfv = mocker.patch(
+      'xpk.core.quota_discovery.run_command_for_value',
+      return_value=(0, '{"data": {"config.json": "{}"}}'),
+  )
+  mocker.patch(
+      'xpk.core.quota_discovery.local_cache.current_context', return_value=None
+  )
+  fetch_quota_config()
+  cmd = rcfv.call_args.args[0]
+  # The metacharacters must be quoted, not appear as-is
+  assert "'evil; rm -rf /'" in cmd
+  assert '; rm -rf /' not in cmd.replace("'evil; rm -rf /'", '')
+
+
+# ---------- load_quota_cfg validation ----------
+
+
+def test_load_quota_cfg_requires_declared_duration_minutes_with_team(mocker):
+  """The --declared-duration-minutes help text says it's required when
+  --team is set. load_quota_cfg enforces that — submission without it
+  must fail loud, not silently emit a workload missing the duration label."""
+  cfg = _sample_cfg()
+  mocker.patch('xpk.core.quota_discovery.fetch_quota_config', return_value=cfg)
+  mocker.patch('xpk.core.quota_discovery.xpk_print')
+  mocker.patch('xpk.core.quota_discovery.xpk_exit', side_effect=SystemExit(1))
+
+  args = argparse.Namespace(
+      team='ml-perf',
+      value_class=None,
+      declared_duration_minutes=None,
+  )
+  with pytest.raises(SystemExit):
+    load_quota_cfg(args)
+
+
+def test_load_quota_cfg_accepts_declared_duration_minutes_set(mocker):
+  """Sanity check: passing --declared-duration-minutes lets validation pass."""
+  cfg = _sample_cfg()
+  mocker.patch('xpk.core.quota_discovery.fetch_quota_config', return_value=cfg)
+
+  args = argparse.Namespace(
+      team='ml-perf',
+      value_class=None,
+      declared_duration_minutes=90,
+  )
+  out = load_quota_cfg(args)
+  assert out == cfg

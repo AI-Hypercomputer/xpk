@@ -30,6 +30,7 @@ kubectl) before calling into this module.
 import difflib
 import json
 import os
+import shlex
 from dataclasses import dataclass
 
 from . import local_cache
@@ -96,7 +97,10 @@ def fetch_quota_config() -> dict | None:
   dry = _dry_run_quota_cfg()
   if dry is not None:
     return dry
-  cm_name = _configmap_name()
+  # cm_name comes from xpk config (user-controlled). run_command_for_value
+  # invokes the command via shell=True, so quote it to prevent shell-meta
+  # interpolation if the config value contains spaces / `;` / `&` / etc.
+  cm_name = shlex.quote(_configmap_name())
   cmd = f'kubectl get configmap -n {CONFIG_CM_NAMESPACE} {cm_name} -o json'
   rc, out = run_command_for_value(cmd, task=cmd, quiet=True)
   if rc != 0 or not out:
@@ -189,6 +193,15 @@ def load_quota_cfg(args) -> dict | None:
     xpk_print(
         f'ERROR: --team={args.team!r} not found on this cluster.{hint_line}'
         f' Available teams: {", ".join(teams) or "<none>"}'
+    )
+    xpk_exit(1)
+  # The --declared-duration-minutes help text states it's required when
+  # --team is set (the cluster-side time-limit controller relies on the
+  # label to stop overrunning jobs). Enforce it here so the workload
+  # doesn't silently submit without the duration label.
+  if getattr(args, 'declared_duration_minutes', None) is None:
+    xpk_print(
+        'ERROR: --declared-duration-minutes is required when --team is set.'
     )
     xpk_exit(1)
   if getattr(args, 'value_class', None):

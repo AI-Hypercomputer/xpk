@@ -752,3 +752,15 @@ def test_derive_k8s_workload_name_short_input_still_gets_hashed():
   result = derive_k8s_workload_name("a", max_len=12)
   assert "-" in result
   assert len(result.rsplit("-", maxsplit=1)[-1]) == 4
+
+
+def test_derive_k8s_workload_name_raises_when_max_len_too_small():
+  # max_len < 5 leaves no room for the '-XXXX' suffix; the previous
+  # negative-slicing branch silently produced names exceeding max_len.
+  # Now the function fails loud so a misconfigured ConfigMap is caught
+  # up-front rather than at admission time.
+  import pytest
+
+  for max_len in (4, 0, -1):
+    with pytest.raises(ValueError, match="max_len"):
+      derive_k8s_workload_name("amandaliang", max_len=max_len)

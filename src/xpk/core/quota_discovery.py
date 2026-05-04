@@ -29,6 +29,7 @@ kubectl) before calling into this module.
 
 import difflib
 import json
+import os
 from dataclasses import dataclass
 
 from . import local_cache
@@ -62,17 +63,39 @@ class TeamRouting:
   priority_class: str
 
 
+def _dry_run_quota_cfg() -> dict | None:
+  """Read the team-quota ConfigMap payload from the env var, if set.
+
+  Recipes and `--dry-run` invocations can set XPK_TEAM_QUOTA_DRY_RUN_CONFIG
+  to a JSON object representing the contents of `data["config.json"]` from
+  the cluster ConfigMap. Lets reviewers / docs demonstrate the team-routing
+  path without a live cluster (mirrors DRY_RUN_RESERVATION_SUB_BLOCKS).
+  """
+  raw = os.getenv('XPK_TEAM_QUOTA_DRY_RUN_CONFIG')
+  if not raw:
+    return None
+  try:
+    cfg = json.loads(raw)
+  except json.JSONDecodeError:
+    return None
+  return cfg if isinstance(cfg, dict) else None
+
+
 def fetch_quota_config() -> dict | None:
   """Return the parsed ConfigMap payload, or None if unavailable/malformed.
 
-  On success, refreshes ~/.xpk/quota-cache/<context>.json as a side effect
-  so that argcomplete and did-you-mean suggestions work even when the
-  cluster isn't reachable.
+  Honors XPK_TEAM_QUOTA_DRY_RUN_CONFIG first so recipes can demonstrate the
+  team-routing path without a cluster. Otherwise reads the live ConfigMap
+  via kubectl and refreshes ~/.xpk/quota-cache/<context>.json as a side
+  effect (used by argcomplete + did-you-mean suggestions).
 
   The ConfigMap name defaults to `team-quota-config`; operators with a
   pre-existing differently-named ConfigMap can override via
   `xpk config set team-configmap-name <name>`.
   """
+  dry = _dry_run_quota_cfg()
+  if dry is not None:
+    return dry
   cm_name = _configmap_name()
   cmd = f'kubectl get configmap -n {CONFIG_CM_NAMESPACE} {cm_name} -o json'
   rc, out = run_command_for_value(cmd, task=cmd, quiet=True)

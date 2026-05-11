@@ -34,9 +34,6 @@ const (
 	// FailOnUntoleratedDegradedSlice treats degraded slices as failed if the workload requested only healthy slices.
 	FailOnUntoleratedDegradedSlice featuregate.Feature = "FailOnUntoleratedDegradedSlice"
 
-	// ShorterSliceNameLength enables support for shorter Slice names (max 49 characters).
-	ShorterSliceNameLength featuregate.Feature = "ShorterSliceNameLength"
-
 	// TopologyFromNodeSelectorOrAffinity enables extracting the TPU topology from the NodeSelector or NodeAffinity.
 	TopologyFromNodeSelectorOrAffinity featuregate.Feature = "TopologyFromNodeSelectorOrAffinity"
 )
@@ -46,9 +43,6 @@ var defaultVersionedFeatureGates = map[featuregate.Feature]featuregate.Versioned
 		{Version: version.MustParse("0.1"), Default: false, PreRelease: featuregate.Alpha},
 	},
 	FailOnUntoleratedDegradedSlice: {
-		{Version: version.MustParse("0.1"), Default: false, PreRelease: featuregate.Alpha},
-	},
-	ShorterSliceNameLength: {
 		{Version: version.MustParse("0.1"), Default: false, PreRelease: featuregate.Alpha},
 	},
 	TopologyFromNodeSelectorOrAffinity: {

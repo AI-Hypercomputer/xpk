@@ -25,6 +25,7 @@ from ..core.testing.commands_tester import CommandsTester
 from .workload import workload_create
 from .cluster_test import construct_args
 from ..core.docker_container import get_user_workload_container as real_get_user_workload_container
+from .workload import _generate_pathways_workload_yaml
 
 
 SYSTEM_CHARACTERISTICS = SystemCharacteristics(
@@ -457,6 +458,40 @@ def test_workload_create_pathways_jobset_yaml(mocker):
   assert (
       f'--gcs_scratch_location={args.pathways_gcs_location}' in written_content
   )
+
+
+def test_pathways_yaml_excludes_autoprovisioning_args_from_head(mocker):
+  args = MagicMock()
+  args.workload = 'test-pw-workload'
+  args.headless = True
+  args.elastic_slices = 0
+  args.max_slice_restarts = 1
+  args.termination_grace_period_seconds = 30
+  args.priority = 'medium'
+  args.pathways_gcs_location = 'gs://bucket'
+
+  workload_system = MagicMock()
+  workload_system.accelerator_type = AcceleratorType.TPU
+  workload_system.vms_per_slice = 4
+  workload_system.pathways_tpu_version = 'tpuv4'
+  workload_system.topology = '4x4'
+
+  yaml_output = _generate_pathways_workload_yaml(
+      args=args,
+      workload_system=workload_system,
+      parallel_containers=1,
+      placement_policy_label='',
+      autoprovisioning_args='cloud.google.com/reservation-name: test-res',
+      node_selector_machine_label='',
+      tpu_slice_topology_annotation='',
+      jobset_annotations='',
+  )
+
+  head_section = yaml_output[: yaml_output.find('name: worker')]
+  worker_section = yaml_output[yaml_output.find('name: worker') :]
+
+  assert 'cloud.google.com/reservation-name: test-res' not in head_section
+  assert 'cloud.google.com/reservation-name: test-res' in worker_section
 
 
 def test_workload_create_use_parallel_containers_disabled(

@@ -487,8 +487,8 @@ def test_pathways_yaml_excludes_autoprovisioning_args_from_head(mocker):
       jobset_annotations='',
   )
 
-  head_section = yaml_output[:yaml_output.find('name: worker')]
-  worker_section = yaml_output[yaml_output.find('name: worker'):]
+  head_section = yaml_output[: yaml_output.find('name: worker')]
+  worker_section = yaml_output[yaml_output.find('name: worker') :]
 
   assert 'cloud.google.com/reservation-name: test-res' not in head_section
   assert 'cloud.google.com/reservation-name: test-res' in worker_section

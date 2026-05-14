@@ -31,9 +31,6 @@ spec:
             dnsPolicy: ClusterFirstWithHostNet
             nodeSelector:
               cloud.google.com/gke-nodepool: cpu-np
-{% if autoprovisioning_args %}
-              {{ autoprovisioning_args }}
-{% endif %}
 {% if args.headless %}
             containers:
 {% else %}

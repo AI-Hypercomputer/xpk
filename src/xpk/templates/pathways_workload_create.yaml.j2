@@ -106,10 +106,6 @@ spec:
                     cpu: "8"
                     memory: 32G
                 restartPolicy: Always
-{% if args.colocated_python_sidecar_image %}
-              - name: colocated-python-sidecar
-                image: {{ args.colocated_python_sidecar_image }}
-{% endif %}
 {% if not args.headless %}
             containers:
 {% set extra_env %}
@@ -170,6 +166,25 @@ spec:
 {% endif %}
 {% if autoprovisioning_args %}
               {{ autoprovisioning_args }}
+{% endif %}
+{% if args.colocated_python_sidecar_image %}
+            initContainers:
+              - name: colocated-python-sidecar
+                image: {{ args.colocated_python_sidecar_image }}
+                imagePullPolicy: Always
+                env:
+                - name: GRPC_SERVER_ADDRESS
+                  value: "0.0.0.0:50051"
+                - name: PYTHONUNBUFFERED
+                  value: '1'
+                ports:
+                - containerPort: 50051
+                  protocol: TCP
+                resources: {}
+                restartPolicy: Always
+                volumeMounts:
+                - mountPath: /tmp
+                  name: shared-tmp
 {% endif %}
             containers:
               - name: pathways-worker

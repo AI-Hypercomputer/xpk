@@ -15,9 +15,9 @@ limitations under the License.
 """
 
 from dataclasses import dataclass
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 import pytest
-from xpk.commands.managed_ml_diagnostics import install_mldiagnostics_prerequisites
+from xpk.commands.managed_ml_diagnostics import grant_compute_default_sa_mldiagnostics_permissions, install_mldiagnostics_prerequisites
 from xpk.core.testing.commands_tester import CommandsTester
 
 
@@ -136,3 +136,31 @@ def test_install_mldiagnostics_prerequisites_commands_executed(
   mocks.commands_tester.assert_command_run(
       'kubectl', 'apply', '-f', '-n', 'gke-mldiagnostics', times=2
   )
+
+
+@patch(
+    'xpk.commands.managed_ml_diagnostics.run_command_with_updates',
+    return_value=0,
+)
+@patch(
+    'xpk.commands.managed_ml_diagnostics.run_command_for_value',
+    return_value=(0, '123456789\n'),
+)
+def test_grant_compute_default_sa_mldiagnostics_permissions_success(
+    mock_run_value, mock_run_updates
+):
+  result = grant_compute_default_sa_mldiagnostics_permissions('test-project')
+  assert result == 0
+  mock_run_value.assert_called_once()
+  assert mock_run_updates.call_count == 3
+
+
+@patch(
+    'xpk.commands.managed_ml_diagnostics.run_command_for_value',
+    return_value=(1, 'error'),
+)
+def test_grant_compute_default_sa_mldiagnostics_permissions_fails_on_project_number(
+    mock_run_value,
+):
+  result = grant_compute_default_sa_mldiagnostics_permissions('test-project')
+  assert result == 1

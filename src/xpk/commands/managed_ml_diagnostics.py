@@ -250,3 +250,42 @@ def _wait_for_deployment_ready(
     return False
 
   return True
+
+
+def grant_compute_default_sa_mldiagnostics_permissions(project_id: str) -> int:
+  """Grants necessary permissions to the compute default service account."""
+  command = (
+      f'gcloud projects describe {project_id} --format="value(projectNumber)"'
+  )
+  return_code, project_number_str = run_command_for_value(
+      command, 'Get Project Number'
+  )
+  if return_code != 0:
+    xpk_print(f'Get Project Number returned ERROR {return_code}')
+    return return_code
+
+  project_number = project_number_str.strip()
+  if not project_number:
+    xpk_print('Unable to retrieve project number.')
+    return 1
+
+  compute_default_sa = f'{project_number}-compute@developer.gserviceaccount.com'
+  xpk_print(f'Granting necessary roles to {compute_default_sa}')
+
+  roles = [
+      'roles/hypercomputecluster.editor',
+      'roles/storage.objectUser',
+      'roles/logging.logWriter',
+  ]
+  for role in roles:
+    cmd = (
+        f'gcloud projects add-iam-policy-binding {project_id} '
+        f'--member="serviceAccount:{compute_default_sa}" '
+        f'--role="{role}" --condition=None'
+    )
+    code = run_command_with_updates(cmd, f'Grant {role}', verbose=False)
+    if code != 0:
+      xpk_print(f'Grant {role} returned ERROR {code}')
+      return code
+
+  return 0

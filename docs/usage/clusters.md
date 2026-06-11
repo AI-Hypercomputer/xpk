@@ -262,6 +262,8 @@ Enabling ML Diagnostics is streamlined and simplified through XPK cluster creati
 
 By adding the **--managed-mldiagnostics** flag during the execution of either **xpk cluster create** or **xpk cluster create-pathways**, the ML Diagnostics functionality is enabled. This flag ensures the necessary supporting components (such as the injection-webhook and connection-operator) are automatically configured, allowing the feature to function seamlessly in both Pathways and non-Pathways execution environments.
 
+> **Important Note:** When using `--managed-mldiagnostics`, XPK automatically grants `roles/hypercomputecluster.editor`, `roles/storage.objectUser`, and `roles/logging.logWriter` to the Compute Engine default service account. Ensure your user account has **Project IAM Admin** (`roles/resourcemanager.projectIamAdmin`) or **Security Admin** (`roles/iam.securityAdmin`) permissions.
+
 **Example Usage:**
 
 * Cluster Create for Pathways with flag **--managed-mldiagnostics**:

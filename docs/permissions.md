@@ -25,3 +25,4 @@
 * Storage Admin
 * Vertex AI Administrator
 * Filestore Editor (This role is neccessary if you want to run `storage create` command with `--type=gcpfilestore`)
+* Project IAM Admin or Security Admin (This role is necessary if you create a cluster with `--managed-mldiagnostics` to assign required roles to the default Compute Engine service account)

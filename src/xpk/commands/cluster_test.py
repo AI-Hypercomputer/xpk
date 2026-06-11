@@ -55,6 +55,7 @@ class _ClusterCreateMocks:
   get_cluster_location: MagicMock
   xpk_exit: MagicMock
   _log_cluster_create_telemetry: MagicMock
+  grant_compute_default_sa_mldiagnostics_permissions: MagicMock
 
 
 @pytest.fixture
@@ -178,6 +179,10 @@ def cluster_create_mocks(mocker) -> _ClusterCreateMocks:
       xpk_exit=mocker.patch('xpk.commands.cluster.xpk_exit'),
       _log_cluster_create_telemetry=mocker.patch(
           'xpk.commands.cluster._log_cluster_create_telemetry'
+      ),
+      grant_compute_default_sa_mldiagnostics_permissions=mocker.patch(
+          'xpk.commands.cluster.grant_compute_default_sa_mldiagnostics_permissions',
+          return_value=0,
       ),
   )
 

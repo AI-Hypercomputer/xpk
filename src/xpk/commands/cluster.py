@@ -98,7 +98,7 @@ from jinja2 import Environment, FileSystemLoader
 from ..utils.templates import get_templates_absolute_path
 import shutil
 import os
-from .managed_ml_diagnostics import install_mldiagnostics_prerequisites
+from .managed_ml_diagnostics import install_mldiagnostics_prerequisites, grant_compute_default_sa_mldiagnostics_permissions
 
 CLUSTER_PREHEAT_JINJA_FILE = 'cluster_preheat.yaml.j2'
 
@@ -543,13 +543,20 @@ def cluster_create(args) -> None:
       f' https://console.cloud.google.com/kubernetes/clusters/details/{get_cluster_location(args.project, args.cluster, args.zone)}/{args.cluster}/details?project={args.project}'
   )
 
-  if args.managed_mldiagnostics and not is_gke_version_at_least(
-      gke_control_plane_version, MANAGED_MLDIAGNOSTICS_MIN_GKE_VERSION
-  ):
-    return_code = install_mldiagnostics_prerequisites()
-    if return_code != 0:
-      xpk_print('Installation of MLDiagnostics failed.')
-      xpk_exit(return_code)
+  if args.managed_mldiagnostics:
+    grant_permissions_code = grant_compute_default_sa_mldiagnostics_permissions(
+        args.project
+    )
+    if grant_permissions_code != 0:
+      xpk_exit(grant_permissions_code)
+
+    if not is_gke_version_at_least(
+        gke_control_plane_version, MANAGED_MLDIAGNOSTICS_MIN_GKE_VERSION
+    ):
+      return_code = install_mldiagnostics_prerequisites()
+      if return_code != 0:
+        xpk_print('Installation of MLDiagnostics failed.')
+        xpk_exit(return_code)
 
   xpk_exit(0)
 

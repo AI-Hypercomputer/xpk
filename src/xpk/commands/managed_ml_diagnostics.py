@@ -31,6 +31,7 @@ _OPERATOR_PACKAGE = 'mldiagnostics-connection-operator'
 _OPERATOR_VERSION = Version('v0.5.0')
 _OPERATOR_FILENAME = f'{_OPERATOR_PACKAGE}-v{_OPERATOR_VERSION}.yaml'
 _CERT_MANAGER_VERSION = Version('v1.13.0')
+MANAGED_MLDIAGNOSTICS_MIN_GKE_VERSION = '1.35.0-gke.3065000'
 
 
 def _install_cert_manager(version: Version = _CERT_MANAGER_VERSION) -> int:

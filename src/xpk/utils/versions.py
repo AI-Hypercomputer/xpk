@@ -15,6 +15,7 @@ limitations under the License.
 """
 
 import enum
+from packaging.version import Version, InvalidVersion
 
 
 class ReleaseChannel(enum.Enum):
@@ -29,3 +30,27 @@ class ReleaseChannel(enum.Enum):
   REGULAR = "REGULAR"
   STABLE = "STABLE"
   EXTENDED = "EXTENDED"
+
+
+def is_gke_version_at_least(
+    gke_version: str,
+    target_version: str,
+) -> bool:
+  """Checks if a GKE version string is at least the target GKE version.
+
+  Normalizes '-' to '+' in GKE version strings (e.g. 1.35.0-gke.3065000 ->
+  1.35.0+gke.3065000) to ensure robust comparison under PEP 440.
+
+  Args:
+    gke_version: The GKE version string to check.
+    target_version: The target GKE version string.
+
+  Returns:
+    True if gke_version >= target_version, False otherwise.
+  """
+  try:
+    normalized_gke = gke_version.replace("-", "+")
+    normalized_target = target_version.replace("-", "+")
+    return Version(normalized_gke) >= Version(normalized_target)
+  except (InvalidVersion, AttributeError):
+    return False

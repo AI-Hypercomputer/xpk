@@ -28,6 +28,9 @@ from xpk.core.system_characteristics import SystemCharacteristics, UserFacingNam
 from xpk.core.testing.commands_tester import CommandsTester
 from xpk.utils.feature_flags import FeatureFlags
 from xpk.utils.versions import ReleaseChannel
+from xpk.commands.managed_ml_diagnostics import (
+    MANAGED_MLDIAGNOSTICS_MIN_GKE_VERSION,
+)
 
 
 @dataclass
@@ -881,3 +884,87 @@ def test_get_coredns_replica_count_upper_limit_is_15():
       default_pool_cpu_num_nodes=20,
   )
   assert _get_coredns_replica_count(args) == 15
+
+
+def test_run_gke_cluster_create_command_with_managed_mldiagnostics_and_newer_gke_enables_flag(
+    mocks: _Mocks,
+):
+  result = run_gke_cluster_create_command(
+      args=construct_args(
+          gke_version=MANAGED_MLDIAGNOSTICS_MIN_GKE_VERSION,
+          managed_mldiagnostics=True,
+      ),
+      gke_control_plane_version=MANAGED_MLDIAGNOSTICS_MIN_GKE_VERSION,
+      system=TPU_TEST_SYSTEM,
+      release_channel=ReleaseChannel.REGULAR,
+  )
+
+  assert result == 0
+  mocks.commands_tester.assert_command_run(
+      'clusters create', '--enable-managed-mldiagnostics'
+  )
+
+
+def test_run_gke_cluster_create_command_with_managed_mldiagnostics_and_older_gke_does_not_enable_flag(
+    mocks: _Mocks,
+):
+  result = run_gke_cluster_create_command(
+      args=construct_args(
+          gke_version='1.34.8-gke.1000', managed_mldiagnostics=True
+      ),
+      gke_control_plane_version='1.34.8-gke.1000',
+      system=TPU_TEST_SYSTEM,
+      release_channel=ReleaseChannel.REGULAR,
+  )
+
+  assert result == 0
+  mocks.commands_tester.assert_command_not_run(
+      'clusters create', '--enable-managed-mldiagnostics'
+  )
+
+
+@patch('xpk.commands.cluster.install_mldiagnostics_prerequisites')
+def test_cluster_create_with_managed_mldiagnostics_and_newer_gke_skips_prerequisites(
+    mock_install_prerequisites: MagicMock,
+    mocks: _Mocks,
+    cluster_create_mocks: _ClusterCreateMocks,
+):
+  cluster_create_mocks.get_gke_control_plane_version.return_value = (
+      0,
+      MANAGED_MLDIAGNOSTICS_MIN_GKE_VERSION,
+  )
+  args = construct_args(
+      managed_mldiagnostics=True,
+      spot=True,
+      host_maintenance_interval='AS_NEEDED',
+      custom_tpu_nodepool_arguments='',
+      custom_nodepool_arguments='',
+      force=False,
+  )
+  cluster_create(args)
+
+  mock_install_prerequisites.assert_not_called()
+
+
+@patch('xpk.commands.cluster.install_mldiagnostics_prerequisites')
+def test_cluster_create_with_managed_mldiagnostics_and_older_gke_runs_prerequisites(
+    mock_install_prerequisites: MagicMock,
+    mocks: _Mocks,
+    cluster_create_mocks: _ClusterCreateMocks,
+):
+  mock_install_prerequisites.return_value = 0
+  cluster_create_mocks.get_gke_control_plane_version.return_value = (
+      0,
+      '1.34.8-gke.1000',
+  )
+  args = construct_args(
+      managed_mldiagnostics=True,
+      spot=True,
+      host_maintenance_interval='AS_NEEDED',
+      custom_tpu_nodepool_arguments='',
+      custom_nodepool_arguments='',
+      force=False,
+  )
+  cluster_create(args)
+
+  mock_install_prerequisites.assert_called_once()

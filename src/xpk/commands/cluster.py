@@ -17,7 +17,11 @@ limitations under the License.
 from tabulate import tabulate
 
 from ..utils.feature_flags import FeatureFlags
-from ..utils.versions import ReleaseChannel
+from ..utils.versions import (
+    ReleaseChannel,
+    is_gke_version_at_least,
+)
+from .managed_ml_diagnostics import MANAGED_MLDIAGNOSTICS_MIN_GKE_VERSION
 from ..core.pathways import get_pathways_machine_types
 from ..core.cluster import (
     get_all_clusters_programmatic,
@@ -539,7 +543,9 @@ def cluster_create(args) -> None:
       f' https://console.cloud.google.com/kubernetes/clusters/details/{get_cluster_location(args.project, args.cluster, args.zone)}/{args.cluster}/details?project={args.project}'
   )
 
-  if args.managed_mldiagnostics:
+  if args.managed_mldiagnostics and not is_gke_version_at_least(
+      gke_control_plane_version, MANAGED_MLDIAGNOSTICS_MIN_GKE_VERSION
+  ):
     return_code = install_mldiagnostics_prerequisites()
     if return_code != 0:
       xpk_print('Installation of MLDiagnostics failed.')
@@ -1368,6 +1374,11 @@ def run_gke_cluster_create_command(
 
   if args.super_slicing:
     command += ' --enable-slice-controller'
+
+  if args.managed_mldiagnostics and is_gke_version_at_least(
+      gke_control_plane_version, MANAGED_MLDIAGNOSTICS_MIN_GKE_VERSION
+  ):
+    command += ' --enable-managed-mldiagnostics'
 
   if args.custom_cluster_arguments:
     command += f' {args.custom_cluster_arguments}'

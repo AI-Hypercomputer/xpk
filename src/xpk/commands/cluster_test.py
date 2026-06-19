@@ -973,3 +973,89 @@ def test_cluster_create_with_managed_mldiagnostics_and_older_gke_runs_prerequisi
   cluster_create(args)
 
   mock_install_prerequisites.assert_called_once()
+
+
+@patch('xpk.commands.cluster._validate_cluster_create_args')
+@patch('xpk.commands.cluster.create_cluster_if_necessary')
+@patch('xpk.commands.cluster.run_gke_node_pool_create_command')
+@patch('xpk.commands.cluster.get_cluster_credentials')
+@patch('xpk.commands.cluster.create_cluster_configmaps')
+def test_cluster_create_with_adapt_from_ct_skips_hardware_setup(
+    mock_create_cluster_configmaps: MagicMock,
+    mock_get_cluster_credentials: MagicMock,
+    mock_run_gke_node_pool_create_command: MagicMock,
+    mock_create_cluster_if_necessary: MagicMock,
+    mock_validate_cluster_create_args: MagicMock,
+    mocks: _Mocks,
+    cluster_create_mocks: _ClusterCreateMocks,
+):
+  args = construct_args(adapt_from_ct=True)
+  mock_create_cluster_configmaps.return_value = 0
+
+  cluster_create(args)
+
+  # Hardware/Cluster creation functions should not be called
+  cluster_create_mocks.get_gke_server_config.assert_not_called()
+  cluster_create_mocks.get_gke_control_plane_version.assert_not_called()
+  mock_create_cluster_if_necessary.assert_not_called()
+  mock_run_gke_node_pool_create_command.assert_not_called()
+  mock_validate_cluster_create_args.assert_not_called()
+
+  # Credentials and ConfigMaps SHOULD be called
+  mock_get_cluster_credentials.assert_called_once()
+  mock_create_cluster_configmaps.assert_called_once()
+
+  # Verify print statements
+  print_calls = [
+      call[0][0] for call in mocks.commands_print_mock.call_args_list
+  ]
+  assert any(
+      'Cluster creation and Nodepool creation was skipped' in msg
+      for msg in print_calls
+  )
+
+
+@patch('xpk.commands.cluster._validate_cluster_create_args')
+@patch('xpk.commands.cluster.create_cluster_if_necessary')
+@patch('xpk.commands.cluster.run_gke_node_pool_create_command')
+@patch('xpk.commands.cluster.get_cluster_credentials')
+@patch('xpk.commands.cluster.create_cluster_configmaps')
+def test_cluster_create_with_adapt_from_ct_and_managed_mldiagnostics_skips_mldiagnostics(
+    mock_create_cluster_configmaps: MagicMock,
+    mock_get_cluster_credentials: MagicMock,
+    mock_run_gke_node_pool_create_command: MagicMock,
+    mock_create_cluster_if_necessary: MagicMock,
+    mock_validate_cluster_create_args: MagicMock,
+    mocks: _Mocks,
+    cluster_create_mocks: _ClusterCreateMocks,
+):
+  args = construct_args(adapt_from_ct=True, managed_mldiagnostics=True)
+  mock_create_cluster_configmaps.return_value = 0
+
+  cluster_create(args)
+
+  # Hardware/Cluster creation functions should not be called
+  cluster_create_mocks.get_gke_server_config.assert_not_called()
+  cluster_create_mocks.get_gke_control_plane_version.assert_not_called()
+  mock_create_cluster_if_necessary.assert_not_called()
+  mock_run_gke_node_pool_create_command.assert_not_called()
+  mock_validate_cluster_create_args.assert_not_called()
+
+  # Credentials and ConfigMaps SHOULD be called
+  mock_get_cluster_credentials.assert_called_once()
+  mock_create_cluster_configmaps.assert_called_once()
+
+  # Verify print statements
+  print_calls = [
+      call[0][0] for call in mocks.commands_print_mock.call_args_list
+  ]
+  assert any(
+      'Cluster creation and Nodepool creation was skipped' in msg
+      for msg in print_calls
+  )
+  assert any(
+      'Managed ML diagnostics setup was skipped due to the'
+      ' --adapt-from-ct flag.'
+      in msg
+      for msg in print_calls
+  )

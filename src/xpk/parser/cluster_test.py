@@ -300,3 +300,38 @@ def test_cluster_create_ignore_nodepool_creation_errors_can_be_set():
   ])
 
   assert args.ignore_nodepool_creation_errors is True
+
+
+def test_cluster_create_adapt_from_ct_is_shown():
+  parser = argparse.ArgumentParser()
+
+  set_cluster_create_parser(parser)
+  help_str = parser.format_help()
+
+  assert "--adapt-from-ct" in help_str
+
+
+def test_cluster_create_adapt_from_ct_is_false_by_default():
+  parser = argparse.ArgumentParser()
+
+  set_cluster_create_parser(parser)
+  args = parser.parse_args(
+      ["--cluster", "test-cluster", "--tpu-type", "tpu7x-2"]
+  )
+
+  assert args.adapt_from_ct is False
+
+
+def test_cluster_create_adapt_from_ct_can_be_set():
+  parser = argparse.ArgumentParser()
+
+  set_cluster_create_parser(parser)
+  args = parser.parse_args([
+      "--cluster",
+      "test-cluster",
+      "--tpu-type",
+      "tpu7x-2",
+      "--adapt-from-ct",
+  ])
+
+  assert args.adapt_from_ct is True

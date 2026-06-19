@@ -384,69 +384,82 @@ def cluster_create(args) -> None:
   xpk_print(f'Starting cluster create for cluster {args.cluster}:', flush=True)
   add_zone_and_project(args)
 
-  _validate_cluster_create_args(args, system)
-  _log_cluster_create_telemetry(args)
-
-  release_channel = (
-      ReleaseChannel.REGULAR if args.gke_version else ReleaseChannel.RAPID
-  )
-
-  return_code, gke_server_config = get_gke_server_config(
-      args, release_channel=release_channel
-  )
-  if return_code != 0 or gke_server_config is None:
-    xpk_exit(return_code)
-
-  return_code, gke_control_plane_version = get_gke_control_plane_version(
-      args, gke_server_config
-  )
-  if return_code != 0 or gke_control_plane_version is None:
-    xpk_exit(return_code)
-
-  if system.device_type in cluster_gcluster.supported_device_types:
+  adapt_from_ct = getattr(args, 'adapt_from_ct', False)
+  if not adapt_from_ct:
+    _validate_cluster_create_args(args, system)
+  else:
+    _validate_num_slices_and_set_default(args)
     xpk_print(
-        'Creating the cluster using Cluster Toolkit. Machine Type:'
-        f' {system.gce_machine_type} ...'
+        'Cluster creation and Nodepool creation was skipped due to the'
+        ' --adapt-from-ct flag.'
     )
-    cluster_gcluster.cluster_create(
-        args,
-        gke_control_plane_version=gke_control_plane_version,
-        release_channel=release_channel,
+
+  _log_cluster_create_telemetry(args)
+  gke_server_config = None
+  gke_control_plane_version = None
+
+  if not adapt_from_ct:
+    release_channel = (
+        ReleaseChannel.REGULAR if args.gke_version else ReleaseChannel.RAPID
     )
-    xpk_exit(0)
 
-  create_cluster_command_code = create_cluster_if_necessary(
-      args, gke_control_plane_version, system, release_channel=release_channel
-  )
-  if create_cluster_command_code != 0:
-    xpk_exit(create_cluster_command_code)
-
-  authorize_private_cluster_access_command_code = (
-      authorize_private_cluster_access_if_necessary(args)
-  )
-  if authorize_private_cluster_access_command_code != 0:
-    xpk_exit(authorize_private_cluster_access_command_code)
-
-  # ToDo(roshanin@) - Re-enable CloudDNS on Pathways clusters conditionally.
-  # Enable WorkloadIdentity if not enabled already.
-  if args.enable_workload_identity or args.enable_gcsfuse_csi_driver:
-    update_cluster_command_code = (
-        update_cluster_with_workload_identity_if_necessary(args)
+    return_code, gke_server_config = get_gke_server_config(
+        args, release_channel=release_channel
     )
-    if update_cluster_command_code != 0:
-      xpk_exit(update_cluster_command_code)
+    if return_code != 0 or gke_server_config is None:
+      xpk_exit(return_code)
 
-  # Enable MTC if not enabled already.
-  if getattr(args, 'enable_mtc', False):
-    update_cluster_command_code = update_cluster_with_mtc_if_necessary(args)
-    if update_cluster_command_code != 0:
-      xpk_exit(update_cluster_command_code)
+    return_code, gke_control_plane_version = get_gke_control_plane_version(
+        args, gke_server_config
+    )
+    if return_code != 0 or gke_control_plane_version is None:
+      xpk_exit(return_code)
+
+    if system.device_type in cluster_gcluster.supported_device_types:
+      xpk_print(
+          'Creating the cluster using Cluster Toolkit. Machine Type:'
+          f' {system.gce_machine_type} ...'
+      )
+      cluster_gcluster.cluster_create(
+          args,
+          gke_control_plane_version=gke_control_plane_version,
+          release_channel=release_channel,
+      )
+      xpk_exit(0)
+
+    create_cluster_command_code = create_cluster_if_necessary(
+        args, gke_control_plane_version, system, release_channel=release_channel
+    )
+    if create_cluster_command_code != 0:
+      xpk_exit(create_cluster_command_code)
+
+    authorize_private_cluster_access_command_code = (
+        authorize_private_cluster_access_if_necessary(args)
+    )
+    if authorize_private_cluster_access_command_code != 0:
+      xpk_exit(authorize_private_cluster_access_command_code)
+
+    # ToDo(roshanin@) - Re-enable CloudDNS on Pathways clusters conditionally.
+    # Enable WorkloadIdentity if not enabled already.
+    if args.enable_workload_identity or args.enable_gcsfuse_csi_driver:
+      update_cluster_command_code = (
+          update_cluster_with_workload_identity_if_necessary(args)
+      )
+      if update_cluster_command_code != 0:
+        xpk_exit(update_cluster_command_code)
+
+    # Enable MTC if not enabled already.
+    if getattr(args, 'enable_mtc', False):
+      update_cluster_command_code = update_cluster_with_mtc_if_necessary(args)
+      if update_cluster_command_code != 0:
+        xpk_exit(update_cluster_command_code)
 
   get_cluster_credentials(args)
 
-  update_coredns_command_code = update_coredns_if_necessary(args)
-  if update_coredns_command_code != 0:
-    xpk_exit(update_coredns_command_code)
+  if not adapt_from_ct:
+    update_coredns_command_code = update_coredns_if_necessary(args)
+    if update_coredns_command_code != 0:
+      xpk_exit(update_coredns_command_code)
 
   if not is_dry_run():
     k8s_client = setup_k8s_env(args)
@@ -462,31 +475,33 @@ def cluster_create(args) -> None:
     if not tensorboard_config:
       xpk_exit(1)
 
-  if system.device_type == H100_DEVICE_TYPE:
-    xpk_print('Setting up Network for cluster')
-    set_up_cluster_network_code = set_up_cluster_network_for_a3(args)
-    if set_up_cluster_network_code != 0:
-      xpk_exit(set_up_cluster_network_code)
+  if not adapt_from_ct:
+    if system.device_type == H100_DEVICE_TYPE:
+      xpk_print('Setting up Network for cluster')
+      set_up_cluster_network_code = set_up_cluster_network_for_a3(args)
+      if set_up_cluster_network_code != 0:
+        xpk_exit(set_up_cluster_network_code)
 
-    xpk_print('Creating Network Config for cluster')
-    create_cluster_network_config_code = create_cluster_network_config(args)
-    if create_cluster_network_config_code != 0:
-      xpk_exit(create_cluster_network_config_code)
+      xpk_print('Creating Network Config for cluster')
+      create_cluster_network_config_code = create_cluster_network_config(args)
+      if create_cluster_network_config_code != 0:
+        xpk_exit(create_cluster_network_config_code)
 
-  # Check the control plane version of the cluster and determine the node pool
-  # version to use.
-  return_code, gke_node_pool_version = get_gke_node_pool_version(
-      args, gke_server_config
-  )
-  if return_code != 0:
-    xpk_exit(return_code)
-  assert gke_node_pool_version
+    # Check the control plane version of the cluster and determine the node pool
+    # version to use.
+    assert gke_server_config is not None
+    return_code, gke_node_pool_version = get_gke_node_pool_version(
+        args, gke_server_config
+    )
+    if return_code != 0:
+      xpk_exit(return_code)
+    assert gke_node_pool_version
 
-  run_gke_node_pool_create_command_code = run_gke_node_pool_create_command(
-      args, system, gke_node_pool_version
-  )
-  if run_gke_node_pool_create_command_code != 0:
-    xpk_exit(run_gke_node_pool_create_command_code)
+    run_gke_node_pool_create_command_code = run_gke_node_pool_create_command(
+        args, system, gke_node_pool_version
+    )
+    if run_gke_node_pool_create_command_code != 0:
+      xpk_exit(run_gke_node_pool_create_command_code)
 
   # Provision node pools dynamically based on incoming workloads:
   # Currently autoprovisioning is not supported with Pathways.
@@ -544,19 +559,26 @@ def cluster_create(args) -> None:
   )
 
   if args.managed_mldiagnostics:
-    grant_permissions_code = grant_compute_default_sa_mldiagnostics_permissions(
-        args.project
-    )
-    if grant_permissions_code != 0:
-      xpk_exit(grant_permissions_code)
+    if adapt_from_ct:
+      xpk_print(
+          'Managed ML diagnostics setup was skipped due to the'
+          ' --adapt-from-ct flag.'
+      )
+    else:
+      grant_permissions_code = (
+          grant_compute_default_sa_mldiagnostics_permissions(args.project)
+      )
+      if grant_permissions_code != 0:
+        xpk_exit(grant_permissions_code)
 
-    if not is_gke_version_at_least(
-        gke_control_plane_version, MANAGED_MLDIAGNOSTICS_MIN_GKE_VERSION
-    ):
-      return_code = install_mldiagnostics_prerequisites()
-      if return_code != 0:
-        xpk_print('Installation of MLDiagnostics failed.')
-        xpk_exit(return_code)
+      assert gke_control_plane_version is not None
+      if not is_gke_version_at_least(
+          gke_control_plane_version, MANAGED_MLDIAGNOSTICS_MIN_GKE_VERSION
+      ):
+        return_code = install_mldiagnostics_prerequisites()
+        if return_code != 0:
+          xpk_print('Installation of MLDiagnostics failed.')
+          xpk_exit(return_code)
 
   xpk_exit(0)
 

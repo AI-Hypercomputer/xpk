@@ -771,6 +771,14 @@ def add_shared_cluster_create_optional_arguments(
       action='store_true',
       help='Enable Workload Identity Federation on the cluster and node-pools.',
   )
+  parser_or_group.add_argument(
+      '--adapt-from-ct',
+      action='store_true',
+      help=(
+          'Skip cluster and nodepool creation, and only setup Kueue and'
+          ' ConfigMaps.'
+      ),
+  )
   add_ignore_nodepool_creation_errors_argument(parser_or_group)
   add_driver_arguments(parser_or_group)
 

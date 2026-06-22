@@ -62,20 +62,20 @@ class BinaryDependencies(enum.Enum):
       binary_name='kubectl-kueue',
       checksums={
           'darwin_amd64': (
-              'a18199cfde78236c4a79dd5ab4f3f64be7491869430c90e536df58af5f893b9a'
+              'a10092043ae4d78263543f3f5a6ffd694755ebe573213ba368aa72e1f9c51dd1'
           ),
           'darwin_arm64': (
-              'b0d55bc9fa99feab049432b3c6dccac1e765c53b120825f3eb071476f361a4ff'
+              'b10ccad6f3c1b082dc16215b58717cd1c6ecaaf395212031e8305657a7348819'
           ),
           'linux_amd64': (
-              'c23438cbd52929a28013182496fc37bfb881921fb4e01c47476afb67b1021815'
+              '1c4b17581369b317d04a02dcd23e73b5a4644e6c2fc19ecd550b1e5aedb119bb'
           ),
           'linux_arm64': (
-              '2819f646ee2b55775f39bf3aaea3b7403cb15cbdf125812121da8b0c40bccb2a'
+              '1ad79a020f9fe350a3e045fd06aaba77f949d0a9c70c8a0165557f8d53e78c1d'
           ),
       },
       url_template='https://github.com/kubernetes-sigs/kueue/releases/download/{version}/kubectl-kueue-{os}-{arch}',
-      version='v0.15.2',
+      version='v0.17.1',
   )
   CRANE = BinaryDependency(
       archive_type='tar.gz',

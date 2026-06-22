@@ -40,14 +40,14 @@ data:
 [XPK] Enabling the jobset API on our cluster, to be deprecated when Jobset is globally available
 [XPK] Try 1: Install Jobset on golden-cluster
 [XPK] Task: `Install Jobset on golden-cluster` is implemented by the following command not running since it is a dry run. 
-kubectl apply --server-side --force-conflicts -f https://github.com/kubernetes-sigs/jobset/releases/download/v0.8.1/manifests.yaml
+kubectl apply --server-side --force-conflicts -f https://github.com/kubernetes-sigs/jobset/releases/download/v0.10.1/manifests.yaml
 [XPK] Enabling Kueue on the cluster
 [XPK] Task: `Get kueue version on server` is implemented by the following command not running since it is a dry run. 
 kubectl get deployment kueue-controller-manager -n kueue-system -o jsonpath='{.spec.template.spec.containers[0].image}'
-[XPK] Installing Kueue version v0.15.2...
+[XPK] Installing Kueue version v0.17.1...
 [XPK] Try 1: Install Kueue
 [XPK] Task: `Install Kueue` is implemented by the following command not running since it is a dry run. 
-kubectl apply --server-side --force-conflicts -f https://github.com/kubernetes-sigs/kueue/releases/download/v0.15.2/manifests.yaml
+kubectl apply --server-side --force-conflicts -f https://github.com/kubernetes-sigs/kueue/releases/download/v0.17.1/manifests.yaml
 [XPK] Task: `Wait for Kueue to be available` is implemented by the following command not running since it is a dry run. 
 kubectl wait deploy/kueue-controller-manager -n kueue-system --for=condition=available --timeout=10m
 [XPK] Temp file (6083d72fc3ba2ac7d243c1269dd67717abd4086bf64e397e3a1737de415dd133) content: 

@@ -87,10 +87,10 @@ data:
 [XPK] Enabling the jobset API on our cluster, to be deprecated when Jobset is globally available
 [XPK] Try 1: Install Jobset on golden-cluster
 [XPK] Task: `Install Jobset on golden-cluster` is implemented by the following command not running since it is a dry run. 
-kubectl apply --server-side --force-conflicts -f https://github.com/kubernetes-sigs/jobset/releases/download/v0.8.1/manifests.yaml
+kubectl apply --server-side --force-conflicts -f https://github.com/kubernetes-sigs/jobset/releases/download/v0.10.1/manifests.yaml
 [XPK] Task: `Count total nodes` is implemented by the following command not running since it is a dry run. 
 kubectl get node --no-headers | wc -l
-[XPK] Temp file (4454b282a51eaf653c909ad5add4d0c9752c15027c8ab6f2cfc80eb02938705b) content: 
+[XPK] Temp file (fb759a89efb564fb58820d525e144d44a9f158ea19afe084a5ff80e40be78691) content: 
 
 apiVersion: apps/v1
 kind: Deployment
@@ -123,7 +123,7 @@ spec:
         - --zap-log-level=2
         command:
         - /manager
-        image: registry.k8s.io/jobset/jobset:v0.8.1
+        image: registry.k8s.io/jobset/jobset:v0.10.1
         livenessProbe:
           httpGet:
             path: /healthz
@@ -174,14 +174,14 @@ spec:
 
 [XPK] Try 1: Updating jobset Controller Manager resources
 [XPK] Task: `Updating jobset Controller Manager resources` is implemented by the following command not running since it is a dry run. 
-kubectl apply -f 4454b282a51eaf653c909ad5add4d0c9752c15027c8ab6f2cfc80eb02938705b
+kubectl apply -f fb759a89efb564fb58820d525e144d44a9f158ea19afe084a5ff80e40be78691
 [XPK] Enabling Kueue on the cluster
 [XPK] Task: `Get kueue version on server` is implemented by the following command not running since it is a dry run. 
 kubectl get deployment kueue-controller-manager -n kueue-system -o jsonpath='{.spec.template.spec.containers[0].image}'
-[XPK] Installing Kueue version v0.15.2...
+[XPK] Installing Kueue version v0.17.1...
 [XPK] Try 1: Install Kueue
 [XPK] Task: `Install Kueue` is implemented by the following command not running since it is a dry run. 
-kubectl apply --server-side --force-conflicts -f https://github.com/kubernetes-sigs/kueue/releases/download/v0.15.2/manifests.yaml
+kubectl apply --server-side --force-conflicts -f https://github.com/kubernetes-sigs/kueue/releases/download/v0.17.1/manifests.yaml
 [XPK] Task: `Wait for Kueue to be available` is implemented by the following command not running since it is a dry run. 
 kubectl wait deploy/kueue-controller-manager -n kueue-system --for=condition=available --timeout=10m
 [XPK] Temp file (c177e643775bb8e3462648245162a984934b0e09a13b0e3bfb62adf8585442b0) content: 

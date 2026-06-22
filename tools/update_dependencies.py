@@ -25,7 +25,7 @@ from pathlib import Path
 from itertools import product
 
 _KUBECTL_VERSION: str = "v1.35.2"
-_KUEUE_VERSION: str = "v0.15.2"
+_KUEUE_VERSION: str = "v0.17.1"
 _CRANE_VERSION: str = "v0.21.2"
 _GCLUSTER_VERSION: str = "v1.85.0"
 

@@ -42,7 +42,7 @@ from ..utils.console import xpk_print, xpk_exit, ask_for_user_consent
 from ..utils.templates import TEMPLATE_PATH, get_templates_absolute_path
 from packaging.version import Version, InvalidVersion
 
-KUEUE_VERSION = Version("v0.15.2")
+KUEUE_VERSION = Version("v0.17.1")
 LATEST_BREAKING_VERSION = Version("v0.15.0")
 WAIT_FOR_KUEUE_TIMEOUT = "10m"
 CLUSTER_QUEUE_NAME = "cluster-queue"

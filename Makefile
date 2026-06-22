@@ -86,3 +86,7 @@ pyink-fix:
 .PHONY: mypy
 mypy:
 	mypy
+
+.PHONY: update-binary-dependencies
+update-binary-dependencies:
+	python3 tools/update_dependencies.py

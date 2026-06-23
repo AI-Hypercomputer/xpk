@@ -14,7 +14,7 @@
 !Blueprint
 blueprint_name: xpk-gke-a4
 toolkit_modules_url: github.com/GoogleCloudPlatform/cluster-toolkit
-toolkit_modules_version: v1.62.2
+toolkit_modules_version: v1.94.0
 
 vars:
   labels: {gke_product_type: xpk}

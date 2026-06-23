@@ -58,7 +58,7 @@ blueprint_dependencies_dir = {
 }
 
 cluster_toolkit_url = "github.com/GoogleCloudPlatform/cluster-toolkit"
-cluster_toolkit_version = "v1.62.2"
+cluster_toolkit_version = "v1.94.0"
 common_cluster_labels = {"gke_product_type": "xpk"}
 
 

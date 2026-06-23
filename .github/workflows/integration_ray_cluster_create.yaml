@@ -20,6 +20,9 @@ on:
 permissions:
   contents: read
 
+env:
+  CLUSTER_NETWORK_ARGUMENTS: "--network=${{secrets.NETWORK_NAME}} --subnetwork=${{secrets.SUBNETWORK_NAME}}"
+
 jobs:
     rc-cluster:
         runs-on: [ubuntu-22.04]
@@ -39,7 +42,7 @@ jobs:
             - name: Check xpk installation
               run: xpk version
             - name: Create a RayCluster-enabled XPK Cluster with 2 x v4-8 nodepools
-              run: xpk cluster create-ray --cluster $TPU_CLUSTER_NAME --tpu-type=v4-8  --num-slices=2 --zone=us-central2-b --ray-version=2.39.0 --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=4 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments='${{ secrets.CLUSTER_ARGUMENTS}}'
+              run: xpk cluster create-ray --cluster $TPU_CLUSTER_NAME --tpu-type=v4-8  --num-slices=2 --zone=us-central2-b --ray-version=2.39.0 --default-pool-cpu-machine-type=n1-standard-16 --default-pool-cpu-num-nodes=4 --reservation='${{ secrets.GCP_TPU_V4_RESERVATION }}' --custom-cluster-arguments='${CLUSTER_NETWORK_ARGUMENTS}'
             - name: Delete the RayCluster-enabled XPK cluster
               if: always()
               run: xpk cluster delete --cluster $TPU_CLUSTER_NAME --zone=us-central2-b

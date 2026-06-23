@@ -261,7 +261,7 @@ class BlueprintGenerator:
         source="modules/management/kubectl-apply",
         use=["gke_cluster"],
         settings={
-            "jobset": {"install": True, "version": "v0.10.1"},
+            "jobset": {"install": True, "version": "0.10.1"},
             "apply_manifests": [{
                 "source": f'$(ghpc_stage("{blueprint_name}"))/storage_crd.yaml'
             }],
@@ -568,7 +568,7 @@ class BlueprintGenerator:
         source="modules/management/kubectl-apply",
         use=[cluster_id],
         settings={
-            "jobset": {"install": True, "version": "v0.10.1"},
+            "jobset": {"install": True, "version": "0.10.1"},
             "apply_manifests": [
                 {"source": nccl_installer_path},
                 {"source": mlgru_disable_path},
@@ -857,7 +857,7 @@ class BlueprintGenerator:
         source="modules/management/kubectl-apply",
         use=[cluster_id],
         settings={
-            "jobset": {"install": True, "version": "v0.10.1"},
+            "jobset": {"install": True, "version": "0.10.1"},
             "apply_manifests": [
                 {"source": nccl_installer_path},
                 {

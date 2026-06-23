@@ -22,7 +22,6 @@ permissions:
 
 env:
   CLUSTER_NETWORK_ARGUMENTS: "--network=${{secrets.NETWORK_NAME}} --subnetwork=${{secrets.SUBNETWORK_NAME}}"
-  CLUSTER_NETWORK_ARGUMENTS_DWS: "--network=${{secrets.NETWORK_NAME}} --subnetwork=${{secrets.SUBNETWORK_NAME_DWS}}"
 
 jobs:
     create_empty_cluster:

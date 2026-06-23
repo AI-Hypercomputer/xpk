@@ -104,19 +104,19 @@ class BinaryDependencies(enum.Enum):
       binary_name='gcluster',
       checksums={
           'darwin_amd64': (
-              '3836bfb0c495138ec51084df8dc6d4b29530667f70f2d331e648bd8fd89175d2'
+              'e755236cc45cf15bf277e6c15c212fccc426580f3d0ac8f95f27302cd03c3456'
           ),
           'darwin_arm64': (
-              '0196094c91c40f0062d62c9c377b973c4d6400ff7632a6b4da3509628e038559'
+              'b18a586cb895cd824b8e041fb1f0d87bd2f250304c89cb4e16e4024d1942e3e3'
           ),
           'linux_amd64': (
-              'd4c26c3b57dd59f6e62712ae8d1ee3a3d8f87deb77ed7eee523ffa359b74773e'
+              '4010577ced2f54a23482eebf5f269e855d5ef5584a34959859eda0788430cf03'
           ),
           'linux_arm64': (
-              'e42a33ee9673007ceefb51689cde7f5f7fc542dd8e4635b7c6a30b7739635ee8'
+              '4e7332759af90dc0d9d65164cf1311fea0f8c382fcaff130910ff27023e50e8e'
           ),
       },
       url_template='https://github.com/GoogleCloudPlatform/cluster-toolkit/releases/download/{version}/gcluster_bundle_{os}_{arch}.zip',
-      version='v1.85.0',
+      version='v1.94.0',
       os_map={'darwin': 'mac'},
   )

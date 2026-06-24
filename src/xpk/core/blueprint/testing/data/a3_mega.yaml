@@ -16,7 +16,7 @@
 !Blueprint
 blueprint_name: xpk-gke-a3-megagpu
 toolkit_modules_url: github.com/GoogleCloudPlatform/cluster-toolkit
-toolkit_modules_version: v1.62.2
+toolkit_modules_version: v1.94.0
 
 vars:
   project_id: "foo"
@@ -112,7 +112,7 @@ deployment_groups:
     settings:
       jobset:
         install: true
-        version: v0.10.1
+        version: 0.10.1
       apply_manifests:
       - source: $(ghpc_stage("xpk-gke-a3-megagpu"))/storage_crd.yaml
 

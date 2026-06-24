@@ -58,7 +58,7 @@ blueprint_dependencies_dir = {
 }
 
 cluster_toolkit_url = "github.com/GoogleCloudPlatform/cluster-toolkit"
-cluster_toolkit_version = "v1.62.2"
+cluster_toolkit_version = "v1.94.0"
 common_cluster_labels = {"gke_product_type": "xpk"}
 
 
@@ -219,7 +219,6 @@ class BlueprintGenerator:
             "name": f"{cluster_name}-a3-megagpu-pool-0",
             "machine_type": system.gce_machine_type,
             "zones": [zone],
-            "host_maintenance_interval": reservation_maintenance_interval,
             "reservation_affinity": self._getblock_reservation_affinity(
                 reservation
             ),
@@ -244,6 +243,11 @@ class BlueprintGenerator:
     else:
       a3_megagpu_pool_0.update_settings({"static_node_count": num_nodes})
 
+    if capacity_type != CapacityType.SPOT:
+      a3_megagpu_pool_0.update_settings(
+          {"host_maintenance_interval": reservation_maintenance_interval}
+      )
+
     if capacity_type not in (CapacityType.SPOT, CapacityType.FLEX_START):
       a3_megagpu_pool_0.update_settings(
           {"placement_policy": {"type": "COMPACT"}}
@@ -261,7 +265,7 @@ class BlueprintGenerator:
         source="modules/management/kubectl-apply",
         use=["gke_cluster"],
         settings={
-            "jobset": {"install": True, "version": "v0.10.1"},
+            "jobset": {"install": True, "version": "0.10.1"},
             "apply_manifests": [{
                 "source": f'$(ghpc_stage("{blueprint_name}"))/storage_crd.yaml'
             }],
@@ -568,7 +572,7 @@ class BlueprintGenerator:
         source="modules/management/kubectl-apply",
         use=[cluster_id],
         settings={
-            "jobset": {"install": True, "version": "v0.10.1"},
+            "jobset": {"install": True, "version": "0.10.1"},
             "apply_manifests": [
                 {"source": nccl_installer_path},
                 {"source": mlgru_disable_path},
@@ -857,7 +861,7 @@ class BlueprintGenerator:
         source="modules/management/kubectl-apply",
         use=[cluster_id],
         settings={
-            "jobset": {"install": True, "version": "v0.10.1"},
+            "jobset": {"install": True, "version": "0.10.1"},
             "apply_manifests": [
                 {"source": nccl_installer_path},
                 {

@@ -219,7 +219,6 @@ class BlueprintGenerator:
             "name": f"{cluster_name}-a3-megagpu-pool-0",
             "machine_type": system.gce_machine_type,
             "zones": [zone],
-            "host_maintenance_interval": reservation_maintenance_interval,
             "reservation_affinity": self._getblock_reservation_affinity(
                 reservation
             ),
@@ -243,6 +242,11 @@ class BlueprintGenerator:
       a3_megagpu_pool_0.update_settings(self.get_dws_flex_start())
     else:
       a3_megagpu_pool_0.update_settings({"static_node_count": num_nodes})
+
+    if capacity_type != CapacityType.SPOT:
+      a3_megagpu_pool_0.update_settings({
+          "host_maintenance_interval": reservation_maintenance_interval
+      })
 
     if capacity_type not in (CapacityType.SPOT, CapacityType.FLEX_START):
       a3_megagpu_pool_0.update_settings(

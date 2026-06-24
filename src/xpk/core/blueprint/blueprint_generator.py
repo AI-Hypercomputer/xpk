@@ -244,9 +244,9 @@ class BlueprintGenerator:
       a3_megagpu_pool_0.update_settings({"static_node_count": num_nodes})
 
     if capacity_type != CapacityType.SPOT:
-      a3_megagpu_pool_0.update_settings({
-          "host_maintenance_interval": reservation_maintenance_interval
-      })
+      a3_megagpu_pool_0.update_settings(
+          {"host_maintenance_interval": reservation_maintenance_interval}
+      )
 
     if capacity_type not in (CapacityType.SPOT, CapacityType.FLEX_START):
       a3_megagpu_pool_0.update_settings(

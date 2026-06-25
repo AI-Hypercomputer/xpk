@@ -19,7 +19,7 @@ from kubernetes import client as k8s_client
 from kubernetes import config
 from kubernetes.client.exceptions import ApiException
 
-from .kubectl_common import PatchResources, patch_controller_manager_resources
+from .kubectl_common import PatchResources, patch_controller_manager_resources, is_managed_externally
 from ..utils.console import xpk_exit, xpk_print
 from .capacity import H200_DEVICE_TYPE
 from .commands import (
@@ -36,12 +36,51 @@ from .gcloud_context import (
 from .nodepool import recreate_nodes_in_existing_node_pools
 from .resources import get_cluster_system_characteristics
 from .system_characteristics import INSTALLER_NCCL_TCPXO, SystemCharacteristics
+from packaging.version import Version, InvalidVersion
 
 JOBSET_VERSION = 'v0.10.1'
 NRI_DEVICE_INJECTOR = 'https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/nri_device_injector/nri-device-injector.yaml'
 
 DEFAULT_NAMESPACE = 'default'
 XPK_SA = 'xpk-sa'
+
+
+def _should_install_jobset(container_image: str) -> bool:
+  if 'jobset' not in container_image:
+    return True
+
+  installed_version_str = (
+      container_image.split(':')[-1] if ':' in container_image else ''
+  )
+  try:
+    installed_version = Version(installed_version_str)
+  except InvalidVersion:
+    xpk_print(
+        'Cluster has an unknown or custom Jobset version installed. Skipping'
+        ' installation.'
+    )
+    return False
+
+  xpk_jobset_version = Version(JOBSET_VERSION.lstrip('v'))
+  if installed_version >= xpk_jobset_version:
+    xpk_print(
+        f'Cluster has Jobset version {installed_version} >='
+        f' {xpk_jobset_version}. Skipping installation.'
+    )
+    return False
+
+  _, is_external = is_managed_externally(
+      name='jobset-controller-manager', namespace='jobset-system'
+  )
+  if is_external:
+    xpk_print(
+        f'Cluster has Jobset version {installed_version} managed externally.'
+        ' Skipping upgrade to avoid conflicts.'
+    )
+    return False
+
+  xpk_print(f'Upgrading Jobset to version {JOBSET_VERSION}...')
+  return True
 
 
 # TODO(vbarr): Remove this function when jobsets gets enabled by default on
@@ -55,24 +94,35 @@ def set_jobset_on_cluster(args) -> int:
   Returns:
     0 if successful and 1 otherwise.
   """
-  command = (
-      'kubectl apply --server-side --force-conflicts'
-      f' -f https://github.com/kubernetes-sigs/jobset/releases/download/{JOBSET_VERSION}/manifests.yaml'
+  check_jobset_cmd = (
+      'kubectl get deployment -n jobset-system -o'
+      " jsonpath='{.items[*].spec.template.spec.containers[0].image}'"
   )
-  task = f'Install Jobset on {args.cluster}'
-  return_code = run_command_with_updates_retry(command, task)
+  return_code, out = run_command_for_value(
+      check_jobset_cmd, 'Check if Jobset is installed'
+  )
 
-  if return_code != 0:
-    xpk_print(f'{task} returned with ERROR {return_code}.\n')
-    xpk_print(
-        "This LIKELY means you're missing Kubernetes Permissions, you can"
-        ' validate this by checking if the error references permission problems'
-        ' such as `requires one of ["container.*"] permission(s)`. Follow our'
-        ' readme:'
-        ' https://github.com/google/xpk/blob/main/README.md#troubleshooting for'
-        ' instructions on how to fix these permissions.'
+  should_install = return_code != 0 or _should_install_jobset(out)
+
+  if should_install:
+    command = (
+        'kubectl apply --server-side --force-conflicts'
+        f' -f https://github.com/kubernetes-sigs/jobset/releases/download/{JOBSET_VERSION}/manifests.yaml'
     )
-    return return_code
+    task = f'Install Jobset on {args.cluster}'
+    return_code = run_command_with_updates_retry(command, task)
+
+    if return_code != 0:
+      xpk_print(f'{task} returned with ERROR {return_code}.\n')
+      xpk_print(
+          "This LIKELY means you're missing Kubernetes Permissions, you can"
+          ' validate this by checking if the error references permission'
+          ' problems such as `requires one of ["container.*"] permission(s)`.'
+          ' Follow our readme:'
+          ' https://github.com/google/xpk/blob/main/README.md#troubleshooting'
+          ' for instructions on how to fix these permissions.'
+      )
+      return return_code
 
   if args.super_slicing:
     return patch_controller_manager_resources(

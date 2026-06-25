@@ -111,7 +111,7 @@ def test_install_or_upgrade_when_newer_version_already_installed(
   result = kueue_manager.install_or_upgrade(KUEUE_CONFIG)
 
   assert result == 0
-  mock_commands.assert_command_not_run("kubectl apply")
+  mock_commands.assert_command_not_run("kubectl apply", "manifests.yaml")
 
 
 def test_install_or_upgrade_when_custom_version_already_installed(
@@ -126,7 +126,7 @@ def test_install_or_upgrade_when_custom_version_already_installed(
   result = kueue_manager.install_or_upgrade(KUEUE_CONFIG)
 
   assert result == 0
-  mock_commands.assert_command_not_run("kubectl apply")
+  mock_commands.assert_command_not_run("kubectl apply", "manifests.yaml")
 
 
 def test_install_or_upgrade_when_outdated(
@@ -139,6 +139,24 @@ def test_install_or_upgrade_when_outdated(
 
   assert result == 0
   mock_commands.assert_command_run("kubectl apply", "v0.17.1/manifests.yaml")
+  mock_commands.assert_command_run("kubectl apply -f", "/tmp/")
+
+
+def test_install_or_upgrade_when_managed_by_helm(
+    mock_commands: CommandsTester, kueue_manager: KueueManager
+):
+  """Test install_or_upgrade when Kueue is managed by Helm."""
+  set_installed_kueue_version(mock_commands, Version("0.11.0"))
+  mock_commands.set_result_for_command(
+      (0, "Helm"),
+      "kubectl get deployment kueue-controller-manager",
+      "jsonpath=",
+  )
+
+  result = kueue_manager.install_or_upgrade(KUEUE_CONFIG)
+
+  assert result == 0
+  mock_commands.assert_command_not_run("kubectl apply", "manifests.yaml")
   mock_commands.assert_command_run("kubectl apply -f", "/tmp/")
 
 

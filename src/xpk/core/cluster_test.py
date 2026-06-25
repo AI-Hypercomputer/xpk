@@ -226,12 +226,34 @@ def test_update_gke_cluster_with_lustre_driver_enabled_legacy_port(
 
 
 def test_set_jobset_on_cluster_not_setting_resources_by_default(
-    mock_patch_controller_manager_resources: MagicMock, command_args
+    commands_tester: CommandsTester,
+    mock_patch_controller_manager_resources: MagicMock,
+    command_args,
 ):
   result = set_jobset_on_cluster(command_args)
 
   assert result == 0
   mock_patch_controller_manager_resources.assert_not_called()
+  commands_tester.assert_command_run("kubectl apply", "manifests.yaml")
+
+
+def test_set_jobset_on_cluster_skip_when_managed_by_helm(
+    commands_tester: CommandsTester, command_args
+):
+  commands_tester.set_result_for_command(
+      (0, "jobset:v0.1.0"),
+      "kubectl get deployment -n jobset-system",
+  )
+  commands_tester.set_result_for_command(
+      (0, "Helm"),
+      "kubectl get deployment jobset-controller-manager",
+      "jsonpath=",
+  )
+
+  result = set_jobset_on_cluster(command_args)
+
+  assert result == 0
+  commands_tester.assert_command_not_run("kubectl apply", "manifests.yaml")
 
 
 def test_set_jobset_on_cluster_super_slicing_resources(

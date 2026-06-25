@@ -111,7 +111,7 @@ def test_install_or_upgrade_when_newer_version_already_installed(
   result = kueue_manager.install_or_upgrade(KUEUE_CONFIG)
 
   assert result == 0
-  mock_commands.assert_command_not_run("kubectl apply")
+  mock_commands.assert_command_not_run("kubectl apply", "manifests.yaml")
 
 
 def test_install_or_upgrade_when_custom_version_already_installed(
@@ -126,7 +126,7 @@ def test_install_or_upgrade_when_custom_version_already_installed(
   result = kueue_manager.install_or_upgrade(KUEUE_CONFIG)
 
   assert result == 0
-  mock_commands.assert_command_not_run("kubectl apply")
+  mock_commands.assert_command_not_run("kubectl apply", "manifests.yaml")
 
 
 def test_install_or_upgrade_when_outdated(

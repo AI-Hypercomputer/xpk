@@ -211,3 +211,52 @@ def test_parse_kubernetes_status_empty():
   status3 = parse_kubernetes_status({"conditions": None})
   assert isinstance(status3, KubernetesStatus)
   assert len(status3.conditions) == 0
+
+
+from xpk.core.kubectl_common import is_managed_by_helm
+
+
+def test_is_managed_by_helm_true(commands_tester: CommandsTester):
+  commands_tester.set_result_for_command(
+      (0, '{"metadata": {"labels": {"app.kubernetes.io/managed-by": "Helm"}}}')
+  )
+  return_code, is_helm = is_managed_by_helm("name", "namespace")
+  assert return_code == 0
+  assert is_helm is True
+  commands_tester.assert_command_run(
+      "kubectl get deployment name -n namespace -o json"
+  )
+
+
+def test_is_managed_by_helm_annotation_true(commands_tester: CommandsTester):
+  commands_tester.set_result_for_command((
+      0,
+      '{"metadata": {"annotations": {"meta.helm.sh/release-name": "release"}}}',
+  ))
+  return_code, is_helm = is_managed_by_helm("name", "namespace")
+  assert return_code == 0
+  assert is_helm is True
+
+
+def test_is_managed_by_helm_false(commands_tester: CommandsTester):
+  commands_tester.set_result_for_command((
+      0,
+      '{"metadata": {"labels": {"app.kubernetes.io/managed-by": "kustomize"}}}',
+  ))
+  return_code, is_helm = is_managed_by_helm("name", "namespace")
+  assert return_code == 0
+  assert is_helm is False
+
+
+def test_is_managed_by_helm_json_error(commands_tester: CommandsTester):
+  commands_tester.set_result_for_command((0, "invalid json"))
+  return_code, is_helm = is_managed_by_helm("name", "namespace")
+  assert return_code == 0
+  assert is_helm is None
+
+
+def test_is_managed_by_helm_command_error(commands_tester: CommandsTester):
+  commands_tester.set_result_for_command((1, "error"))
+  return_code, is_helm = is_managed_by_helm("name", "namespace")
+  assert return_code == 1
+  assert is_helm is None

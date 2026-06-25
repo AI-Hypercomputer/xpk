@@ -20,7 +20,7 @@ from typing import Optional, List, Dict, Any
 import json
 from jinja2 import Environment, FileSystemLoader
 
-from .kubectl_common import PatchResources, patch_controller_manager_resources
+from .kubectl_common import PatchResources, patch_controller_manager_resources, is_managed_by_helm
 from ..utils.topology import get_slice_topology_level, get_topology_product, is_topology_contained
 from ..utils.kueue import is_queued_cluster
 from kubernetes.utils import parse_quantity
@@ -121,14 +121,24 @@ class KueueManager:
             "Cluster has an unknown or custom Kueue version installed. Skipping"
             " installation."
         )
-        return 0
-      elif installed_version > self.kueue_version:
+        return self.__configure(kueue_config)
+      elif installed_version >= self.kueue_version:
         xpk_print(
-            f"Cluster has a newer Kueue version, {installed_version}. Skipping"
-            " installation."
+            f"Cluster has Kueue version {installed_version} >="
+            f" v{self.kueue_version}. Skipping installation."
         )
-        return 0
+        return self.__configure(kueue_config)
       else:
+        _, is_helm = is_managed_by_helm(
+            name="kueue-controller-manager", namespace="kueue-system"
+        )
+        if is_helm:
+          xpk_print(
+              f"Cluster has Kueue version {installed_version} managed by Helm."
+              " Skipping upgrade to avoid conflicts."
+          )
+          return self.__configure(kueue_config)
+
         xpk_print(f"Upgrading Kueue to version v{self.kueue_version}...")
         assert installed_version
         prepare_code = self.__prepare_for_upgrade(installed_version)

@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 import json
 from typing import Any
 
-from .commands import run_command_with_updates_retry
+from .commands import run_command_for_value, run_command_with_updates_retry
 
 
 @dataclass(frozen=True)
@@ -110,3 +110,41 @@ def patch_controller_manager_resources(
       patch_command,
       "Updating Controller Manager resources",
   )
+
+
+def is_managed_by_helm(
+    name: str, namespace: str, resource_type: str = "deployment"
+) -> tuple[int, bool | None]:
+  """Checks if a Kubernetes resource is managed by Helm.
+
+  Args:
+    name: The name of the resource.
+    namespace: The namespace of the resource.
+    resource_type: The type of the resource (default: "deployment").
+
+  Returns:
+    A tuple containing:
+    - The return code of the kubectl command.
+    - True if the resource has a Helm managed-by label/annotation, False otherwise,
+      or None if the command fails.
+  """
+  command = f"kubectl get {resource_type} {name} -n {namespace} -o json"
+  return_code, val = run_command_for_value(
+      command,
+      f"Check if {name} is managed by Helm",
+      dry_run_return_val="{}",
+  )
+  if return_code != 0:
+    return return_code, None
+  try:
+    resource_json = json.loads(val)
+    labels = resource_json.get("metadata", {}).get("labels", {})
+    annotations = resource_json.get("metadata", {}).get("annotations", {})
+
+    managed_by = labels.get("app.kubernetes.io/managed-by", "")
+    helm_release = annotations.get("meta.helm.sh/release-name", "")
+
+    is_helm = managed_by.lower() == "helm" or bool(helm_release)
+    return return_code, is_helm
+  except json.JSONDecodeError:
+    return return_code, None

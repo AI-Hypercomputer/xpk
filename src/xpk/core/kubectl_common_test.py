@@ -213,32 +213,40 @@ def test_parse_kubernetes_status_empty():
   assert len(status3.conditions) == 0
 
 
-from xpk.core.kubectl_common import is_managed_by_helm
+from xpk.core.kubectl_common import is_managed_externally
 
 
-def test_is_managed_by_helm_true(commands_tester: CommandsTester):
+def test_is_managed_externally_true(commands_tester: CommandsTester):
   commands_tester.set_result_for_command((0, "Helm"))
-  return_code, is_helm = is_managed_by_helm("name", "namespace")
+  return_code, is_external = is_managed_externally("name", "namespace")
   assert return_code == 0
-  assert is_helm is True
+  assert is_external is True
   commands_tester.assert_command_run(
       "kubectl get deployment name -n namespace -o"
       r" jsonpath='{.metadata.labels.app\.kubernetes\.io/managed-by}'"
   )
 
-
-def test_is_managed_by_helm_false(commands_tester: CommandsTester):
+def test_is_managed_externally_true_other_manager(commands_tester: CommandsTester):
   commands_tester.set_result_for_command((
       0,
       "kustomize",
   ))
-  return_code, is_helm = is_managed_by_helm("name", "namespace")
+  return_code, is_external = is_managed_externally("name", "namespace")
   assert return_code == 0
-  assert is_helm is False
+  assert is_external is True
+
+def test_is_managed_externally_false(commands_tester: CommandsTester):
+  commands_tester.set_result_for_command((
+      0,
+      "",
+  ))
+  return_code, is_external = is_managed_externally("name", "namespace")
+  assert return_code == 0
+  assert is_external is False
 
 
-def test_is_managed_by_helm_command_error(commands_tester: CommandsTester):
+def test_is_managed_externally_command_error(commands_tester: CommandsTester):
   commands_tester.set_result_for_command((1, "error"))
-  return_code, is_helm = is_managed_by_helm("name", "namespace")
+  return_code, is_helm = is_managed_externally("name", "namespace")
   assert return_code == 1
   assert is_helm is None

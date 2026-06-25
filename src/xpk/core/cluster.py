@@ -19,7 +19,7 @@ from kubernetes import client as k8s_client
 from kubernetes import config
 from kubernetes.client.exceptions import ApiException
 
-from .kubectl_common import PatchResources, patch_controller_manager_resources, is_managed_by_helm
+from .kubectl_common import PatchResources, patch_controller_manager_resources, is_managed_externally
 from ..utils.console import xpk_exit, xpk_print
 from .capacity import H200_DEVICE_TYPE
 from .commands import (
@@ -67,12 +67,12 @@ def _should_install_jobset(container_image: str) -> bool:
     )
     return False
 
-  _, is_helm = is_managed_by_helm(
+  _, is_external = is_managed_externally(
       name='jobset-controller-manager', namespace='jobset-system'
   )
-  if is_helm:
+  if is_external:
     xpk_print(
-        f'Cluster has Jobset version {installed_version} managed by Helm.'
+        f'Cluster has Jobset version {installed_version} managed externally.'
         ' Skipping upgrade to avoid conflicts.'
     )
     return False

@@ -20,7 +20,7 @@ from typing import Optional, List, Dict, Any
 import json
 from jinja2 import Environment, FileSystemLoader
 
-from .kubectl_common import PatchResources, patch_controller_manager_resources, is_managed_by_helm
+from .kubectl_common import PatchResources, patch_controller_manager_resources, is_managed_externally
 from ..utils.topology import get_slice_topology_level, get_topology_product, is_topology_contained
 from ..utils.kueue import is_queued_cluster
 from kubernetes.utils import parse_quantity
@@ -130,12 +130,12 @@ class KueueManager:
         )
         return self.__configure(kueue_config)
       
-      _, is_helm = is_managed_by_helm(
+      _, is_external = is_managed_externally(
           name="kueue-controller-manager", namespace="kueue-system"
       )
-      if is_helm:
+      if is_external:
         xpk_print(
-            f"Cluster has Kueue version {installed_version} managed by Helm."
+            f"Cluster has Kueue version {installed_version} managed externally."
             " Skipping upgrade to avoid conflicts."
         )
         return self.__configure(kueue_config)

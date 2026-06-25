@@ -112,8 +112,8 @@ def patch_controller_manager_resources(
   )
 
 
-def is_managed_by_helm(name: str, namespace: str) -> tuple[int, bool | None]:
-  """Checks if a Kubernetes deployment is managed by Helm.
+def is_managed_externally(name: str, namespace: str) -> tuple[int, bool | None]:
+  """Checks if a Kubernetes deployment is managed by an external tool.
 
   Args:
     name: The name of the deployment.
@@ -122,7 +122,7 @@ def is_managed_by_helm(name: str, namespace: str) -> tuple[int, bool | None]:
   Returns:
     A tuple containing:
     - The return code of the kubectl command.
-    - True if the resource has a Helm managed-by label/annotation, False otherwise,
+    - True if the resource has a managed-by label, False otherwise,
       or None if the command fails.
   """
   command = (
@@ -131,11 +131,11 @@ def is_managed_by_helm(name: str, namespace: str) -> tuple[int, bool | None]:
   )
   return_code, val = run_command_for_value(
       command,
-      f"Check if {name} is managed by Helm",
+      f"Check if {name} is managed externally",
       dry_run_return_val="",
   )
   if return_code != 0:
     return return_code, None
 
-  is_helm = val.strip().lower() == "helm"
-  return return_code, is_helm
+  is_external = bool(val.strip())
+  return return_code, is_external

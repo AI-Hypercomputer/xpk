@@ -122,28 +122,29 @@ class KueueManager:
             " installation."
         )
         return self.__configure(kueue_config)
-      elif installed_version >= self.kueue_version:
+      
+      if installed_version >= self.kueue_version:
         xpk_print(
             f"Cluster has Kueue version {installed_version} >="
             f" v{self.kueue_version}. Skipping installation."
         )
         return self.__configure(kueue_config)
-      else:
-        _, is_helm = is_managed_by_helm(
-            name="kueue-controller-manager", namespace="kueue-system"
+      
+      _, is_helm = is_managed_by_helm(
+          name="kueue-controller-manager", namespace="kueue-system"
+      )
+      if is_helm:
+        xpk_print(
+            f"Cluster has Kueue version {installed_version} managed by Helm."
+            " Skipping upgrade to avoid conflicts."
         )
-        if is_helm:
-          xpk_print(
-              f"Cluster has Kueue version {installed_version} managed by Helm."
-              " Skipping upgrade to avoid conflicts."
-          )
-          return self.__configure(kueue_config)
-
-        xpk_print(f"Upgrading Kueue to version v{self.kueue_version}...")
-        assert installed_version
-        prepare_code = self.__prepare_for_upgrade(installed_version)
-        if prepare_code != 0:
-          return prepare_code
+        return self.__configure(kueue_config)
+        
+      xpk_print(f"Upgrading Kueue to version v{self.kueue_version}...")
+      assert installed_version
+      prepare_code = self.__prepare_for_upgrade(installed_version)
+      if prepare_code != 0:
+        return prepare_code
     else:
       xpk_print(f"Installing Kueue version v{self.kueue_version}...")
 

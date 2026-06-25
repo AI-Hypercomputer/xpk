@@ -45,6 +45,42 @@ DEFAULT_NAMESPACE = 'default'
 XPK_SA = 'xpk-sa'
 
 
+def _should_install_jobset(out: str) -> bool:
+  if 'jobset' not in out:
+    return True
+
+  installed_version_str = out.split(':')[-1] if ':' in out else ''
+  try:
+    installed_version = Version(installed_version_str)
+  except InvalidVersion:
+    xpk_print(
+        'Cluster has an unknown or custom Jobset version installed. Skipping'
+        ' installation.'
+    )
+    return False
+
+  xpk_jobset_version = Version(JOBSET_VERSION.lstrip('v'))
+  if installed_version >= xpk_jobset_version:
+    xpk_print(
+        f'Cluster has Jobset version {installed_version} >='
+        f' {xpk_jobset_version}. Skipping installation.'
+    )
+    return False
+
+  _, is_helm = is_managed_by_helm(
+      name='jobset-controller-manager', namespace='jobset-system'
+  )
+  if is_helm:
+    xpk_print(
+        f'Cluster has Jobset version {installed_version} managed by Helm.'
+        ' Skipping upgrade to avoid conflicts.'
+    )
+    return False
+
+  xpk_print(f'Upgrading Jobset to version {JOBSET_VERSION}...')
+  return True
+
+
 # TODO(vbarr): Remove this function when jobsets gets enabled by default on
 # GKE clusters.
 def set_jobset_on_cluster(args) -> int:
@@ -64,38 +100,7 @@ def set_jobset_on_cluster(args) -> int:
       check_jobset_cmd, 'Check if Jobset is installed'
   )
 
-  should_install = True
-  if return_code == 0 and 'jobset' in out:
-    # Handle version parsing
-    installed_version_str = out.split(':')[-1] if ':' in out else ''
-    try:
-      installed_version = Version(installed_version_str)
-      xpk_jobset_version = Version(JOBSET_VERSION.lstrip('v'))
-      if installed_version >= xpk_jobset_version:
-        xpk_print(
-            f'Cluster has Jobset version {installed_version} >='
-            f' {xpk_jobset_version}. Skipping installation.'
-        )
-        should_install = False
-      else:
-        # Check if managed by Helm
-        _, is_helm = is_managed_by_helm(
-            name='jobset-controller-manager', namespace='jobset-system'
-        )
-        if is_helm:
-          xpk_print(
-              f'Cluster has Jobset version {installed_version} managed by Helm.'
-              ' Skipping upgrade to avoid conflicts.'
-          )
-          should_install = False
-        else:
-          xpk_print(f'Upgrading Jobset to version {JOBSET_VERSION}...')
-    except InvalidVersion:
-      xpk_print(
-          'Cluster has an unknown or custom Jobset version installed. Skipping'
-          ' installation.'
-      )
-      should_install = False
+  should_install = return_code != 0 or _should_install_jobset(out)
 
   if should_install:
     command = (

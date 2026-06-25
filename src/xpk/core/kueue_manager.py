@@ -122,14 +122,14 @@ class KueueManager:
             " installation."
         )
         return self.__configure(kueue_config)
-      
+
       if installed_version >= self.kueue_version:
         xpk_print(
             f"Cluster has Kueue version {installed_version} >="
             f" v{self.kueue_version}. Skipping installation."
         )
         return self.__configure(kueue_config)
-      
+
       _, is_external = is_managed_externally(
           name="kueue-controller-manager", namespace="kueue-system"
       )
@@ -139,7 +139,7 @@ class KueueManager:
             " Skipping upgrade to avoid conflicts."
         )
         return self.__configure(kueue_config)
-        
+
       xpk_print(f"Upgrading Kueue to version v{self.kueue_version}...")
       assert installed_version
       prepare_code = self.__prepare_for_upgrade(installed_version)

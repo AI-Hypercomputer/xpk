@@ -217,21 +217,20 @@ from xpk.core.kubectl_common import is_managed_by_helm
 
 
 def test_is_managed_by_helm_true(commands_tester: CommandsTester):
-  commands_tester.set_result_for_command(
-      (0, '{"metadata": {"labels": {"app.kubernetes.io/managed-by": "Helm"}}}')
-  )
+  commands_tester.set_result_for_command((0, "Helm,"))
   return_code, is_helm = is_managed_by_helm("name", "namespace")
   assert return_code == 0
   assert is_helm is True
   commands_tester.assert_command_run(
-      "kubectl get deployment name -n namespace -o json"
+      "kubectl get deployment name -n namespace -o"
+      r" jsonpath='{.metadata.labels.app\.kubernetes\.io/managed-by},{.metadata.annotations.meta\.helm\.sh/release-name}'"
   )
 
 
 def test_is_managed_by_helm_annotation_true(commands_tester: CommandsTester):
   commands_tester.set_result_for_command((
       0,
-      '{"metadata": {"annotations": {"meta.helm.sh/release-name": "release"}}}',
+      ",release",
   ))
   return_code, is_helm = is_managed_by_helm("name", "namespace")
   assert return_code == 0
@@ -241,18 +240,11 @@ def test_is_managed_by_helm_annotation_true(commands_tester: CommandsTester):
 def test_is_managed_by_helm_false(commands_tester: CommandsTester):
   commands_tester.set_result_for_command((
       0,
-      '{"metadata": {"labels": {"app.kubernetes.io/managed-by": "kustomize"}}}',
+      "kustomize,",
   ))
   return_code, is_helm = is_managed_by_helm("name", "namespace")
   assert return_code == 0
   assert is_helm is False
-
-
-def test_is_managed_by_helm_json_error(commands_tester: CommandsTester):
-  commands_tester.set_result_for_command((0, "invalid json"))
-  return_code, is_helm = is_managed_by_helm("name", "namespace")
-  assert return_code == 0
-  assert is_helm is None
 
 
 def test_is_managed_by_helm_command_error(commands_tester: CommandsTester):

@@ -112,15 +112,12 @@ def patch_controller_manager_resources(
   )
 
 
-def is_managed_by_helm(
-    name: str, namespace: str, resource_type: str = "deployment"
-) -> tuple[int, bool | None]:
-  """Checks if a Kubernetes resource is managed by Helm.
+def is_managed_by_helm(name: str, namespace: str) -> tuple[int, bool | None]:
+  """Checks if a Kubernetes deployment is managed by Helm.
 
   Args:
-    name: The name of the resource.
-    namespace: The namespace of the resource.
-    resource_type: The type of the resource (default: "deployment").
+    name: The name of the deployment.
+    namespace: The namespace of the deployment.
 
   Returns:
     A tuple containing:
@@ -128,23 +125,21 @@ def is_managed_by_helm(
     - True if the resource has a Helm managed-by label/annotation, False otherwise,
       or None if the command fails.
   """
-  command = f"kubectl get {resource_type} {name} -n {namespace} -o json"
+  command = (
+      rf"kubectl get deployment {name} -n {namespace} -o"
+      r" jsonpath='{.metadata.labels.app\.kubernetes\.io/managed-by},{.metadata.annotations.meta\.helm\.sh/release-name}'"
+  )
   return_code, val = run_command_for_value(
       command,
       f"Check if {name} is managed by Helm",
-      dry_run_return_val="{}",
+      dry_run_return_val=",",
   )
   if return_code != 0:
     return return_code, None
-  try:
-    resource_json = json.loads(val)
-    labels = resource_json.get("metadata", {}).get("labels", {})
-    annotations = resource_json.get("metadata", {}).get("annotations", {})
 
-    managed_by = labels.get("app.kubernetes.io/managed-by", "")
-    helm_release = annotations.get("meta.helm.sh/release-name", "")
+  parts = val.split(",", 1)
+  managed_by = parts[0] if len(parts) > 0 else ""
+  helm_release = parts[1] if len(parts) > 1 else ""
 
-    is_helm = managed_by.lower() == "helm" or bool(helm_release)
-    return return_code, is_helm
-  except json.JSONDecodeError:
-    return return_code, None
+  is_helm = managed_by.lower() == "helm" or bool(helm_release)
+  return return_code, is_helm

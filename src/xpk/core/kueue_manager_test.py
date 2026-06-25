@@ -148,9 +148,9 @@ def test_install_or_upgrade_when_managed_by_helm(
   """Test install_or_upgrade when Kueue is managed by Helm."""
   set_installed_kueue_version(mock_commands, Version("0.11.0"))
   mock_commands.set_result_for_command(
-      (0, '{"metadata": {"labels": {"app.kubernetes.io/managed-by": "Helm"}}}'),
+      (0, "Helm,"),
       "kubectl get deployment kueue-controller-manager",
-      "-o json",
+      "jsonpath=",
   )
 
   result = kueue_manager.install_or_upgrade(KUEUE_CONFIG)

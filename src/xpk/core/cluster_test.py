@@ -245,7 +245,7 @@ def test_set_jobset_on_cluster_skip_when_managed_by_helm(
       "kubectl get deployment -n jobset-system",
   )
   commands_tester.set_result_for_command(
-      (0, "Helm,"),
+      (0, "Helm"),
       "kubectl get deployment jobset-controller-manager",
       "jsonpath=",
   )

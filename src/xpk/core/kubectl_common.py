@@ -127,19 +127,15 @@ def is_managed_by_helm(name: str, namespace: str) -> tuple[int, bool | None]:
   """
   command = (
       rf"kubectl get deployment {name} -n {namespace} -o"
-      r" jsonpath='{.metadata.labels.app\.kubernetes\.io/managed-by},{.metadata.annotations.meta\.helm\.sh/release-name}'"
+      r" jsonpath='{.metadata.labels.app\.kubernetes\.io/managed-by}'"
   )
   return_code, val = run_command_for_value(
       command,
       f"Check if {name} is managed by Helm",
-      dry_run_return_val=",",
+      dry_run_return_val="",
   )
   if return_code != 0:
     return return_code, None
 
-  parts = val.split(",", 1)
-  managed_by = parts[0] if len(parts) > 0 else ""
-  helm_release = parts[1] if len(parts) > 1 else ""
-
-  is_helm = managed_by.lower() == "helm" or bool(helm_release)
+  is_helm = val.strip().lower() == "helm"
   return return_code, is_helm

@@ -217,30 +217,20 @@ from xpk.core.kubectl_common import is_managed_by_helm
 
 
 def test_is_managed_by_helm_true(commands_tester: CommandsTester):
-  commands_tester.set_result_for_command((0, "Helm,"))
+  commands_tester.set_result_for_command((0, "Helm"))
   return_code, is_helm = is_managed_by_helm("name", "namespace")
   assert return_code == 0
   assert is_helm is True
   commands_tester.assert_command_run(
       "kubectl get deployment name -n namespace -o"
-      r" jsonpath='{.metadata.labels.app\.kubernetes\.io/managed-by},{.metadata.annotations.meta\.helm\.sh/release-name}'"
+      r" jsonpath='{.metadata.labels.app\.kubernetes\.io/managed-by}'"
   )
-
-
-def test_is_managed_by_helm_annotation_true(commands_tester: CommandsTester):
-  commands_tester.set_result_for_command((
-      0,
-      ",release",
-  ))
-  return_code, is_helm = is_managed_by_helm("name", "namespace")
-  assert return_code == 0
-  assert is_helm is True
 
 
 def test_is_managed_by_helm_false(commands_tester: CommandsTester):
   commands_tester.set_result_for_command((
       0,
-      "kustomize,",
+      "kustomize",
   ))
   return_code, is_helm = is_managed_by_helm("name", "namespace")
   assert return_code == 0

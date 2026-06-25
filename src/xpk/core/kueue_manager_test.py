@@ -142,6 +142,24 @@ def test_install_or_upgrade_when_outdated(
   mock_commands.assert_command_run("kubectl apply -f", "/tmp/")
 
 
+def test_install_or_upgrade_when_managed_by_helm(
+    mock_commands: CommandsTester, kueue_manager: KueueManager
+):
+  """Test install_or_upgrade when Kueue is managed by Helm."""
+  set_installed_kueue_version(mock_commands, Version("0.11.0"))
+  mock_commands.set_result_for_command(
+      (0, '{"metadata": {"labels": {"app.kubernetes.io/managed-by": "Helm"}}}'),
+      "kubectl get deployment kueue-controller-manager",
+      "-o json",
+  )
+
+  result = kueue_manager.install_or_upgrade(KUEUE_CONFIG)
+
+  assert result == 0
+  mock_commands.assert_command_not_run("kubectl apply", "manifests.yaml")
+  mock_commands.assert_command_run("kubectl apply -f", "/tmp/")
+
+
 def test_install_or_upgrade_when_not_installed(
     mock_commands: CommandsTester, kueue_manager: KueueManager
 ):

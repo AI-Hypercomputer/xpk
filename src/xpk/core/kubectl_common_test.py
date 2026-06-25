@@ -226,7 +226,10 @@ def test_is_managed_externally_true(commands_tester: CommandsTester):
       r" jsonpath='{.metadata.labels.app\.kubernetes\.io/managed-by}'"
   )
 
-def test_is_managed_externally_true_other_manager(commands_tester: CommandsTester):
+
+def test_is_managed_externally_true_other_manager(
+    commands_tester: CommandsTester,
+):
   commands_tester.set_result_for_command((
       0,
       "kustomize",
@@ -234,6 +237,7 @@ def test_is_managed_externally_true_other_manager(commands_tester: CommandsTeste
   return_code, is_external = is_managed_externally("name", "namespace")
   assert return_code == 0
   assert is_external is True
+
 
 def test_is_managed_externally_false(commands_tester: CommandsTester):
   commands_tester.set_result_for_command((

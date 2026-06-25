@@ -49,7 +49,9 @@ def _should_install_jobset(container_image: str) -> bool:
   if 'jobset' not in container_image:
     return True
 
-  installed_version_str = container_image.split(':')[-1] if ':' in container_image else ''
+  installed_version_str = (
+      container_image.split(':')[-1] if ':' in container_image else ''
+  )
   try:
     installed_version = Version(installed_version_str)
   except InvalidVersion:

@@ -45,11 +45,11 @@ DEFAULT_NAMESPACE = 'default'
 XPK_SA = 'xpk-sa'
 
 
-def _should_install_jobset(out: str) -> bool:
-  if 'jobset' not in out:
+def _should_install_jobset(container_image: str) -> bool:
+  if 'jobset' not in container_image:
     return True
 
-  installed_version_str = out.split(':')[-1] if ':' in out else ''
+  installed_version_str = container_image.split(':')[-1] if ':' in container_image else ''
   try:
     installed_version = Version(installed_version_str)
   except InvalidVersion:

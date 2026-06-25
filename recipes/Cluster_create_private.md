@@ -88,6 +88,8 @@ data:
 [XPK] Breaking up a total of 2 commands into 1 batches
 [XPK] Pretending all the jobs succeeded
 [XPK] Enabling the jobset API on our cluster, to be deprecated when Jobset is globally available
+[XPK] Task: `Check if Jobset is installed` is implemented by the following command not running since it is a dry run. 
+kubectl get deployment -n jobset-system -o jsonpath='{.items[*].spec.template.spec.containers[0].image}'
 [XPK] Try 1: Install Jobset on golden-cluster-private
 [XPK] Task: `Install Jobset on golden-cluster-private` is implemented by the following command not running since it is a dry run. 
 kubectl apply --server-side --force-conflicts -f https://github.com/kubernetes-sigs/jobset/releases/download/v0.10.1/manifests.yaml
@@ -369,6 +371,8 @@ data:
 [XPK] Breaking up a total of 2 commands into 1 batches
 [XPK] Pretending all the jobs succeeded
 [XPK] Enabling the jobset API on our cluster, to be deprecated when Jobset is globally available
+[XPK] Task: `Check if Jobset is installed` is implemented by the following command not running since it is a dry run. 
+kubectl get deployment -n jobset-system -o jsonpath='{.items[*].spec.template.spec.containers[0].image}'
 [XPK] Try 1: Install Jobset on golden-cluster-private-ep
 [XPK] Task: `Install Jobset on golden-cluster-private-ep` is implemented by the following command not running since it is a dry run. 
 kubectl apply --server-side --force-conflicts -f https://github.com/kubernetes-sigs/jobset/releases/download/v0.10.1/manifests.yaml
@@ -643,6 +647,8 @@ data:
 [XPK] Breaking up a total of 2 commands into 1 batches
 [XPK] Pretending all the jobs succeeded
 [XPK] Enabling the jobset API on our cluster, to be deprecated when Jobset is globally available
+[XPK] Task: `Check if Jobset is installed` is implemented by the following command not running since it is a dry run. 
+kubectl get deployment -n jobset-system -o jsonpath='{.items[*].spec.template.spec.containers[0].image}'
 [XPK] Try 1: Install Jobset on golden-cluster-private-nosubnet
 [XPK] Task: `Install Jobset on golden-cluster-private-nosubnet` is implemented by the following command not running since it is a dry run. 
 kubectl apply --server-side --force-conflicts -f https://github.com/kubernetes-sigs/jobset/releases/download/v0.10.1/manifests.yaml

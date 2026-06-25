@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 import json
 from typing import Any
 
-from .commands import run_command_with_updates_retry
+from .commands import run_command_for_value, run_command_with_updates_retry
 
 
 @dataclass(frozen=True)
@@ -110,3 +110,32 @@ def patch_controller_manager_resources(
       patch_command,
       "Updating Controller Manager resources",
   )
+
+
+def is_managed_externally(name: str, namespace: str) -> tuple[int, bool | None]:
+  """Checks if a Kubernetes deployment is managed by an external tool.
+
+  Args:
+    name: The name of the deployment.
+    namespace: The namespace of the deployment.
+
+  Returns:
+    A tuple containing:
+    - The return code of the kubectl command.
+    - True if the resource has a managed-by label, False otherwise,
+      or None if the command fails.
+  """
+  command = (
+      rf"kubectl get deployment {name} -n {namespace} -o"
+      r" jsonpath='{.metadata.labels.app\.kubernetes\.io/managed-by}'"
+  )
+  return_code, val = run_command_for_value(
+      command,
+      f"Check if {name} is managed externally",
+      dry_run_return_val="",
+  )
+  if return_code != 0:
+    return return_code, None
+
+  is_external = bool(val.strip())
+  return return_code, is_external

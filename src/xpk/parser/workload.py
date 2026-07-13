@@ -587,9 +587,9 @@ def add_shared_workload_create_optional_arguments(args_parsers):
     custom_parser.add_argument(
         '--use-parallel-containers',
         action=argparse.BooleanOptionalAction,
-        default=True,
+        default=False,
         help=(
-            'Whether to use parallel_containers in JobSet. Enabled by default.'
+            'Whether to use parallel_containers in JobSet. Disabled by default.'
         ),
     )
     custom_parser.add_argument(

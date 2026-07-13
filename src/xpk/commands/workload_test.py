@@ -256,6 +256,7 @@ def test_workload_create_multi_container_for_tpu7x(
       deploy_stacktrace_sidecar=False,
       enable_debug_logs=False,
       scheduler='default-scheduler',
+      use_parallel_containers=True,
   )
   workload_create(args)
 

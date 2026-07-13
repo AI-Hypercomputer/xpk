@@ -138,7 +138,7 @@ def construct_args(**kwargs: Any) -> Namespace:
       enable_private_endpoint=None,
       private_endpoint_subnetwork=None,
       enable_master_global_access=False,
-      use_parallel_containers=True,
+      use_parallel_containers=False,
   )
   args_dict.update(kwargs)
   return Namespace(**args_dict)

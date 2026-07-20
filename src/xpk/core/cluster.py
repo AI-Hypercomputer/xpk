@@ -655,7 +655,7 @@ def is_workload_identity_enabled_on_cluster(args) -> bool:
   )
   if return_code != 0:
     xpk_exit(return_code)
-  if workload_pool == f'{args.project}.svc.id.goog':
+  if workload_pool.strip() == f'{args.project}.svc.id.goog':
     xpk_print(
         'Workload Identity Federation is enabled on the cluster, no update'
         ' needed.'

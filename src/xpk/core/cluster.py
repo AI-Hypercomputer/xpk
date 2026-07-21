@@ -535,7 +535,9 @@ def create_role_binding(sa: str, role_name: str) -> None:
   role_binding_name = f'{sa}-{role_name}-binding'
 
   try:
-    k8s_rbac_client.read_namespaced_role_binding(role_binding_name, DEFAULT_NAMESPACE)
+    k8s_rbac_client.read_namespaced_role_binding(
+        role_binding_name, DEFAULT_NAMESPACE
+    )
     xpk_print(
         f'RoleBinding: {role_binding_name} already exists. Skipping its'
         ' creation.'
@@ -569,9 +571,7 @@ def create_role_binding(sa: str, role_name: str) -> None:
     k8s_rbac_client.create_namespaced_role_binding(
         DEFAULT_NAMESPACE, role_binding, pretty=True
     )
-    xpk_print(
-        f'Successfully created RoleBinding: {role_binding_name} for {sa}'
-    )
+    xpk_print(f'Successfully created RoleBinding: {role_binding_name} for {sa}')
   except ApiException as e:
     if e.status == 409:  # Conflict, meaning it already exists
       xpk_print(

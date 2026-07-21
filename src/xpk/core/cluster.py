@@ -447,16 +447,31 @@ def create_xpk_k8s_service_account() -> None:
       metadata=k8s_client.V1ObjectMeta(name=XPK_SA)
   )
 
+  try:
+    k8s_core_client.read_namespaced_service_account(XPK_SA, DEFAULT_NAMESPACE)
+    xpk_print(
+        f'Service account: {XPK_SA} already exists. Skipping its creation.'
+    )
+    return
+  except ApiException as e:
+    if e.status != 404:
+      xpk_print(f'Error reading ServiceAccount {XPK_SA}: {e}')
+      xpk_exit(1)
+
   xpk_print(f'Creating a new service account: {XPK_SA}')
   try:
     k8s_core_client.create_namespaced_service_account(
         DEFAULT_NAMESPACE, sa, pretty=True
     )
-    xpk_print(f'Created a new service account: {sa} successfully')
-  except ApiException:
-    xpk_print(
-        f'Service account: {XPK_SA} already exists. Skipping its creation'
-    )
+    xpk_print(f'Created a new service account: {XPK_SA} successfully')
+  except ApiException as e:
+    if e.status == 409:
+      xpk_print(
+          f'Service account: {XPK_SA} already exists. Skipping its creation.'
+      )
+    else:
+      xpk_print(f'Error creating ServiceAccount {XPK_SA}: {e}')
+      xpk_exit(1)
 
 
 def create_pod_reader_role() -> str:
@@ -465,6 +480,15 @@ def create_pod_reader_role() -> str:
   """
   k8s_rbac_client = k8s_client.RbacAuthorizationV1Api()
   role_name = 'pod-reader'
+
+  try:
+    k8s_rbac_client.read_namespaced_role(role_name, DEFAULT_NAMESPACE)
+    xpk_print(f'Role: {role_name} already exists. Skipping its creation.')
+    return role_name
+  except ApiException as e:
+    if e.status != 404:
+      xpk_print(f'Error reading Role {role_name}: {e}')
+      xpk_exit(1)
 
   role = k8s_client.V1Role(
       metadata=k8s_client.V1ObjectMeta(
@@ -510,6 +534,18 @@ def create_role_binding(sa: str, role_name: str) -> None:
   k8s_rbac_client = k8s_client.RbacAuthorizationV1Api()
   role_binding_name = f'{sa}-{role_name}-binding'
 
+  try:
+    k8s_rbac_client.read_namespaced_role_binding(role_binding_name, DEFAULT_NAMESPACE)
+    xpk_print(
+        f'RoleBinding: {role_binding_name} already exists. Skipping its'
+        ' creation.'
+    )
+    return
+  except ApiException as e:
+    if e.status != 404:
+      xpk_print(f'Error reading RoleBinding {role_binding_name}: {e}')
+      xpk_exit(1)
+
   role_binding = k8s_client.V1RoleBinding(
       metadata=k8s_client.V1ObjectMeta(
           name=role_binding_name, namespace=DEFAULT_NAMESPACE
@@ -526,7 +562,7 @@ def create_role_binding(sa: str, role_name: str) -> None:
 
   xpk_print(
       f'Attempting to create RoleBinding: {role_binding_name} for Service'
-      f' Account: {XPK_SA} to Role: {role_name} in namespace:'
+      f' Account: {sa} to Role: {role_name} in namespace:'
       f' {DEFAULT_NAMESPACE}'
   )
   try:
@@ -534,7 +570,7 @@ def create_role_binding(sa: str, role_name: str) -> None:
         DEFAULT_NAMESPACE, role_binding, pretty=True
     )
     xpk_print(
-        f'Successfully created RoleBinding: {role_binding_name} for {XPK_SA}'
+        f'Successfully created RoleBinding: {role_binding_name} for {sa}'
     )
   except ApiException as e:
     if e.status == 409:  # Conflict, meaning it already exists

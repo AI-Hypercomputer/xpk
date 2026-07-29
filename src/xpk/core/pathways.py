@@ -101,11 +101,17 @@ def check_if_pathways_job_is_installed(args) -> bool:
 
 def get_pathways_unified_query_link(args) -> str:
   """Get the unified query link for the pathways workload."""
+  ns_log_filter = (
+      f'resource.labels.namespace_name="{args.namespace}"\n'
+      if args.namespace
+      else ''
+  )
   log_filter = (
       'resource.type="k8s_container"\n'
       f'resource.labels.project_id="{args.project}"\n'
       f'resource.labels.location="{get_cluster_location(args.project, args.cluster, args.zone)}"\n'
       f'resource.labels.cluster_name="{args.cluster}"\n'
+      f'{ns_log_filter}'
       f'resource.labels.pod_name:"{args.workload}-"\n'
       'severity>=DEFAULT'
   )
@@ -143,7 +149,8 @@ def try_to_delete_pathwaysjob_first(args, workloads) -> bool:
   task_names = []
   for workload in workloads:
     args.workload = workload
-    command = f'kubectl delete pathwaysjob {workload} -n default'
+    ns_arg = f'-n {args.namespace}' if args.namespace else '-n default'
+    command = f'kubectl delete pathwaysjob {workload} {ns_arg}'
     task_name = f'PathwaysWorkloadDelete-{workload}'
     commands.append(command)
     task_names.append(task_name)

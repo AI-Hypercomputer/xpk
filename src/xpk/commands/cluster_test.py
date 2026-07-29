@@ -89,6 +89,7 @@ def construct_args(**kwargs: Any) -> Namespace:
       project='project',
       zone='us-central1-a',
       reservation='',
+      namespace='',
       on_demand=False,
       tpu_type=None,
       device_type=None,

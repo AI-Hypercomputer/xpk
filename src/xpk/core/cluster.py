@@ -428,27 +428,28 @@ def get_gpu_type_from_cluster(args) -> str:
   return ''
 
 
-def setup_k8s_service_accounts() -> None:
+def setup_k8s_service_accounts(namespace: str = 'default') -> None:
   """
   Creates/sets up SAs and the roles for them
   """
+  namespace = namespace or 'default'
   default_sa = 'default'
 
-  create_xpk_k8s_service_account()
+  create_xpk_k8s_service_account(namespace)
 
-  role_name = create_pod_reader_role()
-  create_role_binding(default_sa, role_name)
-  create_role_binding(XPK_SA, role_name)
+  role_name = create_pod_reader_role(namespace)
+  create_role_binding(default_sa, role_name, namespace)
+  create_role_binding(XPK_SA, role_name, namespace)
 
 
-def create_xpk_k8s_service_account() -> None:
+def create_xpk_k8s_service_account(namespace: str = 'default') -> None:
   k8s_core_client = k8s_client.CoreV1Api()
   sa = k8s_client.V1ServiceAccount(
       metadata=k8s_client.V1ObjectMeta(name=XPK_SA)
   )
 
   try:
-    k8s_core_client.read_namespaced_service_account(XPK_SA, DEFAULT_NAMESPACE)
+    k8s_core_client.read_namespaced_service_account(XPK_SA, namespace)
     xpk_print(
         f'Service account: {XPK_SA} already exists. Skipping its creation.'
     )
@@ -461,7 +462,7 @@ def create_xpk_k8s_service_account() -> None:
   xpk_print(f'Creating a new service account: {XPK_SA}')
   try:
     k8s_core_client.create_namespaced_service_account(
-        DEFAULT_NAMESPACE, sa, pretty=True
+        namespace, sa, pretty=True
     )
     xpk_print(f'Created a new service account: {XPK_SA} successfully')
   except ApiException as e:
@@ -474,7 +475,7 @@ def create_xpk_k8s_service_account() -> None:
       xpk_exit(1)
 
 
-def create_pod_reader_role() -> str:
+def create_pod_reader_role(namespace: str = 'default') -> str:
   """
   Creates the 'pod-reader' Role in the default namespace.
   """
@@ -482,7 +483,7 @@ def create_pod_reader_role() -> str:
   role_name = 'pod-reader'
 
   try:
-    k8s_rbac_client.read_namespaced_role(role_name, DEFAULT_NAMESPACE)
+    k8s_rbac_client.read_namespaced_role(role_name, namespace)
     xpk_print(f'Role: {role_name} already exists. Skipping its creation.')
     return role_name
   except ApiException as e:
@@ -491,9 +492,7 @@ def create_pod_reader_role() -> str:
       xpk_exit(1)
 
   role = k8s_client.V1Role(
-      metadata=k8s_client.V1ObjectMeta(
-          name=role_name, namespace=DEFAULT_NAMESPACE
-      ),
+      metadata=k8s_client.V1ObjectMeta(name=role_name, namespace=namespace),
       rules=[
           k8s_client.V1PolicyRule(
               api_groups=[''],
@@ -508,12 +507,9 @@ def create_pod_reader_role() -> str:
       ],
   )
 
-  xpk_print(
-      f'Attempting to create Role: {role_name} in namespace:'
-      f' {DEFAULT_NAMESPACE}'
-  )
+  xpk_print(f'Attempting to create Role: {role_name} in namespace: {namespace}')
   try:
-    k8s_rbac_client.create_namespaced_role(DEFAULT_NAMESPACE, role, pretty=True)
+    k8s_rbac_client.create_namespaced_role(namespace, role, pretty=True)
     xpk_print(f'Successfully created Role: {role_name}')
     return role_name
   except ApiException as e:
@@ -525,7 +521,9 @@ def create_pod_reader_role() -> str:
       xpk_exit(1)
 
 
-def create_role_binding(sa: str, role_name: str) -> None:
+def create_role_binding(
+    sa: str, role_name: str, namespace: str = 'default'
+) -> None:
   """
   Creates a RoleBinding to associate the Service Account
   with the Role in the default namespace.
@@ -535,9 +533,7 @@ def create_role_binding(sa: str, role_name: str) -> None:
   role_binding_name = f'{sa}-{role_name}-binding'
 
   try:
-    k8s_rbac_client.read_namespaced_role_binding(
-        role_binding_name, DEFAULT_NAMESPACE
-    )
+    k8s_rbac_client.read_namespaced_role_binding(role_binding_name, namespace)
     xpk_print(
         f'RoleBinding: {role_binding_name} already exists. Skipping its'
         ' creation.'
@@ -550,11 +546,11 @@ def create_role_binding(sa: str, role_name: str) -> None:
 
   role_binding = k8s_client.V1RoleBinding(
       metadata=k8s_client.V1ObjectMeta(
-          name=role_binding_name, namespace=DEFAULT_NAMESPACE
+          name=role_binding_name, namespace=namespace
       ),
       subjects=[
           k8s_client.RbacV1Subject(
-              kind='ServiceAccount', name=sa, namespace=DEFAULT_NAMESPACE
+              kind='ServiceAccount', name=sa, namespace=namespace
           )
       ],
       role_ref=k8s_client.V1RoleRef(
@@ -565,11 +561,11 @@ def create_role_binding(sa: str, role_name: str) -> None:
   xpk_print(
       f'Attempting to create RoleBinding: {role_binding_name} for Service'
       f' Account: {sa} to Role: {role_name} in namespace:'
-      f' {DEFAULT_NAMESPACE}'
+      f' {namespace}'
   )
   try:
     k8s_rbac_client.create_namespaced_role_binding(
-        DEFAULT_NAMESPACE, role_binding, pretty=True
+        namespace, role_binding, pretty=True
     )
     xpk_print(f'Successfully created RoleBinding: {role_binding_name} for {sa}')
   except ApiException as e:

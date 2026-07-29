@@ -393,7 +393,7 @@ def workload_create(args) -> None:
   k8s_api_client = None
   if not is_dry_run():
     k8s_api_client = setup_k8s_env(args)
-    setup_k8s_service_accounts()
+    setup_k8s_service_accounts(args.namespace)
 
   workload_exists = check_if_workload_exists(args)
 
@@ -786,7 +786,8 @@ def workload_create(args) -> None:
     )
 
   tmp = write_tmp_file(yml_string)
-  command = f'kubectl apply -f {str(tmp)}'
+  ns_arg = f' -n {args.namespace}' if args.namespace else ''
+  command = f'kubectl apply -f {str(tmp)}{ns_arg}'
   return_code = run_command_with_updates(command, 'Creating Workload')
 
   if return_code != 0:
@@ -835,7 +836,7 @@ def workload_create(args) -> None:
           " python -c 'import pathwaysutils; import jax; print(jax.devices())'"
       )
       pathways_proxy_link = (
-          f'https://console.cloud.google.com/kubernetes/job/{get_cluster_location(args.project, args.cluster, args.zone)}/{args.cluster}/default/{args.workload}-proxy-0/details?project={args.project}'
+          f'https://console.cloud.google.com/kubernetes/job/{get_cluster_location(args.project, args.cluster, args.zone)}/{args.cluster}/{args.namespace or "default"}/{args.workload}-proxy-0/details?project={args.project}'
       )
       xpk_print(
           'Follow the proxy here:'
@@ -850,15 +851,18 @@ def workload_create(args) -> None:
     xpk_print(
         'Follow your workload here:'
         # pylint: disable=line-too-long
-        f' https://console.cloud.google.com/kubernetes/service/{get_cluster_location(args.project, args.cluster, args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
+        f' https://console.cloud.google.com/kubernetes/service/{get_cluster_location(args.project, args.cluster, args.zone)}/{args.cluster}/{args.namespace or "default"}/{args.workload}/details?project={args.project}'
     )
     duration_of_logs = 'P1D'  # Past 1 Day
+    ns_log_filter = (
+        f'resource.labels.namespace_name="{args.namespace or "default"}"\n'
+    )
     log_filter = (
         'resource.type="k8s_container"\n'
         f'resource.labels.project_id="{args.project}"\n'
         f'resource.labels.location="{get_cluster_location(args.project, args.cluster, args.zone)}"\n'
         f'resource.labels.cluster_name="{args.cluster}"\n'
-        'resource.labels.namespace_name="default"\n'
+        f'{ns_log_filter}'
         f'resource.labels.pod_name:"{args.workload}-slice-job-0-0-"\n'
         'severity>=DEFAULT'
     )
@@ -916,7 +920,8 @@ def delete_workloads(args, workloads: list[str]) -> int:
   task_names = []
   for workload in workloads:
     args.workload = workload
-    command = f'kubectl delete jobset {workload} -n default'
+    ns_arg = f'-n {args.namespace}' if args.namespace else '-n default'
+    command = f'kubectl delete jobset {workload} {ns_arg}'
     task_name = f'WorkloadDelete-{workload}'
     commands.append(command)
     task_names.append(task_name)

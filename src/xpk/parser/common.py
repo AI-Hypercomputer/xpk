@@ -109,6 +109,12 @@ def add_shared_arguments(
       required=required,
   )
   custom_parser_or_group.add_argument(
+      '--namespace',
+      type=str,
+      default='',
+      help='Kubernetes namespace to use. Defaults to active namespace.',
+  )
+  custom_parser_or_group.add_argument(
       '--dry-run',
       type=bool,
       action=argparse.BooleanOptionalAction,

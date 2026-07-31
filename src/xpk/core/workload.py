@@ -240,9 +240,11 @@ def _parse_workload_item(item: dict[str, Any]) -> _WorkloadListRow:
 def _fetch_workloads(
     filter_by_status: _StatusFilter,
     filter_by_job: Optional[str] = None,
+    namespace: str = '',
 ) -> tuple[int, list[_WorkloadListRow]]:
   """Fetches and parses the raw workload list from the cluster."""
-  command = 'kubectl get workloads --ignore-not-found -o=json'
+  ns_arg = f' -n {namespace}' if namespace else ''
+  command = f'kubectl get workloads{ns_arg} --ignore-not-found -o=json'
 
   task = f'List Jobs with filter-by-status={filter_by_status.value}'
   if filter_by_job:
@@ -399,7 +401,9 @@ def get_workload_list(args: argparse.Namespace) -> tuple[int, str]:
   filter_by_job = getattr(args, 'filter_by_job', None)
   filter_by_status = _get_status_filter(args.filter_by_status)
 
-  return_code, raw_rows = _fetch_workloads(filter_by_status, filter_by_job)
+  return_code, raw_rows = _fetch_workloads(
+      filter_by_status, filter_by_job, args.namespace
+  )
   if return_code != 0:
     return return_code, ''
 
@@ -425,7 +429,8 @@ def check_if_workload_exists(args: argparse.Namespace) -> bool:
 
   s = ','.join([key + ':' + value for key, value in columns.items()])
 
-  command = f"kubectl get workloads -o=custom-columns='{s}'"
+  ns_arg = f' -n {args.namespace}' if args.namespace else ''
+  command = f"kubectl get workloads{ns_arg} -o=custom-columns='{s}'"
   return_code, return_msg = run_command_for_value(
       command, 'Check if Workload Already Exists'
   )
@@ -442,16 +447,20 @@ def check_if_workload_exists(args: argparse.Namespace) -> bool:
   return False
 
 
-def _get_jobset_status(workload_name: str) -> tuple[int, str]:
+def _get_jobset_status(
+    workload_name: str, namespace: str = ''
+) -> tuple[int, str]:
   """Retrieves the current status of a given jobset workload.
 
   Args:
     workload_name: The name of the workload to retrieve the status for.
+    namespace: The Kubernetes namespace to retrieve the status from.
 
   Returns:
     A tuple containing the return code of the command (0 for success) and the status string.
   """
-  status_cmd = f'kubectl get jobset {workload_name} -o json'
+  ns_arg = f' -n {namespace}' if namespace else ''
+  status_cmd = f'kubectl get jobset {workload_name}{ns_arg} -o json'
   return_code, return_value = run_command_for_value(
       status_cmd, 'Get jobset status'
   )
@@ -497,7 +506,10 @@ def wait_for_job_completion(args: argparse.Namespace) -> int:
     return 1
 
   # Get the full workload name
-  get_workload_name_cmd = f'kubectl get workloads | grep jobset-{args.workload}'
+  ns_arg = f' -n {args.namespace}' if args.namespace else ''
+  get_workload_name_cmd = (
+      f'kubectl get workloads{ns_arg} | grep jobset-{args.workload}'
+  )
   return_code, return_value = run_command_for_value(
       get_workload_name_cmd, 'Get full workload name'
   )
@@ -512,7 +524,7 @@ def wait_for_job_completion(args: argparse.Namespace) -> int:
       f'{timeout_val}s' if timeout_val != -1 else 'max timeout (1 week)'
   )
   wait_cmd = (
-      'kubectl wait --for=condition=Finished'
+      f'kubectl wait{ns_arg} --for=condition=Finished'
       f' workload {full_workload_name} --timeout={timeout_val}s'
   )
   return_code, return_value = run_command_for_value(
@@ -526,7 +538,7 @@ def wait_for_job_completion(args: argparse.Namespace) -> int:
           f'Timed out waiting for your workload after {timeout_msg}, see your'
           ' workload here:'
           # pylint: disable=line-too-long
-          f' https://console.cloud.google.com/kubernetes/service/{get_cluster_location(args.project, args.cluster, args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
+          f' https://console.cloud.google.com/kubernetes/service/{get_cluster_location(args.project, args.cluster, args.zone)}/{args.cluster}/{args.namespace or "default"}/{args.workload}/details?project={args.project}'
       )
       return 124
     else:
@@ -536,9 +548,9 @@ def wait_for_job_completion(args: argparse.Namespace) -> int:
   xpk_print(
       'Finished waiting for your workload, see your workload here:'
       # pylint: disable=line-too-long
-      f' https://console.cloud.google.com/kubernetes/service/{get_cluster_location(args.project, args.cluster, args.zone)}/{args.cluster}/default/{args.workload}/details?project={args.project}'
+      f' https://console.cloud.google.com/kubernetes/service/{get_cluster_location(args.project, args.cluster, args.zone)}/{args.cluster}/{args.namespace or "default"}/{args.workload}/details?project={args.project}'
   )
-  return_code, return_value = _get_jobset_status(args.workload)
+  return_code, return_value = _get_jobset_status(args.workload, args.namespace)
   if return_code != 0:
     return return_code
 

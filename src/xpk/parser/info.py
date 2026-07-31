@@ -36,13 +36,6 @@ def set_info_parser(info_parser: argparse.ArgumentParser) -> None:
       required=True,
   )
 
-  info_optional_arguments.add_argument(
-      '--namespace',
-      type=str,
-      default='',
-      help='Namespace to which resources and queues belong',
-  )
-
   queues_flitering_group = (
       info_optional_arguments.add_mutually_exclusive_group()
   )

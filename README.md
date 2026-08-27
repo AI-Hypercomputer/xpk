@@ -17,6 +17,30 @@
 [![Build Tests](https://github.com/google/xpk/actions/workflows/build_tests.yaml/badge.svg?query=branch%3Amain)](https://github.com/google/xpk/actions/workflows/build_tests.yaml?query=branch%3Amain)
 [![Nightly Tests](https://github.com/google/xpk/actions/workflows/nightly_tests.yaml/badge.svg?query=branch%3Amain)](https://github.com/google/xpk/actions/workflows/nightly_tests.yaml?query=branch%3Amain)
 
+# ⚠️ DEPRECATION NOTICE ⚠️
+
+> [!WARNING]
+> **XPK is officially deprecated and in maintenance mode.**
+>
+> We are transitioning all infrastructure provisioning and workload management to Cluster Toolkit (CT).
+>
+> XPK will receive critical bug fixes and maintenance support through Q3 2026. After this transition period, the repository will be archived. Please note that support for new hardware accelerators (upcoming TPU/GPU generations) will only be added to Cluster Toolkit.
+>
+> Clusters previously provisioned via XPK will continue to run normally, but we strongly recommend planning a maintenance window to recreate your infrastructure using Cluster Toolkit.
+>
+> **Why the change?** We are evolving from XPK's imperative CLI to Cluster Toolkit's declarative blueprint model. This provides a more robust, customizable, and standardized approach to defining AI/ML clusters using Terraform and Packer. Major frameworks like MaxText and Orbax are actively transitioning their deployment standards to CT.
+>
+> ### Getting Started & Migration:
+>
+> - **Migration guide**: https://github.com/GoogleCloudPlatform/cluster-toolkit/blob/develop/docs/migration/xpk_to_clustertoolkit.md
+> - **Migration Q&A**: Have questions about mapping XPK commands to CT? Join the discussion in https://github.com/GoogleCloudPlatform/cluster-toolkit/issues
+> - **Repository**: [GoogleCloudPlatform/cluster-toolkit](https://github.com/GoogleCloudPlatform/cluster-toolkit)
+> - **Examples**: Check the [CT Examples Directory](https://github.com/GoogleCloudPlatform/cluster-toolkit/tree/main/examples) for tested GKE and storage blueprints
+> - **Documentation**: Read the [Cluster Toolkit Overview](https://cloud.google.com/cluster-toolkit/docs/overview) for guided deployments.
+> - **Workload Submission**: Check the official [Job Guide](https://github.com/GoogleCloudPlatform/cluster-toolkit/blob/main/docs/gcluster_job_guide.md) for details on workload submission and supported features.
+
+---
+
 # Overview
 
 XPK (Accelerated Processing Kit, pronounced x-p-k) is a command line interface that simplifies cluster creation and workload execution on Google Kubernetes Engine (GKE). XPK generates preconfigured, training-optimized clusters and allows easy workload scheduling without any Kubernetes expertise.

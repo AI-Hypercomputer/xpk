@@ -32,8 +32,8 @@
 >
 > ### Getting Started & Migration:
 >
-> - **Migration guide**: https://github.com/GoogleCloudPlatform/cluster-toolkit/blob/develop/docs/migration/xpk_to_clustertoolkit.md
-> - **Migration Q&A**: Have questions about mapping XPK commands to CT? Join the discussion in https://github.com/GoogleCloudPlatform/cluster-toolkit/issues
+> - **Migration guide**: [XPK to Cluster Toolkit Migration Guide](https://github.com/GoogleCloudPlatform/cluster-toolkit/blob/main/docs/migration/xpk_to_clustertoolkit.md)
+> - **Migration Q&A**: Have questions about mapping XPK commands to CT? Join the discussion in [GitHub Issues](https://github.com/GoogleCloudPlatform/cluster-toolkit/issues)
 > - **Repository**: [GoogleCloudPlatform/cluster-toolkit](https://github.com/GoogleCloudPlatform/cluster-toolkit)
 > - **Examples**: Check the [CT Examples Directory](https://github.com/GoogleCloudPlatform/cluster-toolkit/tree/main/examples) for tested GKE and storage blueprints
 > - **Documentation**: Read the [Cluster Toolkit Overview](https://cloud.google.com/cluster-toolkit/docs/overview) for guided deployments.

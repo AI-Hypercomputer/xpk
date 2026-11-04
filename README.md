@@ -72,7 +72,7 @@ XPK supports a variety of hardware accelerators.
 | **GPU A3 Mega** | h100-mega | [Create Cluster](./docs/usage/clusters.md#provisioning-a3-ultra-a3-mega-and-a4-clusters-gpu-machines)<br>[Create Workload](./docs/usage/workloads.md#workloads-for-a3-ultra-a3-mega-and-a4-clusters-gpu-machines) |
 | **GPU A3 High** | h100 | [Create Cluster](./docs/usage/gpu.md)<br>[Create Workload](./docs/usage/workloads.md) |
 | **GPU A100** | A100 | [Create Cluster](./docs/usage/gpu.md)<br>[Create Workload](./docs/usage/workloads.md) |
-| **CPU** | n2-standard-32 | [Create Cluster](./docs/usage/cpu.md)<br>[Create Workload](./docs/usage/workloads.md) |
+| **CPU** | n2-standard-{4,8,16,32,48,64,96}, n2-highmem-{2,...,96}, m1-megamem-96 | [Create Cluster](./docs/usage/cpu.md)<br>[Create Workload](./docs/usage/workloads.md) |
 
 XPK also supports the following [Google Cloud Storage solutions](./docs/usage/storage.md):
 

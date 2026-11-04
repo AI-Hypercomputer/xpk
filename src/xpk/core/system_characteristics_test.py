@@ -16,6 +16,9 @@ limitations under the License.
 
 import pytest
 from .system_characteristics import (
+    CPU_VM_COUNTS,
+    UserFacingNameToSystemCharacteristics,
+    get_cpu_system_characteristics_map,
     get_tpu_system_characteristics_map,
     generate_tpu_topologies,
     DockerPlatform,
@@ -247,3 +250,59 @@ def test_system_characteristics_post_init_throws_for_gpu_without_config():
         supports_accelerator_network_profile=False,
         docker_platform=DockerPlatform.AMD,
     )
+
+
+def test_get_cpu_system_characteristics_map_returns_one_entry_per_vm_count():
+  result = get_cpu_system_characteristics_map("n2-highmem-4", 4, [1, 640])
+
+  assert result == {
+      f"n2-highmem-4-{vms}": SystemCharacteristics(
+          topology="N/A",
+          vms_per_slice=vms,
+          gke_accelerator="N/A",
+          gce_machine_type="n2-highmem-4",
+          chips_per_vm=4,
+          accelerator_type=AcceleratorType.CPU,
+          device_type=f"n2-highmem-4-{vms}",
+          supports_sub_slicing=False,
+          supports_super_slicing=False,
+          supports_accelerator_network_profile=False,
+          docker_platform=DockerPlatform.AMD,
+      )
+      for vms in (1, 640)
+  }
+
+
+@pytest.mark.parametrize(
+    "device_type,machine_type,vcpus,vms",
+    [
+        ("n2-highmem-4-640", "n2-highmem-4", 4, 640),
+        ("n2-highmem-8-320", "n2-highmem-8", 8, 320),
+        ("n2-standard-48-64", "n2-standard-48", 48, 64),
+        ("n2-standard-8-512", "n2-standard-8", 8, 512),
+    ],
+)
+def test_catalog_has_generated_cpu_device_types(
+    device_type, machine_type, vcpus, vms
+):
+  system = UserFacingNameToSystemCharacteristics[device_type]
+
+  assert system.gce_machine_type == machine_type
+  assert system.chips_per_vm == vcpus
+  assert system.vms_per_slice == vms
+  assert system.accelerator_type == AcceleratorType.CPU
+
+
+def test_generated_cpu_vm_counts_fit_one_gke_node_pool():
+  assert max(CPU_VM_COUNTS) <= 1000
+
+
+def test_existing_cpu_device_types_are_unchanged():
+  assert (
+      UserFacingNameToSystemCharacteristics["n2-standard-32-2048"].vms_per_slice
+      == 2048
+  )
+  assert (
+      UserFacingNameToSystemCharacteristics["n2-standard-4-256"].chips_per_vm
+      == 4
+  )

@@ -30,6 +30,7 @@ In order to use XPK for CPU, you can do so by using `device-type` flag.
     --on-demand
     ```
     Note that `device-type` for CPUs is of the format <cpu-machine-type>-<number of VMs>, thus in the above example, user requests for 256 VMs of type n2-standard-32.
+    Besides n2-standard-4, n2-standard-32, n2-standard-64 and m1-megamem-96, the n2-highmem-{2,4,8,16,32,48,64,96} and n2-standard-{8,16,48,96} machine types are available with 1, 2, 4, 5, 8, 10, 16, 20, 32, 40, 64, 80, 128, 160, 256, 320, 512 or 640 VMs (e.g. `n2-highmem-4-640`).
     Currently workloads using < 1000 VMs are supported.
 
 *   Run a workload:

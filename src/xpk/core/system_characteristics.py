@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 import dataclasses
 from typing import Callable, Literal, Optional
@@ -280,6 +281,66 @@ def get_tpu_system_characteristics_map(
       system_characteristics_map[device_type] = system
 
   return system_characteristics_map
+
+
+# VM counts offered for the generated CPU device types: powers of two and
+# 5 x powers of two (e.g. 2,560 simulated hosts = 640 VMs x 4), up to GKE's
+# 1,000 nodes per node pool and zone.
+CPU_VM_COUNTS = (
+    1,
+    2,
+    4,
+    5,
+    8,
+    10,
+    16,
+    20,
+    32,
+    40,
+    64,
+    80,
+    128,
+    160,
+    256,
+    320,
+    512,
+    640,
+)
+
+
+def get_cpu_system_characteristics_map(
+    machine_type: str,
+    vcpus: int,
+    vm_counts: Sequence[int] = CPU_VM_COUNTS,
+    docker_platform: DockerPlatform = AMD_PLATFORM,
+) -> dict[str, SystemCharacteristics]:
+  """Returns CPU device types `<machine_type>-<VMs>`, one per VM count.
+
+  Args:
+    machine_type: The GCE machine type, e.g. n2-highmem-4.
+    vcpus: Its vCPUs (stored in `chips_per_vm`; CPUs have no chips).
+    vm_counts: The VM counts to offer.
+    docker_platform: The machine's Docker platform.
+
+  Returns:
+    The device types, keyed by their user-facing name.
+  """
+  return {
+      f'{machine_type}-{vms}': SystemCharacteristics(
+          topology='N/A',
+          vms_per_slice=vms,
+          gke_accelerator='N/A',
+          gce_machine_type=machine_type,
+          chips_per_vm=vcpus,
+          accelerator_type=AcceleratorType.CPU,
+          device_type=f'{machine_type}-{vms}',
+          supports_sub_slicing=False,
+          supports_super_slicing=False,
+          supports_accelerator_network_profile=False,
+          docker_platform=docker_platform,
+      )
+      for vms in vm_counts
+  }
 
 
 def compute_chips_per_vm(topology: str) -> int:
@@ -874,6 +935,20 @@ UserFacingNameToSystemCharacteristics = {
         supports_accelerator_network_profile=False,
         docker_platform=AMD_PLATFORM,
     ),
+    # n2-highmem-#vCPUs-#VMs and more n2-standard sizes, e.g. for many
+    # simulated hosts per VM (SimDevice) or memory-heavy CPU workloads.
+    **get_cpu_system_characteristics_map('n2-highmem-2', 2),
+    **get_cpu_system_characteristics_map('n2-highmem-4', 4),
+    **get_cpu_system_characteristics_map('n2-highmem-8', 8),
+    **get_cpu_system_characteristics_map('n2-highmem-16', 16),
+    **get_cpu_system_characteristics_map('n2-highmem-32', 32),
+    **get_cpu_system_characteristics_map('n2-highmem-48', 48),
+    **get_cpu_system_characteristics_map('n2-highmem-64', 64),
+    **get_cpu_system_characteristics_map('n2-highmem-96', 96),
+    **get_cpu_system_characteristics_map('n2-standard-8', 8),
+    **get_cpu_system_characteristics_map('n2-standard-16', 16),
+    **get_cpu_system_characteristics_map('n2-standard-48', 48),
+    **get_cpu_system_characteristics_map('n2-standard-96', 96),
     # n2-standard-#vCPUs-#VMs
     'n2-standard-64-1': SystemCharacteristics(
         topology='N/A',

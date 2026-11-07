@@ -33,16 +33,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check ref
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
-          # When workflow is dispatched through workflow_dispatch, it could be launched on branches instead of tags.
-          # We want to make sure it is launched with the tag that additionally is a valid version tag.
-          if [[ "${{ github.ref_type }}" != "tag" ]]; then
+          if [[ "${REF_TYPE}" != "tag" ]]; then
             echo "::error::This workflow must be run on a Tag, not a Branch."
             exit 1
           fi
-
-          if [[ ! "${{ github.ref_name }}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "::error::Tag '${{ github.ref_name }}' does not match the required pattern v[0-9]+.[0-9]+.[0-9]+"
+          if [[ ! "${REF_NAME}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Tag '${REF_NAME}' does not match the required pattern v[0-9]+.[0-9]+.[0-9]+"
             exit 1
           fi
 
@@ -65,11 +65,14 @@ jobs:
       contents: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
       - name: Create Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release create ${{ github.ref_name }} --generate-notes --draft=false --prerelease=false
+          REF_NAME: ${{ github.ref_name }}
+        run: gh release create "${REF_NAME}" --generate-notes --draft=false --prerelease=false
   publish-to-pypi:
     name: Publish Python distribution to PyPI
     needs: [approval]
@@ -82,7 +85,7 @@ jobs:
       url: https://pypi.org/p/xpk
     steps:
       - name: Download all the dists
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: python-package-distributions
           path: dist/
